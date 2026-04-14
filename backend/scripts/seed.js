@@ -9,15 +9,15 @@ const seedData = async () => {
     console.log('Connected to MongoDB');
 
     // Create admin user
-    const adminExists = await User.findOne({ email: 'admin@rupalsha.com' });
+    const adminExists = await User.findOne({ email: 'rupalshaofficial@gmail.com' });
     if (!adminExists) {
       await User.create({
         name: 'Admin',
-        email: 'admin@rupalsha.com',
-        password: 'admin123456',
+        email: 'rupalshaofficial@gmail.com',
+        password: 'Rupalsha@@7980',
         role: 'admin',
       });
-      console.log('Admin user created: admin@rupalsha.com / admin123456');
+      console.log('Admin user created: rupalshaofficial@gmail.com');
     }
 
     // Sample products
