@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { FiHeart, FiEye } from 'react-icons/fi';
@@ -10,6 +11,9 @@ export default function ProductCard({ product }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { isInWishlist, addItem, removeItem } = useWishlistStore();
   const inWishlist = isAuthenticated && isInWishlist(product._id);
+  const [currentImage, setCurrentImage] = useState(0);
+  const intervalRef = useRef(null);
+  const hasMultipleImages = product.images?.length > 1;
 
   const handleWishlist = async (e) => {
     e.preventDefault();
@@ -35,19 +39,58 @@ export default function ProductCard({ product }) {
     ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
     : 0;
 
+  const startSlide = () => {
+    if (!hasMultipleImages) return;
+    intervalRef.current = setInterval(() => {
+      setCurrentImage((prev) => (prev + 1) % product.images.length);
+    }, 2000);
+  };
+
+  const stopSlide = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setCurrentImage(0);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
   return (
     <Link href={`/product/${product.slug}`} className="group block">
       <div className="card overflow-hidden">
         {/* Image */}
-        <div className="relative aspect-[3/4] overflow-hidden bg-gray-100 product-image-zoom">
+        <div
+          className="relative aspect-[3/4] overflow-hidden bg-gray-100 product-image-zoom"
+          onMouseEnter={startSlide}
+          onMouseLeave={stopSlide}
+        >
           <Image
-            src={product.images?.[0]?.url || '/placeholder.jpg'}
-            alt={product.images?.[0]?.alt || product.name}
+            src={product.images?.[currentImage]?.url || product.images?.[0]?.url || '/placeholder.jpg'}
+            alt={product.images?.[currentImage]?.alt || product.name}
             fill
-            className="object-cover"
+            className="object-cover transition-opacity duration-500"
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             loading="lazy"
           />
+
+          {/* Image dots indicator */}
+          {hasMultipleImages && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+              {product.images.map((_, i) => (
+                <span
+                  key={i}
+                  className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                    currentImage === i ? 'bg-white w-3' : 'bg-white/50'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-1">

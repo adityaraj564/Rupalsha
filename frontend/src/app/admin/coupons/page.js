@@ -75,7 +75,7 @@ export default function AdminCouponsPage() {
           <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Code *</label>
-              <input type="text" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className="input-field" required placeholder="WELCOME10" />
+              <input type="text" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className="input-field" required placeholder="RUP10" />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Description</label>

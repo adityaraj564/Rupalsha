@@ -17,6 +17,7 @@ const HELP_LINKS = [
   { href: '/help#contact', label: 'Contact Us' },
   { href: '/help#shipping', label: 'Shipping Info' },
   { href: '/help#returns', label: 'Returns & Exchange' },
+  { href: '/about', label: 'About Us' },
 ];
 
 export default function Footer() {

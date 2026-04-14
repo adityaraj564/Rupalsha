@@ -3,7 +3,7 @@ const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
 const User = require('../models/User');
 const { auth, generateToken } = require('../middleware/auth');
-const { sendPasswordReset } = require('../utils/email');
+const { sendPasswordReset, sendWelcomeEmail, sendPasswordChangeConfirmation } = require('../utils/email');
 
 const router = express.Router();
 
@@ -28,6 +28,9 @@ router.post('/register', [
 
     const user = await User.create({ name, email, password, phone });
     const token = generateToken(user._id);
+
+    // Send welcome email
+    sendWelcomeEmail(name, email);
 
     res.status(201).json({
       token,
@@ -131,6 +134,9 @@ router.put('/change-password', auth, [
 
     user.password = newPassword;
     await user.save();
+
+    // Send password change confirmation
+    sendPasswordChangeConfirmation(user.name, user.email);
 
     res.json({ message: 'Password updated successfully' });
   } catch (error) {

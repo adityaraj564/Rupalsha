@@ -159,7 +159,7 @@ export default function HomePage() {
                 Get 10% Off Your First Order
               </h2>
               <p className="text-gray-300 mb-8">
-                Use code <span className="font-semibold text-brand-gold">WELCOME10</span> at checkout.
+                Use code <span className="font-semibold text-brand-gold">RUP10</span> at checkout.
                 Valid on all products.
               </p>
               <Link href="/products" className="btn-gold inline-flex items-center gap-2">

@@ -28,7 +28,14 @@ router.get('/', async (req, res, next) => {
       filter['sizes.stock'] = { $gt: 0 };
     }
     if (search) {
-      filter.$text = { $search: search };
+      const searchRegex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [
+        { name: searchRegex },
+        { description: searchRegex },
+        { tags: searchRegex },
+        { category: searchRegex },
+        { fabric: searchRegex },
+      ];
     }
 
     let sortOption = { createdAt: -1 };

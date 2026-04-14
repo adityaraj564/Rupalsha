@@ -1,6 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Contact = require('../models/Contact');
+const { sendContactConfirmation, sendContactNotificationToAdmin } = require('../utils/email');
 
 const router = express.Router();
 
@@ -19,6 +20,11 @@ router.post('/', [
 
     const { name, email, subject, message } = req.body;
     await Contact.create({ name, email, subject, message });
+
+    // Send confirmation to user and notification to admin
+    sendContactConfirmation(name, email, subject);
+    sendContactNotificationToAdmin(name, email, subject, message);
+
     res.status(201).json({ message: 'Message sent successfully. We will get back to you soon.' });
   } catch (error) {
     next(error);

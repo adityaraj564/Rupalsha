@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX } from 'react-icons/fi';
 import { useAuthStore, useCartStore, useWishlistStore } from '@/lib/store';
 import { couponsAPI } from '@/lib/api';
@@ -26,6 +26,7 @@ export default function Header() {
   const [slideAnim, setSlideAnim] = useState(false);
   const searchRef = useRef(null);
   const pathname = usePathname();
+  const router = useRouter();
 
   const { isAuthenticated, user } = useAuthStore();
   const cartCount = useCartStore((s) => s.getCount());
@@ -59,13 +60,29 @@ export default function Header() {
     return () => clearInterval(interval);
   }, [coupons.length]);
 
+  // Debounced live search: triggers after 2+ characters
+  useEffect(() => {
+    if (!searchOpen) return;
+    const trimmed = searchQuery.trim();
+    const timer = setTimeout(() => {
+      if (trimmed.length >= 2) {
+        router.push(`/products?search=${encodeURIComponent(trimmed)}`);
+      } else if (trimmed.length === 0) {
+        // When search is fully cleared, show all products
+        router.push('/products');
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery, searchOpen, router]);
+
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      window.location.href = `/products?search=${encodeURIComponent(searchQuery.trim())}`;
-      setSearchOpen(false);
-      setSearchQuery('');
-    }
+    // Live search handles it — form submit just prevents page reload
+  };
+
+  const handleCloseSearch = () => {
+    setSearchOpen(false);
+    setSearchQuery('');
   };
 
   const isAdmin = pathname.startsWith('/admin');
@@ -193,12 +210,22 @@ export default function Header() {
                   className="flex-1 outline-none text-brand-charcoal placeholder-gray-400 bg-transparent"
                   autoFocus
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="text-gray-400 hover:text-gray-600 mr-1"
+                    aria-label="Clear search"
+                  >
+                    <FiX size={16} />
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => setSearchOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  onClick={handleCloseSearch}
+                  className="text-gray-400 hover:text-gray-600 text-sm"
                 >
-                  <FiX size={20} />
+                  Close
                 </button>
               </form>
             </div>

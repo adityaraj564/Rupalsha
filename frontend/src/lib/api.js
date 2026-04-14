@@ -115,6 +115,17 @@ export const contactAPI = {
   send: (data) => request('/contact', { method: 'POST', body: data }),
 };
 
+// About
+export const aboutAPI = {
+  get: () => request('/about'),
+  update: (data) => request('/about', { method: 'PUT', body: data }),
+  uploadCover: (formData) => request('/about/cover', { method: 'PUT', body: formData }),
+  updateTeamMember: (index, data) => request(`/about/team/${index}`, { method: 'PUT', body: data }),
+  uploadTeamImage: (index, formData) => request(`/about/team/${index}/image`, { method: 'PUT', body: formData }),
+  addTeamMember: (data) => request('/about/team', { method: 'POST', body: data }),
+  removeTeamMember: (index) => request(`/about/team/${index}`, { method: 'DELETE' }),
+};
+
 // Admin
 export const adminAPI = {
   getDashboard: () => request('/admin/dashboard'),

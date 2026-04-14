@@ -52,6 +52,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/payment', require('./routes/payment'));
 app.use('/api/contact', require('./routes/contact'));
 app.use('/api/coupons', require('./routes/coupons'));
+app.use('/api/about', require('./routes/about'));
 app.use('/api/admin', require('./routes/admin'));
 
 // Health check

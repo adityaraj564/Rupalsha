@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { productsAPI } from '@/lib/api';
@@ -32,6 +32,7 @@ const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
 
 function ProductsContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -91,9 +92,19 @@ function ProductsContent() {
     <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal">
-          {search ? `Results for "${search}"` : category ? CATEGORIES.find(c => c.value === category)?.label || 'Shop' : 'Shop All'}
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal">
+            {search ? `Results for "${search}"` : category ? CATEGORIES.find(c => c.value === category)?.label || 'Shop' : 'Shop All'}
+          </h1>
+          {search && (
+            <button
+              onClick={() => router.push('/products')}
+              className="flex items-center gap-1 px-3 py-1 text-sm text-gray-500 hover:text-brand-green border border-gray-300 rounded-full transition-colors"
+            >
+              <FiX size={14} /> Clear search
+            </button>
+          )}
+        </div>
         <p className="text-gray-500 mt-2">{total} product{total !== 1 ? 's' : ''} found</p>
       </div>
 

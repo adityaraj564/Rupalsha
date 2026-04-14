@@ -9,6 +9,7 @@ const Coupon = require('../models/Coupon');
 const Contact = require('../models/Contact');
 const upload = require('../utils/upload');
 const cloudinary = require('../config/cloudinary');
+const { sendOrderStatusUpdate } = require('../utils/email');
 
 const router = express.Router();
 
@@ -71,7 +72,7 @@ router.get('/products', async (req, res, next) => {
 });
 
 // POST /api/admin/products
-router.post('/products', upload.array('images', 8), async (req, res, next) => {
+router.post('/products', upload.array('images', 5), async (req, res, next) => {
   try {
     const { name, description, price, comparePrice, category, subcategory, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, returnPolicy } = req.body;
 
@@ -121,7 +122,7 @@ router.post('/products', upload.array('images', 8), async (req, res, next) => {
 });
 
 // PUT /api/admin/products/:id
-router.put('/products/:id', upload.array('images', 8), async (req, res, next) => {
+router.put('/products/:id', upload.array('images', 5), async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
@@ -235,6 +236,13 @@ router.put('/orders/:id/status', [
     if (req.body.notes) order.notes = req.body.notes;
 
     await order.save();
+
+    // Send status update email to customer
+    const populatedOrder = await Order.findById(order._id).populate('user', 'email');
+    if (populatedOrder.user?.email) {
+      sendOrderStatusUpdate(populatedOrder, populatedOrder.user.email);
+    }
+
     res.json({ order });
   } catch (error) {
     next(error);

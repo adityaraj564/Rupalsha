@@ -213,16 +213,49 @@ export default function AdminProductsPage() {
 
               {/* Images */}
               <div>
-                <label className="block text-sm font-medium mb-1">Images</label>
+                <label className="block text-sm font-medium mb-1">Images (max 5)</label>
                 <input
                   type="file"
                   accept="image/*"
                   multiple
-                  onChange={(e) => setImages(Array.from(e.target.files))}
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files);
+                    const existingCount = editingProduct?.images?.length || 0;
+                    const maxNew = 5 - existingCount;
+                    if (files.length > maxNew) {
+                      toast.error(`You can upload up to ${maxNew} more image${maxNew !== 1 ? 's' : ''} (${existingCount} existing)`);
+                      setImages(files.slice(0, maxNew));
+                    } else {
+                      setImages(files);
+                    }
+                  }}
                   className="input-field"
                 />
+                {images.length > 0 && (
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {images.map((file, i) => (
+                      <div key={i} className="relative w-16 h-20 rounded-lg overflow-hidden border">
+                        <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setImages(images.filter((_, idx) => idx !== i))}
+                          className="absolute top-0 right-0 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-bl"
+                        >×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {editingProduct?.images?.length > 0 && (
-                  <p className="text-xs text-gray-500 mt-1">{editingProduct.images.length} existing images</p>
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 mb-1">{editingProduct.images.length} existing image{editingProduct.images.length !== 1 ? 's' : ''}</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {editingProduct.images.map((img, i) => (
+                        <div key={i} className="relative w-16 h-20 rounded-lg overflow-hidden border">
+                          <img src={img.url} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
 

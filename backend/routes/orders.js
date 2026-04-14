@@ -5,7 +5,7 @@ const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const Coupon = require('../models/Coupon');
 const { auth } = require('../middleware/auth');
-const { sendOrderConfirmation } = require('../utils/email');
+const { sendOrderConfirmation, sendOrderCancellation, sendReturnConfirmation } = require('../utils/email');
 
 const router = express.Router();
 
@@ -163,6 +163,9 @@ router.put('/:id/cancel', auth, [
     order.cancelReason = req.body.reason;
     await order.save();
 
+    // Send cancellation email
+    sendOrderCancellation(order, req.user.email, req.body.reason);
+
     // Restore stock
     for (const item of order.items) {
       await Product.updateOne(
@@ -192,6 +195,9 @@ router.put('/:id/return', auth, [
     order.status = 'returned';
     order.returnReason = req.body.reason;
     await order.save();
+
+    // Send return confirmation email
+    sendReturnConfirmation(order, req.user.email, req.body.reason);
 
     res.json({ order });
   } catch (error) {
