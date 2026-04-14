@@ -23,9 +23,9 @@ const CATEGORIES = [
   { value: 'dresses', label: 'Dresses' },
   { value: 'tops', label: 'Tops' },
   { value: 'bottoms', label: 'Bottoms' },
-  { value: 'dupattas', label: 'Dupattas' },
   { value: 'accessories', label: 'Accessories' },
-  { value: 'co-ords', label: 'Co-ords' },
+  { value: 'home decors', label: 'Home Decors' },
+  { value: 'gift items', label: 'Gift Items' },
 ];
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];

@@ -6,7 +6,7 @@ import { adminAPI } from '@/lib/api';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import toast from 'react-hot-toast';
 
-const CATEGORIES = ['sarees', 'kurtis', 'lehengas', 'dresses', 'tops', 'bottoms', 'dupattas', 'accessories', 'co-ords'];
+const CATEGORIES = ['sarees', 'kurtis', 'lehengas', 'dresses', 'tops', 'bottoms', 'accessories', 'home decors', 'gift items'];
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
 
 export default function AdminProductsPage() {
