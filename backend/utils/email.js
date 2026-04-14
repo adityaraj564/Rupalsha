@@ -1,8 +1,22 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const createTransporter = () => {
+  const port = Number(process.env.SMTP_PORT) || 587;
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port,
+    secure: port === 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+  });
+};
 
-const FROM_EMAIL = process.env.FROM_EMAIL || 'Rupalsha <onboarding@resend.dev>';
+const FROM = () => `"Rupalsha" <${process.env.SMTP_USER}>`;
 
 const emailWrapper = (content) => `
   <div style="font-family: 'Georgia', serif; max-width: 600px; margin: 0 auto; background: #F9F7F3; padding: 40px;">
