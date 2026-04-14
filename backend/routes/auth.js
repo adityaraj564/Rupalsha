@@ -160,7 +160,8 @@ router.post('/forgot-password', [
     await user.save();
 
     const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password?token=${resetToken}`;
-    await sendPasswordReset(user.email, resetUrl);
+    // Send email in background — don't block the response
+    sendPasswordReset(user.email, resetUrl);
 
     res.json({ message: 'If the email exists, a reset link has been sent' });
   } catch (error) {
