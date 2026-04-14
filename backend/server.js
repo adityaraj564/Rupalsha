@@ -9,6 +9,9 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+// Trust proxy (Render, Heroku, etc. use reverse proxies)
+app.set('trust proxy', 1);
+
 // Connect to Database
 connectDB();
 

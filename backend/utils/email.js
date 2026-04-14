@@ -1,22 +1,8 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const createTransporter = () => {
-  const port = Number(process.env.SMTP_PORT) || 587;
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port,
-    secure: port === 465,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
-  });
-};
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = () => `"Rupalsha" <${process.env.SMTP_USER}>`;
+const FROM_EMAIL = process.env.FROM_EMAIL || 'Rupalsha <onboarding@resend.dev>';
 
 const emailWrapper = (content) => `
   <div style="font-family: 'Georgia', serif; max-width: 600px; margin: 0 auto; background: #F9F7F3; padding: 40px;">
@@ -27,7 +13,7 @@ const emailWrapper = (content) => `
     <hr style="border: 1px solid #E8DCCB; margin-top: 30px;" />
     <p style="color: #888; text-align: center; font-size: 11px; margin-top: 16px;">
       © ${new Date().getFullYear()} Rupalsha. All rights reserved.<br/>
-      If you have questions, reply to this email or contact us at ${process.env.SMTP_USER}
+      If you have questions, reply to this email or contact us at rupalshaofficial@gmail.com
     </p>
   </div>
 `;
@@ -36,13 +22,12 @@ const emailWrapper = (content) => `
 
 const sendOrderConfirmation = async (order, userEmail) => {
   try {
-    const transporter = createTransporter();
     const itemsList = order.items
       .map(item => `<li style="padding: 4px 0;">${item.name} (${item.size}) × ${item.quantity} — ₹${item.price}</li>`)
       .join('');
 
-    await transporter.sendMail({
-      from: FROM(),
+    await resend.emails.send({
+      from: FROM_EMAIL,
       to: userEmail,
       subject: `Order Confirmed - ${order.orderNumber}`,
       html: emailWrapper(`
@@ -68,8 +53,6 @@ const sendOrderConfirmation = async (order, userEmail) => {
 
 const sendOrderStatusUpdate = async (order, userEmail) => {
   try {
-    const transporter = createTransporter();
-
     const statusMessages = {
       confirmed: { emoji: '✅', title: 'Order Confirmed', message: 'Your order has been confirmed and is being prepared.' },
       processing: { emoji: '📦', title: 'Order Processing', message: 'Your order is being packed and will be shipped soon.' },
@@ -81,8 +64,8 @@ const sendOrderStatusUpdate = async (order, userEmail) => {
 
     const info = statusMessages[order.status] || { emoji: '📋', title: 'Order Update', message: `Your order status has been updated to: ${order.status}` };
 
-    await transporter.sendMail({
-      from: FROM(),
+    await resend.emails.send({
+      from: FROM_EMAIL,
       to: userEmail,
       subject: `${info.emoji} ${info.title} - ${order.orderNumber}`,
       html: emailWrapper(`
@@ -106,9 +89,8 @@ const sendOrderStatusUpdate = async (order, userEmail) => {
 
 const sendOrderCancellation = async (order, userEmail, reason) => {
   try {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-      from: FROM(),
+    await resend.emails.send({
+      from: FROM_EMAIL,
       to: userEmail,
       subject: `Order Cancelled - ${order.orderNumber}`,
       html: emailWrapper(`
@@ -129,9 +111,8 @@ const sendOrderCancellation = async (order, userEmail, reason) => {
 
 const sendReturnConfirmation = async (order, userEmail, reason) => {
   try {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-      from: FROM(),
+    await resend.emails.send({
+      from: FROM_EMAIL,
       to: userEmail,
       subject: `Return Requested - ${order.orderNumber}`,
       html: emailWrapper(`
@@ -153,9 +134,8 @@ const sendReturnConfirmation = async (order, userEmail, reason) => {
 
 const sendWelcomeEmail = async (name, email) => {
   try {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-      from: FROM(),
+    await resend.emails.send({
+      from: FROM_EMAIL,
       to: email,
       subject: 'Welcome to Rupalsha! 🎉',
       html: emailWrapper(`
@@ -177,9 +157,8 @@ const sendWelcomeEmail = async (name, email) => {
 
 const sendPasswordReset = async (email, resetUrl) => {
   try {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-      from: FROM(),
+    await resend.emails.send({
+      from: FROM_EMAIL,
       to: email,
       subject: 'Password Reset - Rupalsha',
       html: emailWrapper(`
@@ -201,9 +180,8 @@ const sendPasswordReset = async (email, resetUrl) => {
 
 const sendPasswordChangeConfirmation = async (name, email) => {
   try {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-      from: FROM(),
+    await resend.emails.send({
+      from: FROM_EMAIL,
       to: email,
       subject: '🔒 Password Changed - Rupalsha',
       html: emailWrapper(`
@@ -224,9 +202,8 @@ const sendPasswordChangeConfirmation = async (name, email) => {
 
 const sendContactConfirmation = async (name, email, subject) => {
   try {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-      from: FROM(),
+    await resend.emails.send({
+      from: FROM_EMAIL,
       to: email,
       subject: `We received your message - "${subject}"`,
       html: emailWrapper(`
@@ -242,10 +219,9 @@ const sendContactConfirmation = async (name, email, subject) => {
 
 const sendContactNotificationToAdmin = async (name, email, subject, message) => {
   try {
-    const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
-    const transporter = createTransporter();
-    await transporter.sendMail({
-      from: FROM(),
+    const adminEmail = process.env.ADMIN_EMAIL || 'rupalshaofficial@gmail.com';
+    await resend.emails.send({
+      from: FROM_EMAIL,
       to: adminEmail,
       subject: `📩 New Contact: ${subject}`,
       html: emailWrapper(`
