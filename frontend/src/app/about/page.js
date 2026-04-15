@@ -52,7 +52,7 @@ export default function AboutPage() {
 
       {/* Stats Bar */}
       <section className="bg-brand-green text-white py-8">
-        <div className="max-w-5xl mx-auto px-4 grid grid-cols-3 gap-4 text-center">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-3 gap-4 text-center">
           <div>
             <div className="text-2xl md:text-3xl font-bold">{about.foundedYear}</div>
             <div className="text-sm text-white/70 mt-1">Founded</div>
@@ -70,7 +70,7 @@ export default function AboutPage() {
 
       {/* Our Story */}
       {about.story && (
-        <section className="max-w-4xl mx-auto px-4 py-16 md:py-20">
+        <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
           <div className="text-center mb-10">
             <FiHeart className="mx-auto text-brand-gold mb-3" size={28} />
             <h2 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal">Our Story</h2>
@@ -82,7 +82,7 @@ export default function AboutPage() {
       {/* Mission & Vision */}
       {(about.mission || about.vision) && (
         <section className="bg-brand-cream py-16 md:py-20">
-          <div className="max-w-5xl mx-auto px-4 grid md:grid-cols-2 gap-10">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-2 gap-10">
             {about.mission && (
               <div className="bg-white p-8 rounded-2xl shadow-sm">
                 <FiStar className="text-brand-gold mb-4" size={28} />
@@ -103,7 +103,7 @@ export default function AboutPage() {
 
       {/* Team Section */}
       {about.team.length > 0 && (
-        <section className="max-w-5xl mx-auto px-4 py-16 md:py-20">
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
           <div className="text-center mb-12">
             <h2 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal mb-3">Meet Our Team</h2>
             <p className="text-gray-500">The people behind Rupalsha</p>

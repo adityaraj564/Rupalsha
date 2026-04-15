@@ -128,7 +128,7 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto px-4 md:px-6 py-8 md:py-12 animate-fade-in">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 animate-fade-in">
       <h1 className="font-serif text-3xl font-bold text-brand-charcoal mb-8">My Account</h1>
 
       {/* Quick Links */}

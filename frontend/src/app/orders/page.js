@@ -16,6 +16,7 @@ const STATUS_COLORS = {
   delivered: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-800',
   returned: 'bg-gray-100 text-gray-800',
+  failed: 'bg-red-100 text-red-800',
 };
 
 export default function OrdersPage() {
@@ -40,7 +41,7 @@ export default function OrdersPage() {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 md:px-6 py-8 md:py-12 animate-fade-in">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 animate-fade-in">
       <h1 className="font-serif text-3xl font-bold text-brand-charcoal mb-8">My Orders</h1>
 
       {orders.length === 0 ? (

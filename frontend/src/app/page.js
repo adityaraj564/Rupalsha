@@ -39,12 +39,12 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-r from-brand-cream via-brand-cream/80 to-transparent" />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 md:px-6 py-20">
+        <div className="relative w-full px-4 sm:px-6 lg:px-[50px] py-20">
           <div className="max-w-2xl">
             <p className="text-brand-gold font-medium tracking-[0.3em] uppercase text-sm mb-4 animate-slide-up">
               New Collection 2026
             </p>
-            <h1 className="font-serif text-5xl md:text-7xl font-bold text-brand-charcoal leading-tight mb-6">
+            <h1 className="font-serif text-4xl sm:text-5xl md:text-7xl font-bold text-brand-charcoal leading-tight mb-6">
               Where Comfort
               <br />
               Meets <span className="text-brand-green italic">Style</span>
@@ -53,7 +53,7 @@ export default function HomePage() {
               Discover our exquisite collection of ethnic and contemporary fashion.
               Crafted with love for the modern woman who embraces elegance.
             </p>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-3 sm:gap-4">
               <Link href="/products" className="btn-primary inline-flex items-center gap-2">
                 Shop Now <FiArrowRight />
               </Link>
@@ -67,7 +67,7 @@ export default function HomePage() {
 
       {/* Features Bar */}
       <section className="bg-white border-y border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="w-full px-4 sm:px-6 lg:px-[50px] py-6 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           {[
             { icon: FiTruck, title: 'Free Shipping', desc: 'Orders above ₹999' },
             { icon: FiRefreshCw, title: 'Easy Returns', desc: '7-day return policy' },
@@ -88,7 +88,7 @@ export default function HomePage() {
       </section>
 
       {/* Shop by Category */}
-      <section className="py-16 md:py-24 max-w-7xl mx-auto px-4 md:px-6">
+      <section className="py-16 md:py-24 w-full px-4 sm:px-6 lg:px-[50px]">
         <h2 className="section-title">Shop by Category</h2>
         <p className="section-subtitle">Find your perfect style from our curated categories</p>
 
@@ -121,7 +121,7 @@ export default function HomePage() {
       {/* Featured Collections */}
       {featured.length > 0 && (
         <section className="py-16 md:py-24 bg-white">
-          <div className="max-w-7xl mx-auto px-4 md:px-6">
+          <div className="w-full px-4 sm:px-6 lg:px-[50px]">
             <div className="flex items-end justify-between mb-10">
               <div>
                 <h2 className="section-title text-left">Featured Collection</h2>
@@ -143,7 +143,7 @@ export default function HomePage() {
 
       {/* Banner */}
       <section className="py-16 md:py-24">
-        <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="w-full px-4 sm:px-6 lg:px-[50px]">
           <div className="relative rounded-3xl overflow-hidden bg-brand-green min-h-[400px] flex items-center">
             <div className="absolute inset-0 opacity-10">
               <Image
@@ -173,7 +173,7 @@ export default function HomePage() {
       {/* Trending Products */}
       {trending.length > 0 && (
         <section className="py-16 md:py-24 bg-white">
-          <div className="max-w-7xl mx-auto px-4 md:px-6">
+          <div className="w-full px-4 sm:px-6 lg:px-[50px]">
             <div className="flex items-end justify-between mb-10">
               <div>
                 <h2 className="section-title text-left">Trending Now</h2>
@@ -195,7 +195,7 @@ export default function HomePage() {
 
       {/* Instagram Section */}
       <section className="py-16 md:py-24">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 text-center">
+        <div className="w-full px-4 sm:px-6 lg:px-[50px] text-center">
           <h2 className="section-title">Follow Us on Instagram</h2>
           <p className="section-subtitle">@rupalsha.official</p>
           <a

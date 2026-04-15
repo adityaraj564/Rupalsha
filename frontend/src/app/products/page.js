@@ -89,7 +89,7 @@ function ProductsContent() {
   const hasFilters = category || minPrice || maxPrice || size;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
+    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3">

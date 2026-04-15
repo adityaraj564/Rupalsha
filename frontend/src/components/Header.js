@@ -117,7 +117,7 @@ export default function Header() {
           isScrolled ? 'bg-white/95 backdrop-blur-md shadow-sm' : 'bg-brand-cream'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="w-full px-4 sm:px-6 lg:px-[50px]">
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Mobile menu toggle */}
             <button
@@ -198,7 +198,7 @@ export default function Header() {
         {/* Search Bar */}
         {searchOpen && (
           <div className="border-t border-gray-100 bg-white animate-slide-down">
-            <div className="max-w-7xl mx-auto px-4 py-4">
+            <div className="w-full px-4 sm:px-6 lg:px-[50px] py-4">
               <form onSubmit={handleSearch} className="flex items-center gap-3">
                 <FiSearch className="text-gray-400" size={20} />
                 <input

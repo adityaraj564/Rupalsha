@@ -63,7 +63,7 @@ export default function CartPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12 animate-fade-in">
+    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12 animate-fade-in">
       <Link href="/products" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-brand-green mb-6">
         <FiArrowLeft size={16} /> Continue Shopping
       </Link>

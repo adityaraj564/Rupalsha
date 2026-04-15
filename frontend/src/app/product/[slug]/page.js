@@ -55,19 +55,9 @@ export default function ProductDetailPage() {
         setReviews(r);
         setTotalReviews(total);
 
-        // Fetch suggested products from same category, backfill from all if needed
-        productsAPI.getAll({ category: p.category, limit: 8 }).then(async ({ products: suggested }) => {
-          let filtered = suggested.filter(sp => sp._id !== p._id);
-          if (filtered.length < 4) {
-            try {
-              const { products: more } = await productsAPI.getAll({ limit: 12 });
-              const existingIds = new Set(filtered.map(sp => sp._id));
-              existingIds.add(p._id);
-              const extra = more.filter(sp => !existingIds.has(sp._id));
-              filtered = [...filtered, ...extra];
-            } catch {}
-          }
-          setSuggestedProducts(filtered.slice(0, 4));
+        // Fetch similar products (tag-based, keyword-based, excludes out-of-stock)
+        productsAPI.getSimilar(slug, 20).then(({ products: similar }) => {
+          setSuggestedProducts(similar);
         }).catch(() => {});
       } catch (err) {
         toast.error('Product not found');
@@ -239,7 +229,7 @@ export default function ProductDetailPage() {
   const isOutOfStock = totalStock === 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12 animate-fade-in overflow-x-hidden">
+    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12 animate-fade-in overflow-x-hidden">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-gray-400 mb-8 overflow-hidden">
         <Link href="/" className="hover:text-brand-green">Home</Link>
@@ -253,9 +243,9 @@ export default function ProductDetailPage() {
         <span className="text-brand-charcoal truncate">{product.name}</span>
       </nav>
 
-      <div className="grid md:grid-cols-2 gap-8 md:gap-12">
+      <div className="grid md:grid-cols-2 gap-8 md:gap-12 overflow-hidden">
         {/* Images */}
-        <div>
+        <div className="md:sticky md:top-24 md:self-start min-w-0">
           <div
             className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 mb-4 md:cursor-crosshair"
             onMouseMove={(e) => {
@@ -335,7 +325,7 @@ export default function ProductDetailPage() {
 
           {/* Thumbnails */}
           {product.images.length > 1 && (
-            <div className="flex gap-3 overflow-x-auto pb-2">
+            <div className="flex gap-3 overflow-x-auto pb-2 max-w-full">
               {product.images.map((img, i) => (
                 <button
                   key={i}
@@ -352,7 +342,7 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Details */}
-        <div className="md:sticky md:top-28 md:self-start min-w-0">
+        <div className="min-w-0">
           <p className="text-brand-gold text-sm font-medium uppercase tracking-wider mb-2">{product.category}</p>
           <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal mb-4">{product.name}</h1>
 
@@ -750,10 +740,41 @@ export default function ProductDetailPage() {
       {suggestedProducts.length > 0 && (
         <div className="mt-16 border-t border-gray-200 pt-12">
           <h2 className="font-serif text-2xl font-bold text-brand-charcoal mb-8">You May Also Like</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {suggestedProducts.map((p) => (
-              <ProductCard key={p._id} product={p} />
-            ))}
+          <div className="relative group/carousel">
+            {/* Left Arrow */}
+            <button
+              onClick={() => {
+                const el = document.getElementById('suggested-scroll');
+                if (el) el.scrollBy({ left: -300, behavior: 'smooth' });
+              }}
+              className="absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors opacity-0 group-hover/carousel:opacity-100"
+              aria-label="Scroll left"
+            >
+              <FiChevronLeft size={20} />
+            </button>
+            {/* Scrollable container */}
+            <div
+              id="suggested-scroll"
+              className="flex gap-4 md:gap-6 overflow-x-auto scroll-smooth pb-4 -mx-1 px-1"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+            >
+              {suggestedProducts.map((p) => (
+                <div key={p._id} className="flex-shrink-0 w-[45%] sm:w-[32%] md:w-[23%] lg:w-[22%]">
+                  <ProductCard product={p} />
+                </div>
+              ))}
+            </div>
+            {/* Right Arrow */}
+            <button
+              onClick={() => {
+                const el = document.getElementById('suggested-scroll');
+                if (el) el.scrollBy({ left: 300, behavior: 'smooth' });
+              }}
+              className="absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors opacity-0 group-hover/carousel:opacity-100"
+              aria-label="Scroll right"
+            >
+              <FiChevronRight size={20} />
+            </button>
           </div>
         </div>
       )}

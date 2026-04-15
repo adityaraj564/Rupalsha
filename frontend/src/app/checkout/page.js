@@ -127,11 +127,19 @@ export default function CheckoutPage() {
       // Razorpay payment
       const loaded = await loadRazorpay();
       if (!loaded) {
-        toast.error('Payment gateway failed to load');
+        toast.error('Payment gateway failed to load. Your order is saved — you can pay from the orders page.');
+        router.push(`/orders/${order._id}`);
         return;
       }
 
-      const paymentData = await paymentAPI.createOrder(order._id);
+      let paymentData;
+      try {
+        paymentData = await paymentAPI.createOrder(order._id);
+      } catch (payErr) {
+        toast.error('Payment gateway error. Your order is saved — try paying from the orders page.');
+        router.push(`/orders/${order._id}`);
+        return;
+      }
 
       const options = {
         key: paymentData.key,
@@ -151,8 +159,15 @@ export default function CheckoutPage() {
             toast.success('Payment successful!');
             router.push(`/orders/${order._id}?success=true`);
           } catch {
-            toast.error('Payment verification failed');
+            toast.error('Payment verification failed. Contact support if money was deducted.');
+            router.push(`/orders/${order._id}`);
           }
+        },
+        modal: {
+          ondismiss: () => {
+            toast('Payment cancelled. You can retry from your orders page.', { icon: '⚠️' });
+            router.push(`/orders/${order._id}`);
+          },
         },
         prefill: {
           name: user.name,
@@ -163,16 +178,20 @@ export default function CheckoutPage() {
       };
 
       const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', (response) => {
+        toast.error('Payment failed. You can retry from your orders page.');
+        router.push(`/orders/${order._id}`);
+      });
       rzp.open();
     } catch (err) {
-      toast.error(err.message);
+      toast.error(err.message || 'Something went wrong');
     } finally {
       setProcessing(false);
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12 animate-fade-in">
+    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12 animate-fade-in">
       <h1 className="font-serif text-3xl font-bold text-brand-charcoal mb-8">Checkout</h1>
 
       <div className="grid lg:grid-cols-3 gap-8">
@@ -249,7 +268,7 @@ export default function CheckoutPage() {
                   onChange={(e) => setNewAddress({ ...newAddress, addressLine2: e.target.value })}
                   className="input-field"
                 />
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <input
                     type="text"
                     placeholder="Pincode"

@@ -2,15 +2,46 @@ const express = require('express');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const Order = require('../models/Order');
+const Product = require('../models/Product');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
+const PAYMENT_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
 const getRazorpayInstance = () => {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    const err = new Error('Payment gateway is not configured. Please contact support.');
+    err.statusCode = 503;
+    throw err;
+  }
   return new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET,
   });
+};
+
+// Helper: expire old pending online-payment orders
+const expirePendingOrders = async () => {
+  const cutoff = new Date(Date.now() - PAYMENT_EXPIRY_MS);
+  const expiredOrders = await Order.find({
+    status: 'pending',
+    paymentMethod: 'razorpay',
+    isPaid: false,
+    createdAt: { $lt: cutoff },
+  });
+
+  for (const order of expiredOrders) {
+    order.status = 'failed';
+    await order.save();
+    // Restore stock for failed orders
+    for (const item of order.items) {
+      await Product.updateOne(
+        { _id: item.product, 'sizes.size': item.size },
+        { $inc: { 'sizes.$.stock': item.quantity } }
+      );
+    }
+  }
 };
 
 // POST /api/payment/create-order
@@ -21,6 +52,21 @@ router.post('/create-order', auth, async (req, res, next) => {
 
     if (!order) return res.status(404).json({ error: 'Order not found' });
     if (order.isPaid) return res.status(400).json({ error: 'Order already paid' });
+    if (order.status === 'failed') return res.status(400).json({ error: 'Order has expired. Please place a new order.' });
+
+    // Check if order is older than 1 hour
+    if (Date.now() - new Date(order.createdAt).getTime() > PAYMENT_EXPIRY_MS) {
+      order.status = 'failed';
+      await order.save();
+      // Restore stock
+      for (const item of order.items) {
+        await Product.updateOne(
+          { _id: item.product, 'sizes.size': item.size },
+          { $inc: { 'sizes.$.stock': item.quantity } }
+        );
+      }
+      return res.status(400).json({ error: 'Order has expired. Please place a new order.' });
+    }
 
     const razorpay = getRazorpayInstance();
     const razorpayOrder = await razorpay.orders.create({
@@ -73,5 +119,10 @@ router.post('/verify', auth, async (req, res, next) => {
     next(error);
   }
 });
+
+// Run expiry check periodically (every 10 minutes)
+setInterval(expirePendingOrders, 10 * 60 * 1000);
+// Also run once on startup after a short delay
+setTimeout(expirePendingOrders, 5000);
 
 module.exports = router;

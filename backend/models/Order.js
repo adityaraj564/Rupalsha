@@ -53,7 +53,7 @@ const orderSchema = new mongoose.Schema({
   paidAt: Date,
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'],
+    enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'failed'],
     default: 'pending',
   },
   trackingNumber: String,

@@ -14,6 +14,7 @@ const STATUS_COLORS = {
   delivered: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-800',
   returned: 'bg-gray-100 text-gray-800',
+  failed: 'bg-red-100 text-red-800',
 };
 
 export default function AdminOrdersPage() {

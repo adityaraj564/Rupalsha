@@ -58,6 +58,7 @@ export const productsAPI = {
     return request(`/products?${query}`);
   },
   getBySlug: (slug) => request(`/products/${slug}`),
+  getSimilar: (slug, limit = 8) => request(`/products/${slug}/similar?limit=${limit}`),
   getCategories: () => request('/products/categories'),
 };
 

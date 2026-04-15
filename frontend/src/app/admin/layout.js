@@ -50,7 +50,7 @@ export default function AdminLayout({ children }) {
     <div className="min-h-screen bg-gray-50">
       {/* Admin Header */}
       <header className="bg-brand-green text-white">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
+        <div className="w-full px-4 sm:px-6 lg:px-[50px] py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="font-serif text-xl font-bold">Rupalsha Admin</h1>
           </div>
@@ -86,7 +86,7 @@ export default function AdminLayout({ children }) {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
+      <div className="w-full px-4 sm:px-6 lg:px-[50px] py-6">
         <div className="flex gap-6">
           {/* Sidebar */}
           <aside className="hidden md:block w-56 flex-shrink-0">

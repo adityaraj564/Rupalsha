@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiCheckCircle, FiPackage, FiTruck, FiMapPin } from 'react-icons/fi';
-import { ordersAPI } from '@/lib/api';
-import { useAuthStore } from '@/lib/store';
+import { FiCheckCircle, FiPackage, FiTruck, FiMapPin, FiAlertCircle, FiClock, FiShoppingBag } from 'react-icons/fi';
+import { ordersAPI, paymentAPI } from '@/lib/api';
+import { useAuthStore, useCartStore } from '@/lib/store';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -20,8 +20,11 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [cancelReason, setCancelReason] = useState('');
   const [showCancel, setShowCancel] = useState(false);
+  const [retryingPayment, setRetryingPayment] = useState(false);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const user = useAuthStore((s) => s.user);
+  const addToCart = useCartStore((s) => s.addItem);
 
   const isSuccess = searchParams.get('success') === 'true';
 
@@ -64,13 +67,84 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleRetryPayment = async () => {
+    setRetryingPayment(true);
+    try {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      await new Promise((resolve, reject) => {
+        script.onload = resolve;
+        script.onerror = reject;
+        document.body.appendChild(script);
+      });
+
+      const paymentData = await paymentAPI.createOrder(order._id);
+
+      const options = {
+        key: paymentData.key,
+        amount: paymentData.amount,
+        currency: paymentData.currency,
+        name: 'Rupalsha',
+        description: `Order ${order.orderNumber}`,
+        order_id: paymentData.orderId,
+        handler: async (response) => {
+          try {
+            const { order: updated } = await paymentAPI.verify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderId: order._id,
+            });
+            setOrder(updated);
+            toast.success('Payment successful!');
+          } catch {
+            toast.error('Payment verification failed. Contact support if money was deducted.');
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            toast('Payment cancelled', { icon: '⚠️' });
+          },
+        },
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+          contact: user?.phone || '',
+        },
+        theme: { color: '#1F3A2F' },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', () => {
+        toast.error('Payment failed. Please try again.');
+      });
+      rzp.open();
+    } catch (err) {
+      toast.error(err.message || 'Failed to initiate payment');
+    } finally {
+      setRetryingPayment(false);
+    }
+  };
+
+  const handleAddToCartAgain = async () => {
+    try {
+      for (const item of order.items) {
+        await addToCart(item.product?._id || item.product, item.size);
+      }
+      toast.success('Items added to cart!');
+      router.push('/cart');
+    } catch (err) {
+      toast.error(err.message || 'Failed to add items to cart');
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
   if (!order) return null;
 
   const currentStep = STATUS_STEPS.indexOf(order.status);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 md:px-6 py-8 md:py-12 animate-fade-in">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 animate-fade-in">
       {isSuccess && (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center mb-8">
           <FiCheckCircle className="text-green-600 mx-auto mb-3" size={48} />
@@ -94,7 +168,7 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Status Tracker */}
-      {!['cancelled', 'returned'].includes(order.status) && (
+      {!['cancelled', 'returned', 'failed'].includes(order.status) && (
         <div className="card p-6 mb-6">
           <div className="flex items-center justify-between relative">
             <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200" />
@@ -115,10 +189,44 @@ export default function OrderDetailPage() {
         </div>
       )}
 
+      {/* Pending payment banner */}
+      {order.status === 'pending' && order.paymentMethod === 'razorpay' && !order.isPaid && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+          <FiClock className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
+          <div className="flex-1">
+            <p className="text-yellow-800 font-medium">Payment Pending</p>
+            <p className="text-yellow-700 text-sm mt-1">Complete your payment to confirm this order. The order will expire if not paid within 1 hour.</p>
+            <button
+              onClick={handleRetryPayment}
+              disabled={retryingPayment}
+              className="mt-3 px-5 py-2 bg-brand-green text-white text-sm font-medium rounded-lg hover:bg-green-800 transition-colors disabled:opacity-50"
+            >
+              {retryingPayment ? 'Processing...' : 'Pay Now'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {order.status === 'cancelled' && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
           <p className="text-red-800 font-medium">Order Cancelled</p>
           {order.cancelReason && <p className="text-red-600 text-sm mt-1">Reason: {order.cancelReason}</p>}
+        </div>
+      )}
+
+      {order.status === 'failed' && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+          <FiAlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+          <div className="flex-1">
+            <p className="text-red-800 font-medium">Order Failed</p>
+            <p className="text-red-600 text-sm mt-1">Payment was not completed within the allowed time. You can add these items to your cart and place a new order.</p>
+            <button
+              onClick={handleAddToCartAgain}
+              className="mt-3 px-5 py-2 bg-brand-green text-white text-sm font-medium rounded-lg hover:bg-green-800 transition-colors inline-flex items-center gap-2"
+            >
+              <FiShoppingBag size={16} /> Add to Cart Again
+            </button>
+          </div>
         </div>
       )}
 
