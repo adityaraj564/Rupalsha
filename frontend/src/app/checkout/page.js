@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiMapPin, FiPlus, FiCreditCard, FiTruck } from 'react-icons/fi';
+import { FiMapPin, FiPlus, FiCreditCard, FiTruck, FiMinus, FiTrash2, FiTag } from 'react-icons/fi';
 import { useAuthStore, useCartStore } from '@/lib/store';
 import { ordersAPI, couponsAPI, paymentAPI } from '@/lib/api';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -12,19 +12,40 @@ export default function CheckoutPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const { items, clearCart } = useCartStore();
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const { items, clearCart, updateItem, removeItem } = useCartStore();
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [couponApplied, setCouponApplied] = useState('');
+  const [availableCoupons, setAvailableCoupons] = useState([]);
   const [processing, setProcessing] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [newAddress, setNewAddress] = useState({
     fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
+  const [fetchingPincode, setFetchingPincode] = useState(false);
+
+  const handlePincodeLookup = async (value) => {
+    const pin = value.replace(/\D/g, '').slice(0, 6);
+    setNewAddress((prev) => ({ ...prev, pincode: pin }));
+    if (pin.length === 6) {
+      setFetchingPincode(true);
+      try {
+        const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+        const data = await res.json();
+        if (data[0]?.Status === 'Success' && data[0].PostOffice?.length > 0) {
+          const po = data[0].PostOffice[0];
+          setNewAddress((prev) => ({ ...prev, city: po.District, state: po.State }));
+        }
+      } catch {}
+      setFetchingPincode(false);
+    }
+  };
 
   useEffect(() => {
+    if (isLoading) return;
     if (!isAuthenticated) {
       router.push('/auth/login');
       return;
@@ -37,6 +58,7 @@ export default function CheckoutPage() {
       const defaultAddr = user.addresses.find(a => a.isDefault) || user.addresses[0];
       setSelectedAddress(defaultAddr);
     }
+    couponsAPI.getActive().then(setAvailableCoupons).catch(() => {});
   }, [isAuthenticated, items.length, router, user]);
 
   if (!user || items.length === 0) return <LoadingSpinner />;
@@ -53,6 +75,8 @@ export default function CheckoutPage() {
       setCouponApplied(data.code);
       toast.success(`Coupon applied! You save ₹${data.discount}`);
     } catch (err) {
+      setCouponApplied('');
+      setDiscount(0);
       toast.error(err.message);
     }
   };
@@ -228,23 +252,27 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-3 gap-3">
                   <input
                     type="text"
-                    placeholder="City"
-                    value={newAddress.city}
-                    onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                    placeholder="Pincode"
+                    value={newAddress.pincode}
+                    onChange={(e) => handlePincodeLookup(e.target.value)}
                     className="input-field"
+                    maxLength={6}
                   />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="City"
+                      value={newAddress.city}
+                      onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                      className="input-field"
+                    />
+                    {fetchingPincode && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">...</span>}
+                  </div>
                   <input
                     type="text"
                     placeholder="State"
                     value={newAddress.state}
                     onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value })}
-                    className="input-field"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Pincode"
-                    value={newAddress.pincode}
-                    onChange={(e) => setNewAddress({ ...newAddress, pincode: e.target.value })}
                     className="input-field"
                   />
                 </div>
@@ -307,7 +335,7 @@ export default function CheckoutPage() {
           <div className="card p-6 sticky top-28">
             <h2 className="font-serif text-xl font-semibold mb-6">Order Summary</h2>
 
-            <div className="space-y-3 mb-6 max-h-48 overflow-y-auto">
+            <div className="space-y-3 mb-6 max-h-64 overflow-y-auto">
               {items.map((item) => (
                 <div key={item._id} className="flex items-center gap-3 text-sm">
                   <div className="relative w-12 h-14 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
@@ -315,14 +343,77 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="truncate font-medium">{item.product?.name}</p>
-                    <p className="text-gray-400">{item.size} × {item.quantity}</p>
+                    <p className="text-gray-400">{item.size}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <button
+                        onClick={async () => {
+                          if (item.quantity <= 1) {
+                            await removeItem(item._id);
+                            toast.success('Item removed');
+                          } else {
+                            await updateItem(item._id, item.quantity - 1);
+                          }
+                        }}
+                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:border-brand-green hover:text-brand-green transition-colors"
+                      >
+                        {item.quantity <= 1 ? <FiTrash2 size={12} /> : <FiMinus size={12} />}
+                      </button>
+                      <span className="text-sm font-medium w-5 text-center">{item.quantity}</span>
+                      <button
+                        onClick={() => updateItem(item._id, item.quantity + 1)}
+                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:border-brand-green hover:text-brand-green transition-colors"
+                      >
+                        <FiPlus size={12} />
+                      </button>
+                    </div>
                   </div>
-                  <span className="font-medium">₹{((item.product?.price || 0) * item.quantity).toLocaleString()}</span>
+                  <div className="text-right flex-shrink-0">
+                    <span className="font-medium">₹{((item.product?.price || 0) * item.quantity).toLocaleString()}</span>
+                    <button
+                      onClick={async () => {
+                        await removeItem(item._id);
+                        toast.success('Item removed');
+                      }}
+                      className="block text-xs text-red-400 hover:text-red-600 mt-1"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Coupon */}
+            {/* Available Coupons */}
+            {availableCoupons.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1"><FiTag size={12} /> Available Coupons</p>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {availableCoupons.map((c) => (
+                    <button
+                      key={c._id}
+                      onClick={() => { setCouponCode(c.code); }}
+                      className={`w-full text-left p-2.5 border rounded-lg text-xs transition-colors ${
+                        couponApplied === c.code ? 'border-brand-green bg-green-50 ring-1 ring-brand-green' : couponCode === c.code ? 'border-brand-green bg-green-50/50' : 'border-gray-200 hover:border-brand-green'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-brand-green">{c.code}</span>
+                        <div className="flex items-center gap-2">
+                          {couponApplied === c.code && <span className="text-green-600 font-medium">Applied ✓</span>}
+                          <span className="text-gray-500">
+                            {c.discountType === 'percentage' ? `${c.discountValue}% off` : `₹${c.discountValue} off`}
+                          </span>
+                        </div>
+                      </div>
+                      {c.description && <p className="text-gray-400 mt-0.5">{c.description}</p>}
+                      {c.minOrderAmount > 0 && <p className="text-gray-400 mt-0.5">Min order: ₹{c.minOrderAmount}</p>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Coupon Code Input */}
             <div className="flex gap-2 mb-6">
               <input
                 type="text"

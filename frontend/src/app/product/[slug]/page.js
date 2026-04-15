@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { FiHeart, FiShoppingBag, FiTruck, FiRefreshCw, FiChevronLeft, FiChevronRight, FiStar, FiMapPin, FiCheck, FiX, FiShare2 } from 'react-icons/fi';
+import { FiHeart, FiShoppingBag, FiTruck, FiRefreshCw, FiChevronLeft, FiChevronRight, FiStar, FiMapPin, FiCheck, FiX, FiShare2, FiCamera, FiBell } from 'react-icons/fi';
 import { productsAPI, reviewsAPI } from '@/lib/api';
 import { useAuthStore, useCartStore, useWishlistStore } from '@/lib/store';
 import SizeGuideModal from '@/components/SizeGuideModal';
+import ProductCard from '@/components/ProductCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -28,9 +29,14 @@ export default function ProductDetailPage() {
   const [pincodeResult, setPincodeResult] = useState(null);
   const [checkingPincode, setCheckingPincode] = useState(false);
   const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', comment: '' });
+  const [reviewImages, setReviewImages] = useState([]);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [zoomStyle, setZoomStyle] = useState({ display: 'none' });
+  const [suggestedProducts, setSuggestedProducts] = useState([]);
+  const [pinchScale, setPinchScale] = useState(1);
+  const [pinchOrigin, setPinchOrigin] = useState('center center');
+  const pinchStartDist = useRef(null);
 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
@@ -48,6 +54,21 @@ export default function ProductDetailPage() {
         const { reviews: r, total } = await reviewsAPI.getByProduct(p._id, { limit: 2, page: 1 });
         setReviews(r);
         setTotalReviews(total);
+
+        // Fetch suggested products from same category, backfill from all if needed
+        productsAPI.getAll({ category: p.category, limit: 8 }).then(async ({ products: suggested }) => {
+          let filtered = suggested.filter(sp => sp._id !== p._id);
+          if (filtered.length < 4) {
+            try {
+              const { products: more } = await productsAPI.getAll({ limit: 12 });
+              const existingIds = new Set(filtered.map(sp => sp._id));
+              existingIds.add(p._id);
+              const extra = more.filter(sp => !existingIds.has(sp._id));
+              filtered = [...filtered, ...extra];
+            } catch {}
+          }
+          setSuggestedProducts(filtered.slice(0, 4));
+        }).catch(() => {});
       } catch (err) {
         toast.error('Product not found');
         router.push('/products');
@@ -178,9 +199,11 @@ export default function ProductDetailPage() {
         rating: reviewForm.rating,
         title: reviewForm.title,
         comment: reviewForm.comment,
+        images: reviewImages,
       });
       toast.success('Review submitted! It will appear after approval.');
       setReviewForm({ rating: 5, title: '', comment: '' });
+      setReviewImages([]);
       setShowReviewForm(false);
 
       // Refresh reviews and product rating
@@ -212,10 +235,13 @@ export default function ProductDetailPage() {
     return s ? s.stock : 0;
   };
 
+  const totalStock = product.sizes.reduce((sum, s) => sum + s.stock, 0);
+  const isOutOfStock = totalStock === 0;
+
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12 animate-fade-in">
+    <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12 animate-fade-in overflow-x-hidden">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-gray-400 mb-8">
+      <nav className="flex items-center gap-2 text-sm text-gray-400 mb-8 overflow-hidden">
         <Link href="/" className="hover:text-brand-green">Home</Link>
         <span>/</span>
         <Link href="/products" className="hover:text-brand-green">Shop</Link>
@@ -224,15 +250,16 @@ export default function ProductDetailPage() {
           {product.category}
         </Link>
         <span>/</span>
-        <span className="text-brand-charcoal">{product.name}</span>
+        <span className="text-brand-charcoal truncate">{product.name}</span>
       </nav>
 
       <div className="grid md:grid-cols-2 gap-8 md:gap-12">
         {/* Images */}
         <div>
           <div
-            className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 mb-4 cursor-crosshair"
+            className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 mb-4 md:cursor-crosshair"
             onMouseMove={(e) => {
+              if (window.innerWidth < 768) return;
               const rect = e.currentTarget.getBoundingClientRect();
               const x = ((e.clientX - rect.left) / rect.width) * 100;
               const y = ((e.clientY - rect.top) / rect.height) * 100;
@@ -244,17 +271,43 @@ export default function ProductDetailPage() {
               });
             }}
             onMouseLeave={() => setZoomStyle({ display: 'none' })}
+            onTouchStart={(e) => {
+              if (e.touches.length === 2) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                pinchStartDist.current = Math.hypot(dx, dy);
+                const rect = e.currentTarget.getBoundingClientRect();
+                const mx = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left) / rect.width * 100;
+                const my = ((e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top) / rect.height * 100;
+                setPinchOrigin(`${mx}% ${my}%`);
+              }
+            }}
+            onTouchMove={(e) => {
+              if (e.touches.length === 2 && pinchStartDist.current) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const dist = Math.hypot(dx, dy);
+                const scale = Math.min(3, Math.max(1, dist / pinchStartDist.current));
+                setPinchScale(scale);
+              }
+            }}
+            onTouchEnd={() => {
+              pinchStartDist.current = null;
+              setPinchScale(1);
+            }}
           >
             <Image
               src={product.images[selectedImage]?.url || '/placeholder.jpg'}
               alt={product.name}
               fill
-              className="object-cover pointer-events-none"
+              className="object-cover pointer-events-none transition-transform duration-150"
+              style={{ transform: `scale(${pinchScale})`, transformOrigin: pinchOrigin }}
               priority
               sizes="(max-width: 768px) 100vw, 50vw"
             />
             <div
-              className="absolute inset-0 z-10 rounded-2xl"
+              className="absolute inset-0 z-10 rounded-2xl hidden md:block"
               style={zoomStyle}
             />
             {product.images.length > 1 && (
@@ -299,7 +352,7 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Details */}
-        <div className="md:sticky md:top-28 md:self-start">
+        <div className="md:sticky md:top-28 md:self-start min-w-0">
           <p className="text-brand-gold text-sm font-medium uppercase tracking-wider mb-2">{product.category}</p>
           <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal mb-4">{product.name}</h1>
 
@@ -322,17 +375,23 @@ export default function ProductDetailPage() {
           )}
 
           {/* Price */}
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-2">
             <span className="text-3xl font-bold text-brand-charcoal">₹{product.price.toLocaleString()}</span>
             {product.comparePrice && (
-              <>
-                <span className="text-xl text-gray-400 line-through">₹{product.comparePrice.toLocaleString()}</span>
-                <span className="bg-green-100 text-green-700 text-sm font-medium px-2 py-0.5 rounded-full">
-                  Save {discount}%
-                </span>
-              </>
+              <span className="text-xl text-gray-400 line-through">₹{product.comparePrice.toLocaleString()}</span>
             )}
           </div>
+          {product.comparePrice && discount > 0 && (
+            <div className="flex items-center gap-2 mb-6">
+              <span className="bg-green-100 text-green-700 text-sm font-medium px-2 py-0.5 rounded-full">
+                Save {discount}%
+              </span>
+              <span className="text-sm text-gray-500">
+                MRP: <span className="line-through">₹{product.comparePrice.toLocaleString()}</span>
+              </span>
+            </div>
+          )}
+          {!(product.comparePrice && discount > 0) && <div className="mb-6" />}
 
           {/* Description */}
           <p className="text-gray-600 leading-relaxed mb-6">{product.description}</p>
@@ -381,42 +440,93 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 mb-8 sticky bottom-0 bg-brand-cream md:static md:bg-transparent py-4 md:py-0 -mx-4 px-4 md:mx-0 md:px-0 border-t md:border-0 border-gray-200">
-            <button
-              onClick={handleAddToCart}
-              disabled={addingToCart}
-              className="btn-primary flex-1 flex items-center justify-center gap-2"
-            >
-              <FiShoppingBag size={18} />
-              {addingToCart ? 'Adding...' : 'Add to Cart'}
-            </button>
-            <button onClick={handleBuyNow} className="btn-gold flex-1">
-              Buy Now
-            </button>
-            <button
-              onClick={handleWishlist}
-              className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors ${
-                inWishlist ? 'border-red-400 text-red-500' : 'border-gray-300 text-gray-400 hover:border-red-400 hover:text-red-500'
-              }`}
-            >
-              <FiHeart size={20} fill={inWishlist ? 'currentColor' : 'none'} />
-            </button>
-            <button
-              onClick={async () => {
-                const url = `${window.location.origin}/product/${product.slug}`;
-                if (navigator.share) {
-                  try {
-                    await navigator.share({ title: product.name, text: `Check out ${product.name} on Rupalsha - ₹${product.price}`, url });
-                  } catch {}
-                } else {
-                  await navigator.clipboard.writeText(url);
-                  toast.success('Link copied to clipboard!');
-                }
-              }}
-              className="w-12 h-12 rounded-full border-2 border-gray-300 text-gray-400 flex items-center justify-center hover:border-brand-green hover:text-brand-green transition-colors"
-            >
-              <FiShare2 size={18} />
-            </button>
+          <div className="mb-8 sticky bottom-0 bg-brand-cream md:static md:bg-transparent py-4 md:py-0 -mx-4 px-4 md:mx-0 md:px-0 border-t md:border-0 border-gray-200 space-y-3">
+            <div className="flex gap-3">
+              {isOutOfStock ? (
+                <button
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      toast.error('Please login first');
+                      router.push('/auth/login');
+                      return;
+                    }
+                    toast.success('We will notify you when this product is back in stock!');
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-gray-800 text-white rounded-xl font-medium hover:bg-gray-700 transition-colors whitespace-nowrap"
+                >
+                  <FiBell size={18} />
+                  Notify Me
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={addingToCart}
+                    className="btn-primary flex-1 flex items-center justify-center gap-2 whitespace-nowrap text-sm md:text-base"
+                  >
+                    <FiShoppingBag size={18} />
+                    {addingToCart ? 'Adding...' : 'Add to Cart'}
+                  </button>
+                  <button onClick={handleBuyNow} className="btn-gold flex-1 whitespace-nowrap text-sm md:text-base">
+                    Buy Now
+                  </button>
+                </>
+              )}
+              {/* Icon buttons - visible only on md+ inline */}
+              <button
+                onClick={handleWishlist}
+                className={`hidden md:flex w-12 h-12 flex-shrink-0 rounded-full border-2 items-center justify-center transition-colors ${
+                  inWishlist ? 'border-red-400 text-red-500' : 'border-gray-300 text-gray-400 hover:border-red-400 hover:text-red-500'
+                }`}
+              >
+                <FiHeart size={18} fill={inWishlist ? 'currentColor' : 'none'} />
+              </button>
+              <button
+                onClick={async () => {
+                  const url = `${window.location.origin}/product/${product.slug}`;
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({ title: product.name, text: `Check out ${product.name} on Rupalsha - ₹${product.price}`, url });
+                    } catch {}
+                  } else {
+                    await navigator.clipboard.writeText(url);
+                    toast.success('Link copied to clipboard!');
+                  }
+                }}
+                className="hidden md:flex w-12 h-12 flex-shrink-0 rounded-full border-2 border-gray-300 text-gray-400 items-center justify-center hover:border-brand-green hover:text-brand-green transition-colors"
+              >
+                <FiShare2 size={18} />
+              </button>
+            </div>
+            {/* Mobile-only icon buttons row */}
+            <div className="flex gap-3 md:hidden">
+              <button
+                onClick={handleWishlist}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors ${
+                  inWishlist ? 'border-red-400 text-red-500' : 'border-gray-300 text-gray-500'
+                }`}
+              >
+                <FiHeart size={16} fill={inWishlist ? 'currentColor' : 'none'} />
+                {inWishlist ? 'Wishlisted' : 'Wishlist'}
+              </button>
+              <button
+                onClick={async () => {
+                  const url = `${window.location.origin}/product/${product.slug}`;
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({ title: product.name, text: `Check out ${product.name} on Rupalsha - ₹${product.price}`, url });
+                    } catch {}
+                  } else {
+                    await navigator.clipboard.writeText(url);
+                    toast.success('Link copied to clipboard!');
+                  }
+                }}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-gray-300 text-gray-500 text-sm font-medium hover:border-brand-green hover:text-brand-green transition-colors"
+              >
+                <FiShare2 size={16} />
+                Share
+              </button>
+            </div>
           </div>
 
           {/* Policies */}
@@ -527,6 +637,45 @@ export default function ProductDetailPage() {
                     required
                   />
                 </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2">Photos (optional, max 4)</label>
+                  <div className="flex gap-3 flex-wrap">
+                    {reviewImages.map((file, i) => (
+                      <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                        <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setReviewImages((imgs) => imgs.filter((_, idx) => idx !== i))}
+                          className="absolute top-0.5 right-0.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs"
+                        >
+                          <FiX size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    {reviewImages.length < 4 && (
+                      <label className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-brand-green transition-colors">
+                        <FiCamera size={20} className="text-gray-400" />
+                        <span className="text-xs text-gray-400 mt-1">Add</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              if (file.size > 5 * 1024 * 1024) {
+                                toast.error('Image must be under 5MB');
+                                return;
+                              }
+                              setReviewImages((imgs) => [...imgs, file]);
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
                 <button
                   type="submit"
                   disabled={submittingReview}
@@ -567,6 +716,15 @@ export default function ProductDetailPage() {
                     </div>
                     {review.title && <p className="font-medium text-sm mb-1">{review.title}</p>}
                     <p className="text-sm text-gray-600">{review.comment}</p>
+                    {review.images?.length > 0 && (
+                      <div className="flex gap-2 mt-3">
+                        {review.images.map((img, i) => (
+                          <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+                            <img src={img.url} alt="" className="w-full h-full object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
 
@@ -587,6 +745,18 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Suggested Products */}
+      {suggestedProducts.length > 0 && (
+        <div className="mt-16 border-t border-gray-200 pt-12">
+          <h2 className="font-serif text-2xl font-bold text-brand-charcoal mb-8">You May Also Like</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {suggestedProducts.map((p) => (
+              <ProductCard key={p._id} product={p} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <SizeGuideModal isOpen={sizeGuideOpen} onClose={() => setSizeGuideOpen(false)} />
     </div>

@@ -26,6 +26,10 @@ const reviewSchema = new mongoose.Schema({
     required: [true, 'Review comment is required'],
     maxlength: 2000,
   },
+  images: [{
+    url: { type: String, required: true },
+    public_id: String,
+  }],
   isApproved: {
     type: Boolean,
     default: false,
@@ -34,8 +38,8 @@ const reviewSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// One review per user per product
-reviewSchema.index({ user: 1, product: 1 }, { unique: true });
+reviewSchema.index({ user: 1, product: 1 });
+reviewSchema.index({ product: 1, createdAt: -1 });
 
 // Static method to calculate average rating
 reviewSchema.statics.calcAverageRating = async function (productId) {

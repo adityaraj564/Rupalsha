@@ -22,9 +22,11 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
   const router = useRouter();
 
   useEffect(() => {
+    if (isLoading) return;
     if (!isAuthenticated) {
       router.push('/auth/login');
       return;

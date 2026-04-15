@@ -45,8 +45,13 @@ router.post('/add', auth, [
       item => item.product.toString() === productId && item.size === size
     );
 
+    const newTotal = (existingItem ? existingItem.quantity : 0) + quantity;
+    if (newTotal > sizeInfo.stock) {
+      return res.status(400).json({ error: `Only ${sizeInfo.stock} items available in this size` });
+    }
+
     if (existingItem) {
-      existingItem.quantity += quantity;
+      existingItem.quantity = newTotal;
     } else {
       cart.items.push({ product: productId, size, quantity });
     }
@@ -75,6 +80,15 @@ router.put('/update', auth, [
     } else {
       const item = cart.items.id(itemId);
       if (!item) return res.status(404).json({ error: 'Item not found in cart' });
+
+      const product = await Product.findById(item.product);
+      if (product) {
+        const sizeInfo = product.sizes.find(s => s.size === item.size);
+        if (sizeInfo && quantity > sizeInfo.stock) {
+          return res.status(400).json({ error: `Only ${sizeInfo.stock} items available in this size` });
+        }
+      }
+
       item.quantity = quantity;
     }
 

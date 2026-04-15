@@ -86,6 +86,15 @@ export default function AdminReviewsPage() {
                 </div>
                 {review.title && <p className="font-medium text-sm mb-1">{review.title}</p>}
                 <p className="text-sm text-gray-600">{review.comment}</p>
+                {review.images?.length > 0 && (
+                  <div className="flex gap-2 mt-3">
+                    {review.images.map((img, i) => (
+                      <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 hover:opacity-80 transition-opacity">
+                        <img src={img.url} alt="" className="w-full h-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-gray-400 mt-2">
                   {new Date(review.createdAt).toLocaleDateString('en-IN')}
                   {review.isApproved && <span className="ml-2 text-green-600">✓ Approved</span>}

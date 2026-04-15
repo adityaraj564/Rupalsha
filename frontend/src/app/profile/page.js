@@ -9,14 +9,20 @@ import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
-  const { user, isAuthenticated, logout, updateUser } = useAuthStore();
+  const { user, isAuthenticated, isLoading, logout, updateUser } = useAuthStore();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('profile');
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: '', phone: '' });
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [editingAddress, setEditingAddress] = useState(null);
+  const [addressForm, setAddressForm] = useState({
+    fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
+  });
+  const [fetchingPincode, setFetchingPincode] = useState(false);
 
   useEffect(() => {
+    if (isLoading) return;
     if (!isAuthenticated) {
       router.push('/auth/login');
       return;
@@ -24,9 +30,9 @@ export default function ProfilePage() {
     if (user) {
       setProfileForm({ name: user.name, phone: user.phone || '' });
     }
-  }, [isAuthenticated, router, user]);
+  }, [isAuthenticated, isLoading, router, user]);
 
-  if (!user) return null;
+  if (isLoading || !user) return null;
 
   const handleUpdateProfile = async () => {
     try {
@@ -41,9 +47,17 @@ export default function ProfilePage() {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
+    if (passwordForm.newPassword === passwordForm.currentPassword) {
+      toast.error('New password must be different from current password');
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
     try {
-      await authAPI.changePassword(passwordForm);
-      setPasswordForm({ currentPassword: '', newPassword: '' });
+      await authAPI.changePassword({ currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword });
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       toast.success('Password changed');
     } catch (err) {
       toast.error(err.message);
@@ -57,6 +71,47 @@ export default function ProfilePage() {
       toast.success('Address deleted');
     } catch (err) {
       toast.error(err.message);
+    }
+  };
+
+  const handleEditAddress = (addr) => {
+    setEditingAddress(addr._id);
+    setAddressForm({
+      fullName: addr.fullName || '',
+      phone: addr.phone || '',
+      addressLine1: addr.addressLine1 || '',
+      addressLine2: addr.addressLine2 || '',
+      city: addr.city || '',
+      state: addr.state || '',
+      pincode: addr.pincode || '',
+    });
+  };
+
+  const handleUpdateAddress = async () => {
+    try {
+      const { addresses } = await authAPI.updateAddress(editingAddress, addressForm);
+      updateUser({ addresses });
+      setEditingAddress(null);
+      toast.success('Address updated');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleAddressPincode = async (value) => {
+    const pin = value.replace(/\D/g, '').slice(0, 6);
+    setAddressForm((prev) => ({ ...prev, pincode: pin }));
+    if (pin.length === 6) {
+      setFetchingPincode(true);
+      try {
+        const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+        const data = await res.json();
+        if (data[0]?.Status === 'Success' && data[0].PostOffice?.length > 0) {
+          const po = data[0].PostOffice[0];
+          setAddressForm((prev) => ({ ...prev, city: po.District, state: po.State }));
+        }
+      } catch {}
+      setFetchingPincode(false);
     }
   };
 
@@ -179,18 +234,91 @@ export default function ProfilePage() {
           ) : (
             <div className="space-y-4">
               {user.addresses?.map((addr) => (
-                <div key={addr._id} className="border border-gray-200 rounded-xl p-4 flex justify-between">
-                  <div>
-                    <p className="font-medium">{addr.fullName} {addr.isDefault && <span className="text-xs bg-brand-green text-white px-2 py-0.5 rounded-full ml-2">Default</span>}</p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}<br />
-                      {addr.city}, {addr.state} - {addr.pincode}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">{addr.phone}</p>
-                  </div>
-                  <button onClick={() => handleDeleteAddress(addr._id)} className="text-gray-400 hover:text-red-500">
-                    <FiTrash2 size={16} />
-                  </button>
+                <div key={addr._id} className="border border-gray-200 rounded-xl p-4">
+                  {editingAddress === addr._id ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Full Name"
+                          value={addressForm.fullName}
+                          onChange={(e) => setAddressForm({ ...addressForm, fullName: e.target.value })}
+                          className="input-field"
+                        />
+                        <input
+                          type="tel"
+                          placeholder="Phone"
+                          value={addressForm.phone}
+                          onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
+                          className="input-field"
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Address Line 1"
+                        value={addressForm.addressLine1}
+                        onChange={(e) => setAddressForm({ ...addressForm, addressLine1: e.target.value })}
+                        className="input-field"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Address Line 2 (optional)"
+                        value={addressForm.addressLine2}
+                        onChange={(e) => setAddressForm({ ...addressForm, addressLine2: e.target.value })}
+                        className="input-field"
+                      />
+                      <div className="grid grid-cols-3 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Pincode"
+                          value={addressForm.pincode}
+                          onChange={(e) => handleAddressPincode(e.target.value)}
+                          className="input-field"
+                          maxLength={6}
+                        />
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="City"
+                            value={addressForm.city}
+                            onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
+                            className="input-field"
+                          />
+                          {fetchingPincode && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">...</span>}
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="State"
+                          value={addressForm.state}
+                          onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
+                          className="input-field"
+                        />
+                      </div>
+                      <div className="flex gap-3">
+                        <button onClick={handleUpdateAddress} className="btn-primary text-sm py-2">Save</button>
+                        <button onClick={() => setEditingAddress(null)} className="text-sm text-gray-500">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between">
+                      <div>
+                        <p className="font-medium">{addr.fullName} {addr.isDefault && <span className="text-xs bg-brand-green text-white px-2 py-0.5 rounded-full ml-2">Default</span>}</p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}<br />
+                          {addr.city}, {addr.state} - {addr.pincode}
+                        </p>
+                        <p className="text-sm text-gray-500 mt-1">{addr.phone}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleEditAddress(addr)} className="text-gray-400 hover:text-brand-green">
+                          <FiEdit2 size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteAddress(addr._id)} className="text-gray-400 hover:text-red-500">
+                          <FiTrash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -223,8 +351,29 @@ export default function ProfilePage() {
                 required
                 minLength={6}
               />
+              {passwordForm.newPassword && passwordForm.currentPassword && passwordForm.newPassword === passwordForm.currentPassword && (
+                <p className="text-red-500 text-xs mt-1">New password must be different from current password</p>
+              )}
             </div>
-            <button type="submit" className="btn-primary text-sm py-2">Update Password</button>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+              <input
+                type="password"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                className="input-field"
+                required
+                minLength={6}
+              />
+              {passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword && (
+                <p className="text-red-500 text-xs mt-1">Passwords do not match</p>
+              )}
+            </div>
+            <button
+              type="submit"
+              className="btn-primary text-sm py-2"
+              disabled={!passwordForm.currentPassword || !passwordForm.newPassword || passwordForm.newPassword === passwordForm.currentPassword || passwordForm.newPassword !== passwordForm.confirmPassword}
+            >Update Password</button>
           </form>
         </div>
       )}

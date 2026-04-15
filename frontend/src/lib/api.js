@@ -88,7 +88,17 @@ export const reviewsAPI = {
     const query = new URLSearchParams(params).toString();
     return request(`/reviews/product/${productId}?${query}`);
   },
-  create: (data) => request('/reviews', { method: 'POST', body: data }),
+  create: (data) => {
+    const formData = new FormData();
+    formData.append('productId', data.productId);
+    formData.append('rating', data.rating);
+    if (data.title) formData.append('title', data.title);
+    formData.append('comment', data.comment);
+    if (data.images) {
+      data.images.forEach((file) => formData.append('images', file));
+    }
+    return request('/reviews', { method: 'POST', body: formData });
+  },
 };
 
 // Wishlist

@@ -21,10 +21,12 @@ export default function OrderDetailPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [showCancel, setShowCancel] = useState(false);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
 
   const isSuccess = searchParams.get('success') === 'true';
 
   useEffect(() => {
+    if (isLoading) return;
     if (!isAuthenticated) {
       router.push('/auth/login');
       return;
@@ -127,16 +129,23 @@ export default function OrderDetailPage() {
             <h2 className="font-serif text-lg font-semibold mb-4">Items</h2>
             <div className="space-y-4">
               {order.items.map((item, i) => (
-                <div key={i} className="flex gap-4">
+                <Link
+                  key={i}
+                  href={item.product?.slug ? `/product/${item.product.slug}` : '#'}
+                  className="flex gap-4 hover:bg-gray-50 rounded-xl p-2 -m-2 transition-colors"
+                >
                   <div className="relative w-20 h-24 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                     {item.image && <Image src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />}
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium">{item.name}</p>
+                    <p className="font-medium hover:text-brand-green transition-colors">{item.name}</p>
                     <p className="text-sm text-gray-500">Size: {item.size} • Qty: {item.quantity}</p>
                     <p className="font-semibold mt-1">₹{(item.price * item.quantity).toLocaleString()}</p>
+                    {order.status === 'delivered' && (
+                      <span className="text-xs text-brand-green font-medium mt-1 inline-block">Tap to review →</span>
+                    )}
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>

@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const Review = require('../models/Review');
 const Order = require('../models/Order');
 const { auth } = require('../middleware/auth');
+const upload = require('../utils/upload');
 
 const router = express.Router();
 
@@ -30,7 +31,7 @@ router.get('/product/:productId', async (req, res, next) => {
 });
 
 // POST /api/reviews
-router.post('/', auth, [
+router.post('/', auth, upload.array('images', 4), [
   body('productId').notEmpty(),
   body('rating').isInt({ min: 1, max: 5 }),
   body('comment').trim().notEmpty().isLength({ max: 2000 }),
@@ -49,10 +50,7 @@ router.post('/', auth, [
       return res.status(400).json({ error: 'You can only review products you have purchased' });
     }
 
-    const existingReview = await Review.findOne({ user: req.user._id, product: productId });
-    if (existingReview) {
-      return res.status(400).json({ error: 'You have already reviewed this product' });
-    }
+    const images = req.files ? req.files.map(f => ({ url: f.path, public_id: f.filename })) : [];
 
     const review = await Review.create({
       user: req.user._id,
@@ -60,6 +58,7 @@ router.post('/', auth, [
       rating,
       title,
       comment,
+      images,
     });
 
     res.status(201).json({ review });

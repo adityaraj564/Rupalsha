@@ -39,6 +39,9 @@ export default function ProductCard({ product }) {
     ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
     : 0;
 
+  const totalStock = product.sizes?.reduce((sum, s) => sum + s.stock, 0) || 0;
+  const isOutOfStock = totalStock === 0;
+
   const startSlide = () => {
     if (!hasMultipleImages) return;
     intervalRef.current = setInterval(() => {
@@ -62,7 +65,7 @@ export default function ProductCard({ product }) {
 
   return (
     <Link href={`/product/${product.slug}`} className="group block">
-      <div className="card overflow-hidden">
+      <div className={`card overflow-hidden ${isOutOfStock ? 'opacity-60' : ''}`}>
         {/* Image */}
         <div
           className="relative aspect-[3/4] overflow-hidden bg-gray-100 product-image-zoom"
@@ -73,7 +76,7 @@ export default function ProductCard({ product }) {
             src={product.images?.[currentImage]?.url || product.images?.[0]?.url || '/placeholder.jpg'}
             alt={product.images?.[currentImage]?.alt || product.name}
             fill
-            className="object-cover transition-opacity duration-500"
+            className={`object-cover transition-opacity duration-500 ${isOutOfStock ? 'grayscale' : ''}`}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             loading="lazy"
           />
@@ -94,6 +97,11 @@ export default function ProductCard({ product }) {
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-1">
+            {isOutOfStock && (
+              <span className="bg-gray-800 text-white text-xs font-semibold px-2 py-1 rounded-full">
+                Out of Stock
+              </span>
+            )}
             {discount > 0 && (
               <span className="bg-brand-gold text-white text-xs font-semibold px-2 py-1 rounded-full">
                 -{discount}%
