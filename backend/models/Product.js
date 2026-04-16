@@ -36,9 +36,20 @@ const productSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
   },
+  productCode: {
+    type: String,
+    unique: true,
+    uppercase: true,
+    match: [/^[A-Z]{2}\d{2}$/, 'Product code must be 2 letters followed by 2 digits (e.g. AB12)'],
+  },
   sku: {
     type: String,
     trim: true,
+  },
+  shippingCharge: {
+    type: Number,
+    default: 0,
+    min: 0,
   },
   lowStockThreshold: {
     type: Number,
@@ -100,10 +111,23 @@ const productSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Generate slug before saving
-productSchema.pre('save', function (next) {
+// Generate slug and auto-generate unique productCode before saving
+productSchema.pre('save', async function (next) {
   if (this.isModified('name')) {
     this.slug = slugify(this.name, { lower: true, strict: true }) + '-' + Date.now().toString(36);
+  }
+  if (!this.productCode) {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let code;
+    let exists = true;
+    while (exists) {
+      code = letters[Math.floor(Math.random() * 26)]
+           + letters[Math.floor(Math.random() * 26)]
+           + String(Math.floor(Math.random() * 10))
+           + String(Math.floor(Math.random() * 10));
+      exists = await mongoose.model('Product').findOne({ productCode: code });
+    }
+    this.productCode = code;
   }
   next();
 });

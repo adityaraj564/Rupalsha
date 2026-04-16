@@ -27,6 +27,8 @@ export default function AdminProductsPage() {
     fabric: '', careInstructions: '', isFeatured: false, isTrending: false,
     sizes: SIZES.map(s => ({ size: s, stock: 0 })),
     tags: '', sku: '', lowStockThreshold: '5',
+    returnPolicy: '7-day easy return policy. Product must be unused with original tags.',
+    shippingCharge: '0',
   });
   const [images, setImages] = useState([]);
 
@@ -109,6 +111,8 @@ export default function AdminProductsPage() {
       fabric: '', careInstructions: '', isFeatured: false, isTrending: false,
       sizes: SIZES.map(s => ({ size: s, stock: 0 })),
       tags: '', sku: '', lowStockThreshold: '5',
+      returnPolicy: '7-day easy return policy. Product must be unused with original tags.',
+      shippingCharge: '0',
     });
     setImages([]);
     setEditingProduct(null);
@@ -135,6 +139,8 @@ export default function AdminProductsPage() {
       tags: product.tags?.join(', ') || '',
       sku: product.sku || '',
       lowStockThreshold: product.lowStockThreshold || '5',
+      returnPolicy: product.returnPolicy || '7-day easy return policy. Product must be unused with original tags.',
+      shippingCharge: product.shippingCharge || '0',
     });
     setEditingProduct(product);
     setShowForm(true);
@@ -149,6 +155,8 @@ export default function AdminProductsPage() {
     if (form.comparePrice) formData.append('comparePrice', form.comparePrice);
     if (form.sku) formData.append('sku', form.sku);
     if (form.lowStockThreshold) formData.append('lowStockThreshold', form.lowStockThreshold);
+    formData.append('returnPolicy', form.returnPolicy);
+    formData.append('shippingCharge', form.shippingCharge);
     formData.append('category', form.category);
     if (form.subcategory) formData.append('subcategory', form.subcategory);
     if (form.childCategory) formData.append('childCategory', form.childCategory);
@@ -427,6 +435,32 @@ export default function AdminProductsPage() {
               <div>
                 <label className="block text-sm font-medium mb-1">Tags (comma-separated)</label>
                 <input type="text" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} className="input-field" placeholder="wedding, festive, premium" />
+              </div>
+
+              {/* Return Policy & Shipping */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Return Policy</label>
+                  <textarea
+                    value={form.returnPolicy}
+                    onChange={(e) => setForm({ ...form, returnPolicy: e.target.value })}
+                    className="input-field"
+                    rows={2}
+                    placeholder="e.g. 7-day easy return policy..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Shipping Charge (₹)</label>
+                  <input
+                    type="number"
+                    value={form.shippingCharge}
+                    onChange={(e) => setForm({ ...form, shippingCharge: e.target.value })}
+                    className="input-field"
+                    min="0"
+                    placeholder="0 for free shipping"
+                  />
+                  <p className="text-xs text-gray-400 mt-0.5">{Number(form.shippingCharge) === 0 ? 'Free Shipping' : `₹${form.shippingCharge} shipping`}</p>
+                </div>
               </div>
 
               <div className="flex gap-4">

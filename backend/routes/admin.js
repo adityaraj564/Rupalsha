@@ -75,7 +75,7 @@ router.get('/products', async (req, res, next) => {
 // POST /api/admin/products
 router.post('/products', upload.array('images', 5), async (req, res, next) => {
   try {
-    const { name, description, price, comparePrice, category, subcategory, childCategory, categoryRef, sku, lowStockThreshold, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, returnPolicy } = req.body;
+    const { name, description, price, comparePrice, category, subcategory, childCategory, categoryRef, sku, lowStockThreshold, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, returnPolicy, shippingCharge } = req.body;
 
     const images = req.files ? req.files.map(file => ({
       url: file.path,
@@ -118,6 +118,7 @@ router.post('/products', upload.array('images', 5), async (req, res, next) => {
       isFeatured: isFeatured === 'true',
       isTrending: isTrending === 'true',
       returnPolicy,
+      shippingCharge: shippingCharge ? Number(shippingCharge) : 0,
     });
 
     res.status(201).json({ product });
@@ -132,13 +133,13 @@ router.put('/products/:id', upload.array('images', 5), async (req, res, next) =>
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
-    const updateFields = ['name', 'description', 'price', 'comparePrice', 'category', 'subcategory', 'childCategory', 'categoryRef', 'sku', 'lowStockThreshold', 'fabric', 'careInstructions', 'isFeatured', 'isTrending', 'isActive', 'returnPolicy'];
+    const updateFields = ['name', 'description', 'price', 'comparePrice', 'category', 'subcategory', 'childCategory', 'categoryRef', 'sku', 'lowStockThreshold', 'fabric', 'careInstructions', 'isFeatured', 'isTrending', 'isActive', 'returnPolicy', 'shippingCharge'];
 
     updateFields.forEach(field => {
       if (req.body[field] !== undefined) {
         if (['isFeatured', 'isTrending', 'isActive'].includes(field)) {
           product[field] = req.body[field] === 'true' || req.body[field] === true;
-        } else if (['price', 'comparePrice', 'lowStockThreshold'].includes(field)) {
+        } else if (['price', 'comparePrice', 'lowStockThreshold', 'shippingCharge'].includes(field)) {
           product[field] = Number(req.body[field]);
         } else {
           product[field] = req.body[field];
@@ -200,6 +201,55 @@ router.delete('/products/:id', async (req, res, next) => {
   }
 });
 
+// GET /api/admin/inventory - Get inventory overview (out-of-stock & low-stock products)
+router.get('/inventory', async (req, res, next) => {
+  try {
+    const { filter: stockFilter = 'all' } = req.query;
+
+    const products = await Product.find({ isActive: true })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const inventory = products.map(p => {
+      const totalStock = p.sizes?.reduce((sum, s) => sum + s.stock, 0) || 0;
+      const sizeBreakdown = p.sizes?.map(s => `${s.size}: ${s.stock}`).join(', ') || '';
+      return {
+        _id: p._id,
+        productCode: p.productCode || '',
+        name: p.name,
+        category: [p.category, p.subcategory, p.childCategory].filter(Boolean).join(' → '),
+        price: p.price,
+        totalStock,
+        lowStockThreshold: p.lowStockThreshold || 5,
+        sizeBreakdown,
+        sizes: p.sizes || [],
+        image: p.images?.[0]?.url || '',
+        sku: p.sku || '',
+        fabric: p.fabric || '',
+        shippingCharge: p.shippingCharge || 0,
+        status: totalStock === 0 ? 'out-of-stock' : totalStock <= (p.lowStockThreshold || 5) ? 'low-stock' : 'in-stock',
+        updatedAt: p.updatedAt,
+      };
+    });
+
+    let filtered = inventory;
+    if (stockFilter === 'out-of-stock') filtered = inventory.filter(i => i.status === 'out-of-stock');
+    else if (stockFilter === 'low-stock') filtered = inventory.filter(i => i.status === 'low-stock' || i.status === 'out-of-stock');
+    else if (stockFilter === 'in-stock') filtered = inventory.filter(i => i.status === 'in-stock');
+
+    const summary = {
+      total: inventory.length,
+      inStock: inventory.filter(i => i.status === 'in-stock').length,
+      lowStock: inventory.filter(i => i.status === 'low-stock').length,
+      outOfStock: inventory.filter(i => i.status === 'out-of-stock').length,
+    };
+
+    res.json({ inventory: filtered, summary });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ===== ORDERS =====
 // GET /api/admin/orders
 router.get('/orders', async (req, res, next) => {
@@ -254,6 +304,19 @@ router.put('/orders/:id/status', [
   }
 });
 
+// DELETE /api/admin/orders/:id
+router.delete('/orders/:id', async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    await order.deleteOne();
+    res.json({ message: 'Order deleted' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ===== USERS =====
 // GET /api/admin/users
 router.get('/users', async (req, res, next) => {
@@ -291,6 +354,20 @@ router.put('/users/:id/block', async (req, res, next) => {
     user.isBlocked = !user.isBlocked;
     await user.save();
     res.json({ user: { id: user._id, name: user.name, isBlocked: user.isBlocked } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/admin/users/:id
+router.delete('/users/:id', async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.role === 'admin') return res.status(400).json({ error: 'Cannot delete admin' });
+
+    await user.deleteOne();
+    res.json({ message: 'User deleted' });
   } catch (error) {
     next(error);
   }

@@ -158,18 +158,25 @@ export const adminAPI = {
   createProduct: (formData) => request('/admin/products', { method: 'POST', body: formData }),
   updateProduct: (id, formData) => request(`/admin/products/${id}`, { method: 'PUT', body: formData }),
   deleteProduct: (id) => request(`/admin/products/${id}`, { method: 'DELETE' }),
+  // Inventory
+  getInventory: (params) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/admin/inventory?${query}`);
+  },
   // Orders
   getOrders: (params) => {
     const query = new URLSearchParams(params).toString();
     return request(`/admin/orders?${query}`);
   },
   updateOrderStatus: (id, data) => request(`/admin/orders/${id}/status`, { method: 'PUT', body: data }),
+  deleteOrder: (id) => request(`/admin/orders/${id}`, { method: 'DELETE' }),
   // Users
   getUsers: (params) => {
     const query = new URLSearchParams(params).toString();
     return request(`/admin/users?${query}`);
   },
   toggleBlockUser: (id) => request(`/admin/users/${id}/block`, { method: 'PUT' }),
+  deleteUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' }),
   // Reviews
   getReviews: (params) => {
     const query = new URLSearchParams(params).toString();

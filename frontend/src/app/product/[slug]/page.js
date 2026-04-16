@@ -393,6 +393,14 @@ export default function ProductDetailPage() {
             </p>
           )}
 
+          {/* Product Code */}
+          {product.productCode && (
+            <p className="text-sm text-gray-500 mb-4">
+              <span className="font-medium text-brand-charcoal">Product Code:</span>{' '}
+              <span className="font-mono">{product.productCode}</span>
+            </p>
+          )}
+
           {/* Size Selection */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">

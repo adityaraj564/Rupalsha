@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { FiTrash2, FiAlertTriangle, FiX } from 'react-icons/fi';
 import { adminAPI } from '@/lib/api';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -22,6 +23,7 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const fetchOrders = async () => {
     try {
@@ -45,6 +47,19 @@ export default function AdminOrdersPage() {
       toast.success('Status updated');
     } catch (err) {
       toast.error(err.message);
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!deleteConfirm) return;
+    try {
+      await adminAPI.deleteOrder(deleteConfirm._id);
+      setOrders(orders.filter(o => o._id !== deleteConfirm._id));
+      toast.success('Order deleted');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeleteConfirm(null);
     }
   };
 
@@ -112,15 +127,24 @@ export default function AdminOrdersPage() {
                     {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                   </td>
                   <td className="p-4">
-                    <select
-                      value={order.status}
-                      onChange={(e) => handleStatusUpdate(order._id, e.target.value)}
-                      className="text-xs border border-gray-200 rounded-lg px-2 py-1"
-                    >
-                      {STATUSES.map(s => (
-                        <option key={s} value={s} className="capitalize">{s}</option>
-                      ))}
-                    </select>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={order.status}
+                        onChange={(e) => handleStatusUpdate(order._id, e.target.value)}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1"
+                      >
+                        {STATUSES.map(s => (
+                          <option key={s} value={s} className="capitalize">{s}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => setDeleteConfirm(order)}
+                        className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition-colors"
+                        title="Delete order"
+                      >
+                        <FiTrash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -132,6 +156,44 @@ export default function AdminOrdersPage() {
           <p className="text-center text-gray-500 py-10">No orders found</p>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <FiAlertTriangle className="text-red-500" size={20} />
+              </div>
+              <h3 className="text-lg font-semibold text-brand-charcoal">Delete Order</h3>
+            </div>
+            <p className="text-gray-600 mb-2">
+              Are you sure you want to delete this order?
+            </p>
+            <div className="bg-gray-50 rounded-xl p-3 mb-6">
+              <p className="font-medium text-sm">Order #{deleteConfirm.orderNumber}</p>
+              <p className="text-xs text-gray-500">
+                {deleteConfirm.user?.name || 'N/A'} &middot; ₹{deleteConfirm.totalAmount?.toLocaleString()} &middot; {deleteConfirm.items?.length || 0} item{deleteConfirm.items?.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <p className="text-xs text-red-500 mb-4">This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="btn-secondary flex-1 flex items-center justify-center gap-2"
+              >
+                <FiX size={16} /> Cancel
+              </button>
+              <button
+                onClick={handleDeleteOrder}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-medium py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                <FiTrash2 size={16} /> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
