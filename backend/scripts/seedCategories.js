@@ -4,6 +4,12 @@ const mongoose = require('mongoose');
 const connectDB = require('../config/db');
 const Category = require('../models/Category');
 
+// Safety: prevent running on production database
+if (process.env.NODE_ENV === 'production' || (process.env.MONGODB_URI && process.env.MONGODB_URI.includes('_prod'))) {
+  console.error('\n❌ ABORT: Cannot run seed script on production database!\n');
+  process.exit(1);
+}
+
 const CATEGORY_TREE = [
   {
     name: 'Accessories', children: [

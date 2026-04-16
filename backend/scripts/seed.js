@@ -3,6 +3,12 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Product = require('../models/Product');
 
+// Safety: prevent running on production database
+if (process.env.NODE_ENV === 'production' || (process.env.MONGODB_URI && process.env.MONGODB_URI.includes('_prod'))) {
+  console.error('\n❌ ABORT: Cannot run seed script on production database!\n');
+  process.exit(1);
+}
+
 const seedData = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/rupalsha');

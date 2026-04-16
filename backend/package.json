@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "start:prod": "NODE_ENV=production node -r dotenv/config server.js dotenv_config_path=.env.production"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

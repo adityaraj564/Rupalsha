@@ -17,16 +17,21 @@ connectDB();
 
 // Security middleware
 app.use(helmet());
+
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+];
+// In development, allow localhost and tunnel URLs
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push('http://localhost:3000', 'http://localhost:3001');
+}
+
 app.use(cors({
   origin: function(origin, callback) {
-    const allowed = [
-      process.env.FRONTEND_URL || 'http://localhost:3000',
-      'https://rupalsha-api.loca.lt',
-    ];
-    if (!origin || allowed.some(u => origin.startsWith(u)) || origin.endsWith('.loca.lt')) {
+    if (!origin || allowedOrigins.some(u => origin.startsWith(u)) || (process.env.NODE_ENV !== 'production' && origin.endsWith('.loca.lt'))) {
       callback(null, true);
     } else {
-      callback(null, true); // allow all origins for tunnel sharing
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
@@ -39,6 +44,16 @@ const limiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
 });
 app.use('/api/', limiter);
+
+// Stricter rate limit for auth endpoints (login/register)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many login attempts, please try again after 15 minutes.' },
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));
