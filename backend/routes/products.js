@@ -11,11 +11,14 @@ router.get('/', async (req, res, next) => {
   try {
     const {
       category, search, sort, minPrice, maxPrice,
-      size, page = 1, limit = 12, featured, trending,
+      size, page = 1, limit = 12, featured, trending, hideOutOfStock,
     } = req.query;
 
     const filter = { isActive: true };
 
+    if (hideOutOfStock === 'true') {
+      filter['sizes.stock'] = { $gt: 0 };
+    }
     if (category) filter.category = category;
     if (featured === 'true') filter.isFeatured = true;
     if (trending === 'true') filter.isTrending = true;

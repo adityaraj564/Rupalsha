@@ -16,6 +16,7 @@ export default function ProfilePage() {
   const [profileForm, setProfileForm] = useState({ name: '', phone: '' });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [editingAddress, setEditingAddress] = useState(null);
+  const [addingAddress, setAddingAddress] = useState(false);
   const [addressForm, setAddressForm] = useState({
     fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
@@ -69,6 +70,22 @@ export default function ProfilePage() {
       const { addresses } = await authAPI.deleteAddress(id);
       updateUser({ addresses });
       toast.success('Address deleted');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleAddAddress = async () => {
+    if (!addressForm.fullName || !addressForm.phone || !addressForm.addressLine1 || !addressForm.city || !addressForm.state || !addressForm.pincode) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+    try {
+      const { addresses } = await authAPI.addAddress(addressForm);
+      updateUser({ addresses });
+      setAddingAddress(false);
+      setAddressForm({ fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '' });
+      toast.success('Address added');
     } catch (err) {
       toast.error(err.message);
     }
@@ -228,9 +245,51 @@ export default function ProfilePage() {
       {/* Addresses Tab */}
       {activeTab === 'addresses' && (
         <div className="card p-6">
-          <h2 className="font-serif text-xl font-semibold mb-4">Saved Addresses</h2>
-          {user.addresses?.length === 0 ? (
-            <p className="text-gray-500">No addresses saved. Add one during checkout.</p>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-serif text-xl font-semibold">Saved Addresses</h2>
+            {!addingAddress && (
+              <button
+                onClick={() => {
+                  setAddingAddress(true);
+                  setEditingAddress(null);
+                  setAddressForm({ fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '' });
+                }}
+                className="btn-primary text-sm py-2 px-4"
+              >
+                + Add Address
+              </button>
+            )}
+          </div>
+
+          {/* Add New Address Form */}
+          {addingAddress && (
+            <div className="border border-brand-green rounded-xl p-4 mb-4 bg-green-50/30">
+              <h3 className="font-medium text-sm mb-3">New Address</h3>
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input type="text" placeholder="Full Name *" value={addressForm.fullName} onChange={(e) => setAddressForm({ ...addressForm, fullName: e.target.value })} className="input-field" />
+                  <input type="tel" placeholder="Phone *" value={addressForm.phone} onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })} className="input-field" />
+                </div>
+                <input type="text" placeholder="Address Line 1 *" value={addressForm.addressLine1} onChange={(e) => setAddressForm({ ...addressForm, addressLine1: e.target.value })} className="input-field" />
+                <input type="text" placeholder="Address Line 2 (optional)" value={addressForm.addressLine2} onChange={(e) => setAddressForm({ ...addressForm, addressLine2: e.target.value })} className="input-field" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <input type="text" placeholder="Pincode *" value={addressForm.pincode} onChange={(e) => handleAddressPincode(e.target.value)} className="input-field" maxLength={6} />
+                  <div className="relative">
+                    <input type="text" placeholder="City *" value={addressForm.city} onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })} className="input-field" />
+                    {fetchingPincode && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">...</span>}
+                  </div>
+                  <input type="text" placeholder="State *" value={addressForm.state} onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })} className="input-field" />
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={handleAddAddress} className="btn-primary text-sm py-2">Save Address</button>
+                  <button onClick={() => setAddingAddress(false)} className="text-sm text-gray-500">Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {user.addresses?.length === 0 && !addingAddress ? (
+            <p className="text-gray-500">No addresses saved yet. Click &quot;Add Address&quot; to add one.</p>
           ) : (
             <div className="space-y-4">
               {user.addresses?.map((addr) => (

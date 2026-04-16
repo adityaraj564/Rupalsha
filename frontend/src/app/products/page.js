@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { productsAPI } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
 import { FiFilter, FiX, FiChevronDown } from 'react-icons/fi';
 
 const SORT_OPTIONS = [
@@ -33,6 +34,7 @@ const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
 function ProductsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -63,6 +65,7 @@ function ProductsContent() {
         if (size) params.size = size;
         if (searchParams.get('featured')) params.featured = 'true';
         if (searchParams.get('trending')) params.trending = 'true';
+        if (!isAuthenticated) params.hideOutOfStock = 'true';
 
         const data = await productsAPI.getAll(params);
         setProducts(data.products);
@@ -75,7 +78,7 @@ function ProductsContent() {
       }
     };
     fetchProducts();
-  }, [category, sort, minPrice, maxPrice, size, page, search, searchParams]);
+  }, [category, sort, minPrice, maxPrice, size, page, search, searchParams, isAuthenticated]);
 
   const clearFilters = () => {
     setCategory('');
