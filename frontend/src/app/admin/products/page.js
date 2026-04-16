@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
-import { adminAPI } from '@/lib/api';
+import { adminAPI, categoriesAPI } from '@/lib/api';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import toast from 'react-hot-toast';
 
-const CATEGORIES = ['sarees', 'kurtis', 'lehengas', 'dresses', 'tops', 'bottoms', 'accessories', 'home decors', 'gift items'];
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
 
 export default function AdminProductsPage() {
@@ -15,11 +14,19 @@ export default function AdminProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [search, setSearch] = useState('');
+
+  // Category state
+  const [allCategories, setAllCategories] = useState([]);
+  const [mainCategories, setMainCategories] = useState([]);
+  const [subCategories, setSubCategories] = useState([]);
+  const [childCategories, setChildCategories] = useState([]);
+
   const [form, setForm] = useState({
-    name: '', description: '', price: '', comparePrice: '', category: 'sarees',
+    name: '', description: '', price: '', comparePrice: '', category: '',
+    subcategory: '', childCategory: '', categoryRef: '',
     fabric: '', careInstructions: '', isFeatured: false, isTrending: false,
     sizes: SIZES.map(s => ({ size: s, stock: 0 })),
-    tags: '',
+    tags: '', sku: '', lowStockThreshold: '5',
   });
   const [images, setImages] = useState([]);
 
@@ -36,14 +43,72 @@ export default function AdminProductsPage() {
     }
   };
 
-  useEffect(() => { fetchProducts(); }, []);
+  const fetchCategories = async () => {
+    try {
+      const data = await adminAPI.getCategories();
+      setAllCategories(data.categories);
+      setMainCategories(data.categories.filter(c => c.level === 0));
+    } catch (err) {
+      toast.error('Failed to load categories');
+    }
+  };
+
+  useEffect(() => { fetchProducts(); fetchCategories(); }, []);
+
+  // Update subcategories when main category changes
+  useEffect(() => {
+    if (form.category) {
+      const mainCat = allCategories.find(c => c.name === form.category && c.level === 0);
+      if (mainCat) {
+        const subs = allCategories.filter(c => c.parent === mainCat._id || (c.parent && c.parent.toString() === mainCat._id.toString()));
+        setSubCategories(subs);
+      } else {
+        setSubCategories([]);
+      }
+    } else {
+      setSubCategories([]);
+    }
+    setChildCategories([]);
+  }, [form.category, allCategories]);
+
+  // Update child categories when subcategory changes
+  useEffect(() => {
+    if (form.subcategory) {
+      const subCat = allCategories.find(c => c.name === form.subcategory && c.level === 1);
+      if (subCat) {
+        const children = allCategories.filter(c => c.parent === subCat._id || (c.parent && c.parent.toString() === subCat._id.toString()));
+        setChildCategories(children);
+      } else {
+        setChildCategories([]);
+      }
+    } else {
+      setChildCategories([]);
+    }
+  }, [form.subcategory, allCategories]);
+
+  // Set categoryRef when selections change
+  useEffect(() => {
+    let ref = '';
+    if (form.childCategory) {
+      const child = allCategories.find(c => c.name === form.childCategory && c.level === 2);
+      if (child) ref = child._id;
+    } else if (form.subcategory) {
+      const sub = allCategories.find(c => c.name === form.subcategory && c.level === 1);
+      if (sub) ref = sub._id;
+    } else if (form.category) {
+      const main = allCategories.find(c => c.name === form.category && c.level === 0);
+      if (main) ref = main._id;
+    }
+    setForm(prev => ({ ...prev, categoryRef: ref }));
+  }, [form.category, form.subcategory, form.childCategory, allCategories]);
 
   const resetForm = () => {
     setForm({
-      name: '', description: '', price: '', comparePrice: '', category: 'sarees',
+      name: '', description: '', price: '', comparePrice: '', category: '',
+      subcategory: '', childCategory: '', categoryRef: '',
       fabric: '', careInstructions: '', isFeatured: false, isTrending: false,
       sizes: SIZES.map(s => ({ size: s, stock: 0 })),
-      tags: '',
+      tags: '', sku: '', lowStockThreshold: '5',
     });
     setImages([]);
     setEditingProduct(null);
@@ -55,7 +120,10 @@ export default function AdminProductsPage() {
       description: product.description,
       price: product.price,
       comparePrice: product.comparePrice || '',
-      category: product.category,
+      category: product.category || '',
+      subcategory: product.subcategory || '',
+      childCategory: product.childCategory || '',
+      categoryRef: product.categoryRef || '',
       fabric: product.fabric || '',
       careInstructions: product.careInstructions || '',
       isFeatured: product.isFeatured,
@@ -65,6 +133,8 @@ export default function AdminProductsPage() {
         return { size: s, stock: existing?.stock || 0 };
       }),
       tags: product.tags?.join(', ') || '',
+      sku: product.sku || '',
+      lowStockThreshold: product.lowStockThreshold || '5',
     });
     setEditingProduct(product);
     setShowForm(true);
@@ -77,7 +147,12 @@ export default function AdminProductsPage() {
     formData.append('description', form.description);
     formData.append('price', form.price);
     if (form.comparePrice) formData.append('comparePrice', form.comparePrice);
+    if (form.sku) formData.append('sku', form.sku);
+    if (form.lowStockThreshold) formData.append('lowStockThreshold', form.lowStockThreshold);
     formData.append('category', form.category);
+    if (form.subcategory) formData.append('subcategory', form.subcategory);
+    if (form.childCategory) formData.append('childCategory', form.childCategory);
+    if (form.categoryRef) formData.append('categoryRef', form.categoryRef);
     formData.append('fabric', form.fabric);
     formData.append('careInstructions', form.careInstructions);
     formData.append('isFeatured', form.isFeatured);
@@ -179,36 +254,126 @@ export default function AdminProductsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Category *</label>
-                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="input-field">
-                    {CATEGORIES.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
-                  </select>
+              {/* Hierarchical Category Selection */}
+              <div className="space-y-3 p-4 bg-gray-50 rounded-xl">
+                <p className="text-sm font-semibold text-gray-700">Category Assignment</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600">Main Category *</label>
+                    <select
+                      value={form.category}
+                      onChange={(e) => setForm({ ...form, category: e.target.value, subcategory: '', childCategory: '' })}
+                      className="input-field text-sm py-2"
+                      required
+                    >
+                      <option value="">Select...</option>
+                      {mainCategories.map(c => (
+                        <option key={c._id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600">Sub Category</label>
+                    <select
+                      value={form.subcategory}
+                      onChange={(e) => setForm({ ...form, subcategory: e.target.value, childCategory: '' })}
+                      className="input-field text-sm py-2"
+                      disabled={!form.category || subCategories.length === 0}
+                    >
+                      <option value="">Select...</option>
+                      {subCategories.map(c => (
+                        <option key={c._id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600">Child Category</label>
+                    <select
+                      value={form.childCategory}
+                      onChange={(e) => setForm({ ...form, childCategory: e.target.value })}
+                      className="input-field text-sm py-2"
+                      disabled={!form.subcategory || childCategories.length === 0}
+                    >
+                      <option value="">Select...</option>
+                      {childCategories.map(c => (
+                        <option key={c._id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Fabric</label>
-                  <input type="text" value={form.fabric} onChange={(e) => setForm({ ...form, fabric: e.target.value })} className="input-field" />
-                </div>
+                {form.category && (
+                  <p className="text-xs text-gray-400">
+                    Path: {[form.category, form.subcategory, form.childCategory].filter(Boolean).join(' → ')}
+                  </p>
+                )}
               </div>
 
-              {/* Sizes & Stock */}
               <div>
-                <label className="block text-sm font-medium mb-2">Sizes & Stock *</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {form.sizes.map((s, i) => (
-                    <div key={s.size} className="flex items-center gap-2">
-                      <span className="text-sm font-medium w-12">{s.size}</span>
-                      <input
-                        type="number"
-                        value={s.stock}
-                        onChange={(e) => updateSizeStock(i, e.target.value)}
-                        className="input-field py-1.5 text-sm"
-                        min="0"
-                      />
-                    </div>
-                  ))}
+                <label className="block text-sm font-medium mb-1">Fabric</label>
+                <input type="text" value={form.fabric} onChange={(e) => setForm({ ...form, fabric: e.target.value })} className="input-field" />
+              </div>
+
+              {/* Inventory Management */}
+              <div className="space-y-3 p-4 bg-gray-50 rounded-xl">
+                <p className="text-sm font-semibold text-gray-700">Inventory</p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600">SKU (Stock Keeping Unit)</label>
+                    <input
+                      type="text"
+                      value={form.sku}
+                      onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                      className="input-field text-sm py-2"
+                      placeholder="e.g. ACC-JWL-EAR-001"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600">Low Stock Alert Threshold</label>
+                    <input
+                      type="number"
+                      value={form.lowStockThreshold}
+                      onChange={(e) => setForm({ ...form, lowStockThreshold: e.target.value })}
+                      className="input-field text-sm py-2"
+                      min="0"
+                      placeholder="e.g. 5"
+                    />
+                  </div>
                 </div>
+
+                <div>
+                  <label className="block text-xs font-medium mb-2 text-gray-600">Sizes & Stock *</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {form.sizes.map((s, i) => (
+                      <div key={s.size} className="flex items-center gap-2">
+                        <span className="text-sm font-medium w-12">{s.size}</span>
+                        <input
+                          type="number"
+                          value={s.stock}
+                          onChange={(e) => updateSizeStock(i, e.target.value)}
+                          className="input-field py-1.5 text-sm"
+                          min="0"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Total Stock Summary */}
+                {(() => {
+                  const totalStock = form.sizes.reduce((sum, s) => sum + (parseInt(s.stock) || 0), 0);
+                  const threshold = parseInt(form.lowStockThreshold) || 5;
+                  return (
+                    <div className="flex items-center gap-4 pt-2 border-t border-gray-200">
+                      <div className="text-sm">
+                        Total Stock: <span className={`font-semibold ${totalStock === 0 ? 'text-red-500' : totalStock <= threshold ? 'text-amber-500' : 'text-green-600'}`}>{totalStock}</span>
+                      </div>
+                      {totalStock === 0 && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Out of Stock</span>}
+                      {totalStock > 0 && totalStock <= threshold && <span className="text-xs bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">Low Stock</span>}
+                      {totalStock > threshold && <span className="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">In Stock</span>}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Images */}
@@ -301,6 +466,7 @@ export default function AdminProductsPage() {
             <tbody>
               {products.map((product) => {
                 const totalStock = product.sizes?.reduce((sum, s) => sum + s.stock, 0) || 0;
+                const catPath = [product.category, product.subcategory, product.childCategory].filter(Boolean).join(' → ');
                 return (
                   <tr key={product._id} className="border-t hover:bg-gray-50">
                     <td className="p-4">
@@ -314,7 +480,9 @@ export default function AdminProductsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 text-gray-600 capitalize">{product.category}</td>
+                    <td className="p-4">
+                      <span className="text-gray-600 text-xs">{catPath}</span>
+                    </td>
                     <td className="p-4">
                       <span className="font-medium">₹{product.price.toLocaleString()}</span>
                       {product.comparePrice && <span className="text-xs text-gray-400 line-through ml-1">₹{product.comparePrice}</span>}

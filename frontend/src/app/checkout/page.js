@@ -268,7 +268,7 @@ export default function CheckoutPage() {
                   onChange={(e) => setNewAddress({ ...newAddress, addressLine2: e.target.value })}
                   className="input-field"
                 />
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <input
                     type="text"
                     placeholder="Pincode"

@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
 import CategorySidebar from '@/components/CategorySidebar';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { productsAPI, categoriesAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { FiFilter, FiX, FiChevronDown } from 'react-icons/fi';
+import { FiFilter, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
@@ -19,45 +19,59 @@ const SORT_OPTIONS = [
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
 
-function ProductsContent() {
-  const searchParams = useSearchParams();
+export default function CategoryPage() {
+  const { slug } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const [categoryTree, setCategoryTree] = useState([]);
+  const [currentCategory, setCurrentCategory] = useState(null);
+  const [ancestors, setAncestors] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [treeLoading, setTreeLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  const [selectedCategorySlug, setSelectedCategorySlug] = useState('');
-  const [sort, setSort] = useState(searchParams.get('sort') || 'newest');
+  const [selectedSlug, setSelectedSlug] = useState(slug);
+  const [sort, setSort] = useState('newest');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [size, setSize] = useState('');
-  const search = searchParams.get('search') || '';
 
   // Fetch category tree
   useEffect(() => {
     categoriesAPI.getTree().then((data) => {
       setCategoryTree(data.categories);
-    }).catch(() => {});
+      setTreeLoading(false);
+    }).catch(() => setTreeLoading(false));
   }, []);
 
+  // Fetch current category info
+  useEffect(() => {
+    if (!slug) return;
+    setSelectedSlug(slug);
+    categoriesAPI.getBySlug(slug).then((data) => {
+      setCurrentCategory(data.category);
+      setAncestors(data.ancestors || []);
+    }).catch(() => {
+      setCurrentCategory(null);
+    });
+  }, [slug]);
+
+  // Fetch products
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
         const params = { page, limit: 12, sort };
-        if (selectedCategorySlug) params.categorySlug = selectedCategorySlug;
-        if (search) params.search = search;
+        params.categorySlug = selectedSlug;
         if (minPrice) params.minPrice = minPrice;
         if (maxPrice) params.maxPrice = maxPrice;
         if (size) params.size = size;
-        if (searchParams.get('featured')) params.featured = 'true';
-        if (searchParams.get('trending')) params.trending = 'true';
         if (!isAuthenticated) params.hideOutOfStock = 'true';
 
         const data = await productsAPI.getAll(params);
@@ -71,10 +85,20 @@ function ProductsContent() {
       }
     };
     fetchProducts();
-  }, [selectedCategorySlug, sort, minPrice, maxPrice, size, page, search, searchParams, isAuthenticated]);
+  }, [selectedSlug, sort, minPrice, maxPrice, size, page, isAuthenticated]);
+
+  const handleSelectCategory = useCallback((catSlug) => {
+    if (catSlug === selectedSlug) {
+      // Deselect - go back to the main category from URL
+      setSelectedSlug(slug);
+    } else {
+      setSelectedSlug(catSlug);
+    }
+    setPage(1);
+  }, [selectedSlug, slug]);
 
   const clearFilters = () => {
-    setSelectedCategorySlug('');
+    setSelectedSlug(slug);
     setMinPrice('');
     setMaxPrice('');
     setSize('');
@@ -82,39 +106,52 @@ function ProductsContent() {
     setPage(1);
   };
 
-  const handleSelectCategory = (slug) => {
-    setSelectedCategorySlug(selectedCategorySlug === slug ? '' : slug);
-    setPage(1);
-  };
+  const pageTitle = currentCategory?.name || 'Shop';
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6 flex-wrap">
+        <button onClick={() => router.push('/products')} className="hover:text-brand-green transition-colors">
+          Shop All
+        </button>
+        {ancestors.map((anc) => (
+          <span key={anc._id} className="flex items-center gap-2">
+            <FiChevronRight size={12} />
+            <button
+              onClick={() => router.push(`/category/${anc.slug}`)}
+              className="hover:text-brand-green transition-colors"
+            >
+              {anc.name}
+            </button>
+          </span>
+        ))}
+        {currentCategory && (
+          <span className="flex items-center gap-2">
+            <FiChevronRight size={12} />
+            <span className="text-brand-charcoal font-medium">{currentCategory.name}</span>
+          </span>
+        )}
+      </nav>
+
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal">
-                {search ? `Results for "${search}"` : 'Shop All'}
-              </h1>
-              {search && (
-                <button
-                  onClick={() => router.push('/products')}
-                  className="flex items-center gap-1 px-3 py-1 text-sm text-gray-500 hover:text-brand-green border border-gray-300 rounded-full transition-colors"
-                >
-                  <FiX size={14} /> Clear search
-                </button>
-              )}
-            </div>
+            <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal">
+              {pageTitle}
+            </h1>
             <p className="text-gray-500 mt-2">{total} product{total !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Mobile filter button */}
             <button
               onClick={() => setMobileFiltersOpen(true)}
               className="lg:hidden flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:border-brand-green transition-colors"
             >
               <FiFilter size={16} /> Filters
             </button>
+            {/* Sort dropdown */}
             <div className="relative hidden lg:block">
               <select
                 value={sort}
@@ -131,26 +168,28 @@ function ProductsContent() {
         </div>
       </div>
 
-      {/* Main Layout */}
+      {/* Main Layout: Sidebar + Products */}
       <div className="flex gap-8">
-        <CategorySidebar
-          categoryTree={categoryTree}
-          selectedSlugs={selectedCategorySlug ? [selectedCategorySlug] : []}
-          onSelectCategory={handleSelectCategory}
-          onClearFilters={clearFilters}
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          onMinPriceChange={(v) => { setMinPrice(v); setPage(1); }}
-          onMaxPriceChange={(v) => { setMaxPrice(v); setPage(1); }}
-          size={size}
-          sizes={SIZES}
-          onSizeChange={(s) => { setSize(s); setPage(1); }}
-          sort={sort}
-          sortOptions={SORT_OPTIONS}
-          onSortChange={(s) => { setSort(s); setPage(1); }}
-          mobileOpen={mobileFiltersOpen}
-          onMobileClose={() => setMobileFiltersOpen(false)}
-        />
+        {!treeLoading && (
+          <CategorySidebar
+            categoryTree={categoryTree}
+            selectedSlugs={selectedSlug !== slug ? [selectedSlug] : [slug]}
+            onSelectCategory={handleSelectCategory}
+            onClearFilters={clearFilters}
+            minPrice={minPrice}
+            maxPrice={maxPrice}
+            onMinPriceChange={(v) => { setMinPrice(v); setPage(1); }}
+            onMaxPriceChange={(v) => { setMaxPrice(v); setPage(1); }}
+            size={size}
+            sizes={SIZES}
+            onSizeChange={(s) => { setSize(s); setPage(1); }}
+            sort={sort}
+            sortOptions={SORT_OPTIONS}
+            onSortChange={(s) => { setSort(s); setPage(1); }}
+            mobileOpen={mobileFiltersOpen}
+            onMobileClose={() => setMobileFiltersOpen(false)}
+          />
+        )}
 
         {/* Products Grid */}
         <div className="flex-1 min-w-0">
@@ -158,7 +197,7 @@ function ProductsContent() {
             <LoadingSpinner />
           ) : products.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-gray-500 text-lg">No products found</p>
+              <p className="text-gray-500 text-lg">No products found in this category</p>
               <button onClick={clearFilters} className="text-brand-green mt-4 hover:underline">
                 Clear filters
               </button>
@@ -179,7 +218,9 @@ function ProductsContent() {
                       key={p}
                       onClick={() => { setPage(p); window.scrollTo(0, 0); }}
                       className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${
-                        page === p ? 'bg-brand-green text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-brand-green'
+                        page === p
+                          ? 'bg-brand-green text-white'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:border-brand-green'
                       }`}
                     >
                       {p}
@@ -192,13 +233,5 @@ function ProductsContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function ProductsPage() {
-  return (
-    <Suspense fallback={<LoadingSpinner />}>
-      <ProductsContent />
-    </Suspense>
   );
 }

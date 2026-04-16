@@ -111,3 +111,34 @@
   opacity: 1;
   transform: translateY(0);
 }
+
+/* Sidebar slide-in animation */
+@keyframes slide-right {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-right {
+  animation: slide-right 0.3s ease-out;
+}
+
+/* Accordion animation */
+@keyframes accordion-open {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+  }
+}
+
+.animate-accordion-open {
+  animation: accordion-open 0.25s ease-out;
+  overflow: hidden;
+}

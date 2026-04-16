@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const { adminAuth } = require('../middleware/auth');
 const Product = require('../models/Product');
+const Category = require('../models/Category');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const Review = require('../models/Review');
@@ -74,7 +75,7 @@ router.get('/products', async (req, res, next) => {
 // POST /api/admin/products
 router.post('/products', upload.array('images', 5), async (req, res, next) => {
   try {
-    const { name, description, price, comparePrice, category, subcategory, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, returnPolicy } = req.body;
+    const { name, description, price, comparePrice, category, subcategory, childCategory, categoryRef, sku, lowStockThreshold, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, returnPolicy } = req.body;
 
     const images = req.files ? req.files.map(file => ({
       url: file.path,
@@ -104,6 +105,10 @@ router.post('/products', upload.array('images', 5), async (req, res, next) => {
       comparePrice: comparePrice ? Number(comparePrice) : undefined,
       category,
       subcategory,
+      childCategory,
+      categoryRef: categoryRef || undefined,
+      sku,
+      lowStockThreshold: lowStockThreshold ? Number(lowStockThreshold) : 5,
       images,
       sizes: parsedSizes,
       colors: parsedColors,
@@ -127,13 +132,13 @@ router.put('/products/:id', upload.array('images', 5), async (req, res, next) =>
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
-    const updateFields = ['name', 'description', 'price', 'comparePrice', 'category', 'subcategory', 'fabric', 'careInstructions', 'isFeatured', 'isTrending', 'isActive', 'returnPolicy'];
+    const updateFields = ['name', 'description', 'price', 'comparePrice', 'category', 'subcategory', 'childCategory', 'categoryRef', 'sku', 'lowStockThreshold', 'fabric', 'careInstructions', 'isFeatured', 'isTrending', 'isActive', 'returnPolicy'];
 
     updateFields.forEach(field => {
       if (req.body[field] !== undefined) {
         if (['isFeatured', 'isTrending', 'isActive'].includes(field)) {
           product[field] = req.body[field] === 'true' || req.body[field] === true;
-        } else if (['price', 'comparePrice'].includes(field)) {
+        } else if (['price', 'comparePrice', 'lowStockThreshold'].includes(field)) {
           product[field] = Number(req.body[field]);
         } else {
           product[field] = req.body[field];
@@ -394,5 +399,78 @@ router.get('/contacts', async (req, res, next) => {
     next(error);
   }
 });
+
+// ===== CATEGORIES =====
+// GET /api/admin/categories
+router.get('/categories', async (req, res, next) => {
+  try {
+    const categories = await Category.find().sort({ sortOrder: 1, name: 1 }).lean();
+    res.json({ categories });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/admin/categories
+router.post('/categories', [
+  body('name').trim().notEmpty().withMessage('Category name is required'),
+  body('level').isIn([0, 1, 2]),
+], async (req, res, next) => {
+  try {
+    const { name, parent, level, sortOrder } = req.body;
+    const category = await Category.create({
+      name,
+      parent: parent || null,
+      level,
+      sortOrder: sortOrder || 0,
+    });
+    res.status(201).json({ category });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/admin/categories/:id
+router.put('/categories/:id', async (req, res, next) => {
+  try {
+    const category = await Category.findById(req.params.id);
+    if (!category) return res.status(404).json({ error: 'Category not found' });
+
+    if (req.body.name !== undefined) category.name = req.body.name;
+    if (req.body.isActive !== undefined) category.isActive = req.body.isActive;
+    if (req.body.sortOrder !== undefined) category.sortOrder = req.body.sortOrder;
+
+    await category.save();
+    res.json({ category });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/admin/categories/:id
+router.delete('/categories/:id', async (req, res, next) => {
+  try {
+    const category = await Category.findById(req.params.id);
+    if (!category) return res.status(404).json({ error: 'Category not found' });
+
+    // Delete all descendants
+    const allCats = await Category.find().lean();
+    const descendantIds = getDescendantIds(allCats, category._id);
+    await Category.deleteMany({ _id: { $in: [...descendantIds, category._id] } });
+
+    res.json({ message: 'Category and its subcategories deleted' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+function getDescendantIds(allCategories, parentId) {
+  const children = allCategories.filter(c => c.parent && c.parent.toString() === parentId.toString());
+  let ids = children.map(c => c._id);
+  for (const child of children) {
+    ids = ids.concat(getDescendantIds(allCategories, child._id));
+  }
+  return ids;
+}
 
 module.exports = router;

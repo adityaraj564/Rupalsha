@@ -3,13 +3,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo } from 'react-icons/fi';
+import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 const ADMIN_NAV = [
   { href: '/admin', label: 'Dashboard', icon: FiGrid },
   { href: '/admin/products', label: 'Products', icon: FiPackage },
+  { href: '/admin/categories', label: 'Categories', icon: FiLayers },
   { href: '/admin/orders', label: 'Orders', icon: FiShoppingCart },
   { href: '/admin/users', label: 'Users', icon: FiUsers },
   { href: '/admin/reviews', label: 'Reviews', icon: FiStar },

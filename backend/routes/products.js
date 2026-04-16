@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const { query } = require('express-validator');
 const Product = require('../models/Product');
+const Category = require('../models/Category');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -10,7 +11,7 @@ const router = express.Router();
 router.get('/', async (req, res, next) => {
   try {
     const {
-      category, search, sort, minPrice, maxPrice,
+      category, categorySlug, search, sort, minPrice, maxPrice,
       size, page = 1, limit = 12, featured, trending, hideOutOfStock,
     } = req.query;
 
@@ -19,7 +20,20 @@ router.get('/', async (req, res, next) => {
     if (hideOutOfStock === 'true') {
       filter['sizes.stock'] = { $gt: 0 };
     }
-    if (category) filter.category = category;
+
+    // Support filtering by category slug (hierarchical - includes descendants)
+    if (categorySlug) {
+      const cat = await Category.findOne({ slug: categorySlug, isActive: true });
+      if (cat) {
+        const allCats = await Category.find({ isActive: true }).lean();
+        const descendantIds = getDescendantIds(allCats, cat._id);
+        descendantIds.push(cat._id);
+        filter.categoryRef = { $in: descendantIds };
+      }
+    } else if (category) {
+      filter.category = category;
+    }
+
     if (featured === 'true') filter.isFeatured = true;
     if (trending === 'true') filter.isTrending = true;
     if (minPrice || maxPrice) {
@@ -188,5 +202,14 @@ router.get('/:slug', async (req, res, next) => {
     next(error);
   }
 });
+
+function getDescendantIds(allCategories, parentId) {
+  const children = allCategories.filter(c => c.parent && c.parent.toString() === parentId.toString());
+  let ids = children.map(c => c._id);
+  for (const child of children) {
+    ids = ids.concat(getDescendantIds(allCategories, child._id));
+  }
+  return ids;
+}
 
 module.exports = router;

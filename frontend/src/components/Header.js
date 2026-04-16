@@ -9,11 +9,12 @@ import { couponsAPI } from '@/lib/api';
 
 const NAV_LINKS = [
   { href: '/products', label: 'Shop All' },
-  { href: '/products?category=sarees', label: 'Sarees' },
-  { href: '/products?category=kurtis', label: 'Kurtis' },
-  { href: '/products?category=lehengas', label: 'Lehengas' },
-  { href: '/products?category=dresses', label: 'Dresses' },
-  { href: '/products?category=accessories', label: 'Accessories' },
+  { href: '/category/fashion', label: 'Fashion' },
+  { href: '/category/genz', label: 'GenZ' },
+  { href: '/category/kids', label: 'Kids' },
+  { href: '/category/home-living', label: 'Home & Living' },
+  { href: '/category/handcrafted', label: 'Handcrafted' },
+  { href: '/category/accessories', label: 'Accessories' },
 ];
 
 export default function Header() {

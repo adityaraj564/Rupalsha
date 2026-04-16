@@ -62,6 +62,16 @@ export const productsAPI = {
   getCategories: () => request('/products/categories'),
 };
 
+// Categories
+export const categoriesAPI = {
+  getTree: () => request('/categories'),
+  getFlat: (params) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/categories/flat?${query}`);
+  },
+  getBySlug: (slug) => request(`/categories/${slug}`),
+};
+
 // Cart
 export const cartAPI = {
   get: () => request('/cart'),
@@ -173,4 +183,9 @@ export const adminAPI = {
   deleteCoupon: (id) => request(`/admin/coupons/${id}`, { method: 'DELETE' }),
   // Contacts
   getContacts: () => request('/admin/contacts'),
+  // Categories
+  getCategories: () => request('/admin/categories'),
+  createCategory: (data) => request('/admin/categories', { method: 'POST', body: data }),
+  updateCategory: (id, data) => request(`/admin/categories/${id}`, { method: 'PUT', body: data }),
+  deleteCategory: (id) => request(`/admin/categories/${id}`, { method: 'DELETE' }),
 };

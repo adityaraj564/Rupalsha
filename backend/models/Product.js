@@ -29,9 +29,22 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     required: [true, 'Category is required'],
-    enum: ['sarees', 'kurtis', 'lehengas', 'dresses', 'tops', 'bottoms', 'accessories', 'home decors', 'gift items'],
   },
   subcategory: String,
+  childCategory: String,
+  categoryRef: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Category',
+  },
+  sku: {
+    type: String,
+    trim: true,
+  },
+  lowStockThreshold: {
+    type: Number,
+    default: 5,
+    min: 0,
+  },
   images: [{
     url: { type: String, required: true },
     public_id: String,
@@ -98,5 +111,8 @@ productSchema.pre('save', function (next) {
 // Index for search
 productSchema.index({ name: 'text', description: 'text', tags: 'text' });
 productSchema.index({ category: 1, price: 1 });
+productSchema.index({ categoryRef: 1 });
+productSchema.index({ subcategory: 1 });
+productSchema.index({ childCategory: 1 });
 
 module.exports = mongoose.model('Product', productSchema);
