@@ -312,10 +312,14 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {order.status === 'delivered' && (
+          {order.status === 'delivered' && order.items.every(item => item.product?.isReturnable !== false) && (
             <button onClick={handleReturn} className="text-orange-500 text-sm hover:underline">
               Request Return
             </button>
+          )}
+
+          {order.status === 'delivered' && order.items.some(item => item.product?.isReturnable === false) && (
+            <p className="text-sm text-gray-500">This order contains non-returnable items and cannot be returned.</p>
           )}
         </div>
       </div>

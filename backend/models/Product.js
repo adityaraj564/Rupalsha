@@ -103,6 +103,10 @@ const productSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  isReturnable: {
+    type: Boolean,
+    default: true,
+  },
   returnPolicy: {
     type: String,
     default: '7-day easy return policy. Product must be unused with original tags.',

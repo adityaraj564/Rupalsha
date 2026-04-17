@@ -534,8 +534,8 @@ export default function ProductDetailPage() {
               <span>Free shipping on orders above ₹999</span>
             </div>
             <div className="flex items-center gap-3 text-sm text-gray-600">
-              <FiRefreshCw className="text-brand-green flex-shrink-0" size={18} />
-              <span>{product.returnPolicy}</span>
+              <FiRefreshCw className={`${product.isReturnable === false ? 'text-red-400' : 'text-brand-green'} flex-shrink-0`} size={18} />
+              <span>{product.isReturnable === false ? 'This product is not eligible for returns' : product.returnPolicy}</span>
             </div>
           </div>
 

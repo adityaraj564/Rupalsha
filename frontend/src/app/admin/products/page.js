@@ -27,6 +27,7 @@ export default function AdminProductsPage() {
     fabric: '', careInstructions: '', isFeatured: false, isTrending: false,
     sizes: SIZES.map(s => ({ size: s, stock: 0 })),
     tags: '', sku: '', lowStockThreshold: '5',
+    isReturnable: true,
     returnPolicy: '7-day easy return policy. Product must be unused with original tags.',
     shippingCharge: '0',
   });
@@ -111,6 +112,7 @@ export default function AdminProductsPage() {
       fabric: '', careInstructions: '', isFeatured: false, isTrending: false,
       sizes: SIZES.map(s => ({ size: s, stock: 0 })),
       tags: '', sku: '', lowStockThreshold: '5',
+      isReturnable: true,
       returnPolicy: '7-day easy return policy. Product must be unused with original tags.',
       shippingCharge: '0',
     });
@@ -139,6 +141,7 @@ export default function AdminProductsPage() {
       tags: product.tags?.join(', ') || '',
       sku: product.sku || '',
       lowStockThreshold: product.lowStockThreshold || '5',
+      isReturnable: product.isReturnable !== false,
       returnPolicy: product.returnPolicy || '7-day easy return policy. Product must be unused with original tags.',
       shippingCharge: product.shippingCharge || '0',
     });
@@ -155,6 +158,7 @@ export default function AdminProductsPage() {
     if (form.comparePrice) formData.append('comparePrice', form.comparePrice);
     if (form.sku) formData.append('sku', form.sku);
     if (form.lowStockThreshold) formData.append('lowStockThreshold', form.lowStockThreshold);
+    formData.append('isReturnable', form.isReturnable);
     formData.append('returnPolicy', form.returnPolicy);
     formData.append('shippingCharge', form.shippingCharge);
     formData.append('category', form.category);
@@ -438,6 +442,13 @@ export default function AdminProductsPage() {
               </div>
 
               {/* Return Policy & Shipping */}
+              <div className="mb-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={form.isReturnable} onChange={(e) => setForm({ ...form, isReturnable: e.target.checked, returnPolicy: e.target.checked ? form.returnPolicy : 'This product is not eligible for returns.' })} className="accent-brand-green" />
+                  Returnable Product
+                </label>
+                <p className="text-xs text-gray-400 mt-0.5">{form.isReturnable ? 'Customers can request returns for this product' : 'Returns are disabled — customers cannot return this product'}</p>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Return Policy</label>
@@ -447,6 +458,7 @@ export default function AdminProductsPage() {
                     className="input-field"
                     rows={2}
                     placeholder="e.g. 7-day easy return policy..."
+                    disabled={!form.isReturnable}
                   />
                 </div>
                 <div>

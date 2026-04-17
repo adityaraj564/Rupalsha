@@ -139,7 +139,7 @@ router.get('/', auth, async (req, res, next) => {
 router.get('/:id', auth, async (req, res, next) => {
   try {
     const order = await Order.findOne({ _id: req.params.id, user: req.user._id })
-      .populate('items.product', 'slug images');
+      .populate('items.product', 'slug images isReturnable');
     if (!order) return res.status(404).json({ error: 'Order not found' });
     res.json({ order });
   } catch (error) {
@@ -190,6 +190,15 @@ router.put('/:id/return', auth, [
 
     if (order.status !== 'delivered') {
       return res.status(400).json({ error: 'Only delivered orders can be returned' });
+    }
+
+    // Check if all products in the order are returnable
+    const productIds = order.items.map(item => item.product);
+    const products = await Product.find({ _id: { $in: productIds } }).select('isReturnable name');
+    const nonReturnableItems = products.filter(p => p.isReturnable === false);
+    if (nonReturnableItems.length > 0) {
+      const names = nonReturnableItems.map(p => p.name).join(', ');
+      return res.status(400).json({ error: `Return not available for: ${names}. These items have a no-return policy.` });
     }
 
     order.status = 'returned';
