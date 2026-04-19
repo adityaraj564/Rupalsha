@@ -87,11 +87,11 @@ export default function Footer() {
             <ul className="space-y-3 text-sm text-gray-300">
               <li className="flex items-start gap-3">
                 <FiMail className="mt-0.5 flex-shrink-0" />
-                <span>support@rupalsha.com</span>
+                <a href="mailto:support@rupalsha.com" className="hover:text-brand-gold transition-colors">support@rupalsha.com</a>
               </li>
               <li className="flex items-start gap-3">
                 <FiPhone className="mt-0.5 flex-shrink-0" />
-                <span>+91 79798 04477</span>
+                <a href="tel:+917979804477" className="hover:text-brand-gold transition-colors">+91 79798 04477</a>
               </li>
               <li className="flex items-start gap-3">
                 <FiMapPin className="mt-0.5 flex-shrink-0" />

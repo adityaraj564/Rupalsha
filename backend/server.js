@@ -29,6 +29,11 @@ app.use(hpp());
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
 ];
+// Also allow www variant of the frontend URL
+if (process.env.FRONTEND_URL) {
+  const url = new URL(process.env.FRONTEND_URL);
+  allowedOrigins.push(`${url.protocol}//www.${url.host}`);
+}
 // In development, allow localhost and tunnel URLs
 if (process.env.NODE_ENV !== 'production') {
   allowedOrigins.push('http://localhost:3000', 'http://localhost:3001');
