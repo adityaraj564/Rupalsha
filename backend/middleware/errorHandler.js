@@ -1,5 +1,7 @@
 const errorHandler = (err, req, res, _next) => {
-  console.error(err.stack);
+  if (process.env.NODE_ENV !== 'production') {
+    console.error(err.stack);
+  }
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {
@@ -27,8 +29,9 @@ const errorHandler = (err, req, res, _next) => {
     return res.status(401).json({ error: 'Token expired' });
   }
 
-  res.status(err.statusCode || 500).json({
-    error: err.message || 'Internal server error',
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    error: statusCode === 500 ? 'Internal server error' : (err.message || 'Internal server error'),
   });
 };
 

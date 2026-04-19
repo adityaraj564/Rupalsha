@@ -75,7 +75,7 @@ router.get('/products', async (req, res, next) => {
 // POST /api/admin/products
 router.post('/products', upload.array('images', 5), async (req, res, next) => {
   try {
-    const { name, description, price, comparePrice, category, subcategory, childCategory, categoryRef, sku, lowStockThreshold, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, isReturnable, returnPolicy, shippingCharge } = req.body;
+    const { name, description, price, comparePrice, category, subcategory, childCategory, categoryRef, sku, lowStockThreshold, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, isReturnable, returnDays, returnPolicy, shippingCharge } = req.body;
 
     const images = req.files ? req.files.map(file => ({
       url: file.path,
@@ -118,6 +118,7 @@ router.post('/products', upload.array('images', 5), async (req, res, next) => {
       isFeatured: isFeatured === 'true',
       isTrending: isTrending === 'true',
       isReturnable: isReturnable !== 'false',
+      returnDays: returnDays ? Number(returnDays) : 7,
       returnPolicy,
       shippingCharge: shippingCharge ? Number(shippingCharge) : 0,
     });
@@ -134,13 +135,13 @@ router.put('/products/:id', upload.array('images', 5), async (req, res, next) =>
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
-    const updateFields = ['name', 'description', 'price', 'comparePrice', 'category', 'subcategory', 'childCategory', 'categoryRef', 'sku', 'lowStockThreshold', 'fabric', 'careInstructions', 'isFeatured', 'isTrending', 'isReturnable', 'isActive', 'returnPolicy', 'shippingCharge'];
+    const updateFields = ['name', 'description', 'price', 'comparePrice', 'category', 'subcategory', 'childCategory', 'categoryRef', 'sku', 'lowStockThreshold', 'fabric', 'careInstructions', 'isFeatured', 'isTrending', 'isReturnable', 'isActive', 'returnDays', 'returnPolicy', 'shippingCharge'];
 
     updateFields.forEach(field => {
       if (req.body[field] !== undefined) {
         if (['isFeatured', 'isTrending', 'isReturnable', 'isActive'].includes(field)) {
           product[field] = req.body[field] === 'true' || req.body[field] === true;
-        } else if (['price', 'comparePrice', 'lowStockThreshold', 'shippingCharge'].includes(field)) {
+        } else if (['price', 'comparePrice', 'lowStockThreshold', 'shippingCharge', 'returnDays'].includes(field)) {
           product[field] = Number(req.body[field]);
         } else {
           product[field] = req.body[field];

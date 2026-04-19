@@ -27,7 +27,7 @@ const emailWrapper = (content) => `
     <hr style="border: 1px solid #E8DCCB; margin-top: 30px;" />
     <p style="color: #888; text-align: center; font-size: 11px; margin-top: 16px;">
       © ${new Date().getFullYear()} Rupalsha. All rights reserved.<br/>
-      If you have questions, reply to this email or contact us at rupalshaofficial@gmail.com
+      If you have questions, reply to this email or contact us at support@rupalsha.com
     </p>
   </div>
 `;
@@ -137,6 +137,7 @@ const sendReturnConfirmation = async (order, userEmail, reason) => {
         <p style="color: #2B2B2B;">We've received your return request for order <strong>${order.orderNumber}</strong>.</p>
         <p style="color: #2B2B2B;"><strong>Reason:</strong> ${reason}</p>
         <p style="color: #2B2B2B;">Our team will review your request and get back to you shortly. Refund will be processed once the return is approved.</p>
+        <p style="color: #D97706; background: #FFF7ED; padding: 12px; border-radius: 8px; border: 1px solid #FED7AA;"><strong>⚠️ Reminder:</strong> Please ensure you have an unboxing video recorded while opening the package. This is mandatory for processing your return claim.</p>
       `),
     });
   } catch (error) {
@@ -233,7 +234,7 @@ const sendContactConfirmation = async (name, email, subject) => {
 
 const sendContactNotificationToAdmin = async (name, email, subject, message) => {
   try {
-    const adminEmail = process.env.ADMIN_EMAIL || 'rupalshaofficial@gmail.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'support@rupalsha.com';
     await resend.emails.send({
       from: FROM_EMAIL,
       to: adminEmail,

@@ -52,8 +52,8 @@ async function syncProducts(db) {
   let count = 0;
   for (const p of products) {
     await db.execute(
-      `REPLACE INTO products (mongo_id, name, slug, description, price, compare_price, category, subcategory, child_category, product_code, sku, shipping_charge, low_stock_threshold, images, sizes, colors, fabric, care_instructions, tags, average_rating, num_reviews, is_featured, is_trending, is_active, is_returnable, return_policy, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `REPLACE INTO products (mongo_id, name, slug, description, price, compare_price, category, subcategory, child_category, product_code, sku, shipping_charge, low_stock_threshold, images, sizes, colors, fabric, care_instructions, tags, average_rating, num_reviews, is_featured, is_trending, is_active, is_returnable, return_days, return_policy, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         p._id.toString(), p.name, p.slug, p.description, p.price,
         p.comparePrice || null, p.category, p.subcategory || null, p.childCategory || null,
@@ -62,7 +62,7 @@ async function syncProducts(db) {
         p.fabric || null, p.careInstructions || null, toJSON(p.tags),
         p.averageRating || 0, p.numReviews || 0,
         p.isFeatured || false, p.isTrending || false, p.isActive !== false,
-        p.isReturnable !== false, p.returnPolicy || null,
+        p.isReturnable !== false, p.returnDays || 7, p.returnPolicy || null,
         toDatetime(p.createdAt), toDatetime(p.updatedAt),
       ]
     );

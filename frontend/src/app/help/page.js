@@ -12,7 +12,7 @@ const FAQS = [
   },
   {
     q: 'What is your return policy?',
-    a: 'We offer a 7-day easy return policy. Products must be unused, unwashed, and with original tags attached. Intimates and accessories are non-returnable.',
+    a: 'Our return policy varies from product to product — the return window (number of days) is mentioned on each product page. Products must be unused, unwashed, and with original tags attached. Intimates and accessories are non-returnable. Recording an unboxing video while opening the package is mandatory for all return claims.',
   },
   {
     q: 'How do I track my order?',
@@ -109,11 +109,15 @@ export default function HelpPage() {
         <div className="card p-6 text-sm text-gray-600 space-y-3">
           <p>We want you to love what you buy. If not, returns are easy!</p>
           <ul className="list-disc list-inside space-y-1">
-            <li>7-day return window from delivery date</li>
+            <li>Return window varies per product (check the product page for exact days)</li>
             <li>Products must be unused with original tags</li>
             <li>Refund processed within 5-7 business days</li>
             <li>Intimates and accessories are non-returnable</li>
           </ul>
+          <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+            <p className="font-semibold text-orange-700">⚠️ Mandatory: Unboxing Video Required</p>
+            <p className="text-orange-600 mt-1">You must record a video while opening your package. This unboxing video is mandatory for processing any return or exchange request. Claims without an unboxing video will not be accepted.</p>
+          </div>
         </div>
       </section>
 
@@ -129,7 +133,7 @@ export default function HelpPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Email</p>
-                  <p className="font-medium">rupalshaofficial@gmail.com</p>
+                  <p className="font-medium">support@rupalsha.com</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">

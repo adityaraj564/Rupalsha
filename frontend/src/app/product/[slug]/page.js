@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { FiHeart, FiShoppingBag, FiTruck, FiRefreshCw, FiChevronLeft, FiChevronRight, FiStar, FiMapPin, FiCheck, FiX, FiShare2, FiCamera, FiBell } from 'react-icons/fi';
+import { FiHeart, FiShoppingBag, FiTruck, FiRefreshCw, FiChevronLeft, FiChevronRight, FiStar, FiMapPin, FiCheck, FiX, FiShare2, FiCamera, FiBell, FiVideo } from 'react-icons/fi';
 import { productsAPI, reviewsAPI } from '@/lib/api';
 import { useAuthStore, useCartStore, useWishlistStore } from '@/lib/store';
 import SizeGuideModal from '@/components/SizeGuideModal';
@@ -535,8 +535,14 @@ export default function ProductDetailPage() {
             </div>
             <div className="flex items-center gap-3 text-sm text-gray-600">
               <FiRefreshCw className={`${product.isReturnable === false ? 'text-red-400' : 'text-brand-green'} flex-shrink-0`} size={18} />
-              <span>{product.isReturnable === false ? 'This product is not eligible for returns' : product.returnPolicy}</span>
+              <span>{product.isReturnable === false ? 'This product is not eligible for returns' : `${product.returnDays || 7}-day return policy. ${product.returnPolicy || ''}`}</span>
             </div>
+            {product.isReturnable !== false && (
+              <div className="flex items-start gap-3 text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
+                <FiVideo className="text-orange-500 flex-shrink-0 mt-0.5" size={18} />
+                <span><strong>Mandatory:</strong> Please record an unboxing video while opening the package. This is required for all return/exchange claims.</span>
+              </div>
+            )}
           </div>
 
           {/* Pincode Delivery Check */}

@@ -194,11 +194,20 @@ router.put('/:id/return', auth, [
 
     // Check if all products in the order are returnable
     const productIds = order.items.map(item => item.product);
-    const products = await Product.find({ _id: { $in: productIds } }).select('isReturnable name');
+    const products = await Product.find({ _id: { $in: productIds } }).select('isReturnable returnDays name');
     const nonReturnableItems = products.filter(p => p.isReturnable === false);
     if (nonReturnableItems.length > 0) {
       const names = nonReturnableItems.map(p => p.name).join(', ');
       return res.status(400).json({ error: `Return not available for: ${names}. These items have a no-return policy.` });
+    }
+
+    // Check return window based on per-product returnDays
+    if (order.deliveredAt) {
+      const daysSinceDelivery = Math.floor((Date.now() - new Date(order.deliveredAt).getTime()) / (1000 * 60 * 60 * 24));
+      const maxReturnDays = Math.max(...products.map(p => p.returnDays || 7));
+      if (daysSinceDelivery > maxReturnDays) {
+        return res.status(400).json({ error: `Return window has expired. The return period of ${maxReturnDays} day(s) from delivery has passed.` });
+      }
     }
 
     order.status = 'returned';

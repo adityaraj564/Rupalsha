@@ -28,7 +28,8 @@ export default function AdminProductsPage() {
     sizes: SIZES.map(s => ({ size: s, stock: 0 })),
     tags: '', sku: '', lowStockThreshold: '5',
     isReturnable: true,
-    returnPolicy: '7-day easy return policy. Product must be unused with original tags.',
+    returnDays: '7',
+    returnPolicy: 'Easy return policy. Product must be unused with original tags. Recording an unboxing video while opening the package is mandatory for return claims.',
     shippingCharge: '0',
   });
   const [images, setImages] = useState([]);
@@ -113,7 +114,8 @@ export default function AdminProductsPage() {
       sizes: SIZES.map(s => ({ size: s, stock: 0 })),
       tags: '', sku: '', lowStockThreshold: '5',
       isReturnable: true,
-      returnPolicy: '7-day easy return policy. Product must be unused with original tags.',
+      returnDays: '7',
+      returnPolicy: 'Easy return policy. Product must be unused with original tags. Recording an unboxing video while opening the package is mandatory for return claims.',
       shippingCharge: '0',
     });
     setImages([]);
@@ -142,7 +144,8 @@ export default function AdminProductsPage() {
       sku: product.sku || '',
       lowStockThreshold: product.lowStockThreshold || '5',
       isReturnable: product.isReturnable !== false,
-      returnPolicy: product.returnPolicy || '7-day easy return policy. Product must be unused with original tags.',
+      returnDays: product.returnDays || '7',
+      returnPolicy: product.returnPolicy || 'Easy return policy. Product must be unused with original tags. Recording an unboxing video while opening the package is mandatory for return claims.',
       shippingCharge: product.shippingCharge || '0',
     });
     setEditingProduct(product);
@@ -159,6 +162,7 @@ export default function AdminProductsPage() {
     if (form.sku) formData.append('sku', form.sku);
     if (form.lowStockThreshold) formData.append('lowStockThreshold', form.lowStockThreshold);
     formData.append('isReturnable', form.isReturnable);
+    formData.append('returnDays', form.returnDays);
     formData.append('returnPolicy', form.returnPolicy);
     formData.append('shippingCharge', form.shippingCharge);
     formData.append('category', form.category);
@@ -449,7 +453,20 @@ export default function AdminProductsPage() {
                 </label>
                 <p className="text-xs text-gray-400 mt-0.5">{form.isReturnable ? 'Customers can request returns for this product' : 'Returns are disabled — customers cannot return this product'}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Return Days</label>
+                  <input
+                    type="number"
+                    value={form.returnDays}
+                    onChange={(e) => setForm({ ...form, returnDays: e.target.value })}
+                    className="input-field"
+                    min="0"
+                    placeholder="e.g. 7"
+                    disabled={!form.isReturnable}
+                  />
+                  <p className="text-xs text-gray-400 mt-0.5">Days from delivery for return</p>
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Return Policy</label>
                   <textarea
@@ -457,7 +474,7 @@ export default function AdminProductsPage() {
                     onChange={(e) => setForm({ ...form, returnPolicy: e.target.value })}
                     className="input-field"
                     rows={2}
-                    placeholder="e.g. 7-day easy return policy..."
+                    placeholder="e.g. Easy return policy..."
                     disabled={!form.isReturnable}
                   />
                 </div>

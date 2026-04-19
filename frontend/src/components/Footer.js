@@ -45,7 +45,7 @@ export default function Footer() {
                 <FiInstagram size={18} />
               </a>
               <a
-                href="mailto:hello@rupalsha.com"
+                href="mailto:support@rupalsha.com"
                 className="w-10 h-10 rounded-full border border-gray-500 flex items-center justify-center hover:border-brand-gold hover:text-brand-gold transition-colors"
               >
                 <FiMail size={18} />
@@ -87,7 +87,7 @@ export default function Footer() {
             <ul className="space-y-3 text-sm text-gray-300">
               <li className="flex items-start gap-3">
                 <FiMail className="mt-0.5 flex-shrink-0" />
-                <span>rupalshaofficial@gmail.com</span>
+                <span>support@rupalsha.com</span>
               </li>
               <li className="flex items-start gap-3">
                 <FiPhone className="mt-0.5 flex-shrink-0" />

@@ -107,9 +107,14 @@ const productSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  returnDays: {
+    type: Number,
+    default: 7,
+    min: 0,
+  },
   returnPolicy: {
     type: String,
-    default: '7-day easy return policy. Product must be unused with original tags.',
+    default: 'Easy return policy. Product must be unused with original tags. Recording an unboxing video while opening the package is mandatory for return claims.',
   },
 }, {
   timestamps: true,

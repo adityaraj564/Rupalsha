@@ -65,6 +65,7 @@ const initMySQL = async () => {
       is_trending BOOLEAN DEFAULT FALSE,
       is_active BOOLEAN DEFAULT TRUE,
       is_returnable BOOLEAN DEFAULT TRUE,
+      return_days INT DEFAULT 7,
       return_policy TEXT,
       created_at DATETIME,
       updated_at DATETIME,
