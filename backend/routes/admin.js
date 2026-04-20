@@ -530,7 +530,7 @@ router.post('/categories', [
 });
 
 // PUT /api/admin/categories/:id
-router.put('/categories/:id', async (req, res, next) => {
+router.put('/categories/:id', upload.single('image'), async (req, res, next) => {
   try {
     const category = await Category.findById(req.params.id);
     if (!category) return res.status(404).json({ error: 'Category not found' });
@@ -538,6 +538,19 @@ router.put('/categories/:id', async (req, res, next) => {
     if (req.body.name !== undefined) category.name = req.body.name;
     if (req.body.isActive !== undefined) category.isActive = req.body.isActive;
     if (req.body.sortOrder !== undefined) category.sortOrder = req.body.sortOrder;
+
+    // Handle image upload
+    if (req.file) {
+      // Remove old image from Cloudinary if exists
+      if (category.image?.public_id) {
+        await cloudinary.uploader.destroy(category.image.public_id);
+      }
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'rupalsha/categories',
+        transformation: [{ width: 600, height: 800, crop: 'fill', quality: 'auto:good', fetch_format: 'auto' }],
+      });
+      category.image = { url: result.secure_url, public_id: result.public_id };
+    }
 
     await category.save();
     cache.clear('categories');

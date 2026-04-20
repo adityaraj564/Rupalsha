@@ -6,21 +6,39 @@ import Image from 'next/image';
 import { FiArrowRight, FiTruck, FiRefreshCw, FiShield, FiHeart, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import ProductCard from '@/components/ProductCard';
 import { HomeSectionSkeleton } from '@/components/Skeleton';
-import { productsAPI, bannersAPI } from '@/lib/api';
+import { productsAPI, bannersAPI, categoriesAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
-const CATEGORIES = [
-  { name: 'Necklaces', slug: 'necklaces', image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600', color: 'from-rose-900/60' },
-  { name: 'Earrings', slug: 'earrings', image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600', color: 'from-amber-900/60' },
-  { name: 'Bangles', slug: 'bangles', image: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600', color: 'from-emerald-900/60' },
-  { name: 'Rings', slug: 'rings', image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600', color: 'from-indigo-900/60' },
-  { name: 'Anklets', slug: 'anklets', image: 'https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=600', color: 'from-purple-900/60' },
+const DEFAULT_CATEGORY_IMAGES = {
+  necklaces: '/defaults/cat-necklaces.jpg',
+  earrings: '/defaults/cat-earrings.jpg',
+  bangles: '/defaults/cat-bangles.jpg',
+  rings: '/defaults/cat-rings.jpg',
+  anklets: '/defaults/cat-anklets.jpg',
+};
+
+const GRADIENT_COLORS = [
+  'from-rose-900/60',
+  'from-amber-900/60',
+  'from-emerald-900/60',
+  'from-indigo-900/60',
+  'from-purple-900/60',
+  'from-teal-900/60',
+  'from-pink-900/60',
+  'from-cyan-900/60',
+];
+
+const DEFAULT_BANNERS = [
+  { _id: 'default-1', image: { url: '/defaults/banner-1.jpg' }, title: 'Exquisite Gold Collection', link: '/products?featured=true' },
+  { _id: 'default-2', image: { url: '/defaults/banner-2.jpg' }, title: 'New Bangle Arrivals', link: '/products?category=bangles' },
+  { _id: 'default-3', image: { url: '/defaults/banner-3.jpg' }, title: 'Handcrafted Earrings for Every Occasion', link: '/products?category=earrings' },
 ];
 
 export default function HomePage() {
   const [featured, setFeatured] = useState([]);
   const [trending, setTrending] = useState([]);
   const [banners, setBanners] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [currentBanner, setCurrentBanner] = useState(0);
   const bannerInterval = useRef(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -30,11 +48,24 @@ export default function HomePage() {
     if (bannerInterval.current) clearInterval(bannerInterval.current);
     bannerInterval.current = setInterval(() => {
       setCurrentBanner((prev) => (prev + 1) % (banners.length || 1));
-    }, 4000);
+    }, 2500);
   }, [banners.length]);
 
   useEffect(() => {
-    bannersAPI.getActive().then(setBanners).catch(() => {});
+    bannersAPI.getActive().then((data) => {
+      setBanners(data && data.length > 0 ? data : DEFAULT_BANNERS);
+    }).catch(() => setBanners(DEFAULT_BANNERS));
+
+    categoriesAPI.getTree().then((data) => {
+      if (data?.categories?.length > 0) {
+        setCategories(data.categories.map((cat, i) => ({
+          name: cat.name,
+          slug: cat.slug,
+          image: cat.image?.url || DEFAULT_CATEGORY_IMAGES[cat.slug] || `/defaults/cat-${cat.slug}.jpg`,
+          color: GRADIENT_COLORS[i % GRADIENT_COLORS.length],
+        })));
+      }
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -69,71 +100,10 @@ export default function HomePage() {
 
   return (
     <div className="animate-fade-in">
-      {/* Hero Section */}
-      <section className="relative min-h-[90vh] md:min-h-[85vh] flex items-center bg-brand-cream dark:bg-gray-950 overflow-hidden">
-        <div className="absolute inset-0">
-          <Image
-            src="https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=1600"
-            alt="Jewellery Hero"
-            fill
-            className="object-cover opacity-20"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-brand-cream via-brand-cream/80 to-transparent dark:from-gray-950 dark:via-gray-950/80" />
-        </div>
-
-        <div className="relative mx-auto px-4 sm:px-6 lg:px-[50px] py-20">
-          <div className="max-w-2xl">
-            <p className="text-brand-gold font-medium tracking-[0.3em] uppercase text-sm mb-4 animate-slide-up">
-              Exquisite Jewellery Collection
-            </p>
-            <h1 className="font-serif text-5xl md:text-7xl font-bold text-brand-charcoal dark:text-gray-100 leading-tight mb-6">
-              Adorn Your
-              <br />
-              <span className="text-brand-gold italic">Elegance</span>
-            </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-lg leading-relaxed">
-              Discover handcrafted jewellery that tells your story.
-              From timeless classics to modern masterpieces — crafted with love.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <Link href="/products" className="btn-primary inline-flex items-center gap-2">
-                Shop Now <FiArrowRight />
-              </Link>
-              <Link href="/products?featured=true" className="btn-secondary inline-flex items-center gap-2">
-                View Collections
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Bar */}
-      <section className="bg-white dark:bg-gray-900 border-y border-gray-100 dark:border-gray-800">
-        <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-          {[
-            { icon: FiTruck, title: 'Free Shipping', desc: 'Orders above ₹999' },
-            { icon: FiRefreshCw, title: 'Easy Returns', desc: '7-day return policy' },
-            { icon: FiShield, title: 'Certified Jewellery', desc: 'Quality guaranteed' },
-            { icon: FiHeart, title: 'Handcrafted', desc: 'Made with love' },
-          ].map((feature) => (
-            <div key={feature.title} className="flex items-center gap-3">
-              <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-brand-cream flex items-center justify-center flex-shrink-0">
-                <feature.icon className="text-brand-green" size={20} />
-              </div>
-              <div>
-                <p className="font-medium text-sm text-brand-charcoal dark:text-gray-200">{feature.title}</p>
-                <p className="text-xs text-gray-400">{feature.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Auto-Slide Banner Carousel */}
       {banners.length > 0 && (
         <section className="relative w-full overflow-hidden bg-gray-100 dark:bg-gray-950">
-          <div className="relative w-full" style={{ aspectRatio: '16/5' }}>
+          <div className="relative w-full h-[45vw] min-h-[220px] md:h-[30vw] md:min-h-[320px]">
             {banners.map((banner, index) => {
               const Wrapper = banner.link ? Link : 'div';
               const wrapperProps = banner.link ? { href: banner.link } : {};
@@ -164,7 +134,6 @@ export default function HomePage() {
               );
             })}
 
-            {/* Arrows */}
             {banners.length > 1 && (
               <>
                 <button
@@ -184,7 +153,6 @@ export default function HomePage() {
               </>
             )}
 
-            {/* Dots */}
             {banners.length > 1 && (
               <div className="absolute bottom-3 md:bottom-5 left-1/2 -translate-x-1/2 z-20 flex gap-2">
                 {banners.map((_, i) => (
@@ -203,13 +171,75 @@ export default function HomePage() {
         </section>
       )}
 
+      {/* Hero Section */}
+      <section className="relative min-h-[50vh] md:min-h-[60vh] flex items-center bg-brand-cream dark:bg-gray-950 overflow-hidden">
+        <div className="absolute inset-0">
+          <Image
+            src="https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=1600"
+            alt="Jewellery Hero"
+            fill
+            className="object-cover opacity-20"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-brand-cream via-brand-cream/80 to-transparent dark:from-gray-950 dark:via-gray-950/80" />
+        </div>
+
+        <div className="relative mx-auto px-4 sm:px-6 lg:px-[50px] py-10 md:py-20">
+          <div className="max-w-2xl">
+            <p className="text-brand-gold font-medium tracking-[0.3em] uppercase text-sm mb-4 animate-slide-up">
+              Exquisite Jewellery Collection
+            </p>
+            <h1 className="font-serif text-5xl md:text-7xl font-bold text-brand-charcoal dark:text-gray-100 leading-tight mb-6">
+              Adorn Your
+              <br />
+              <span className="text-brand-gold italic">Elegance</span>
+            </h1>
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-lg leading-relaxed">
+              Discover handcrafted jewellery that tells your story.
+              From timeless classics to modern masterpieces — crafted with love.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Link href="/products" className="btn-primary inline-flex items-center gap-2">
+                Shop Now <FiArrowRight />
+              </Link>
+              <Link href="/products?featured=true" className="btn-secondary inline-flex items-center gap-2">
+                View Collections
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Bar */}
+      <section className="bg-white dark:bg-gray-900 border-y border-gray-100 dark:border-gray-800">
+        <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+          {[
+            { icon: FiTruck, title: 'Faster Delivery', desc: 'Quick & reliable shipping' },
+            { icon: FiRefreshCw, title: 'Easy Returns', desc: 'Hassle-free returns' },
+            { icon: FiShield, title: 'Certified Jewellery', desc: 'Quality guaranteed' },
+            { icon: FiHeart, title: 'Handcrafted', desc: 'Made with love' },
+          ].map((feature) => (
+            <div key={feature.title} className="flex items-center gap-3">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-brand-cream flex items-center justify-center flex-shrink-0">
+                <feature.icon className="text-brand-green" size={20} />
+              </div>
+              <div>
+                <p className="font-medium text-sm text-brand-charcoal dark:text-gray-200">{feature.title}</p>
+                <p className="text-xs text-gray-400">{feature.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Shop by Category */}
+      {categories.length > 0 && (
       <section className="py-16 md:py-24 mx-auto px-4 sm:px-6 lg:px-[50px]">
         <h2 className="section-title">Shop by Category</h2>
         <p className="section-subtitle">Find the perfect piece from our curated collections</p>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-10">
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <Link
               key={cat.slug}
               href={`/products?category=${cat.slug}`}
@@ -233,6 +263,7 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+      )}
 
       {/* Featured Collections */}
       {featured.length > 0 ? (

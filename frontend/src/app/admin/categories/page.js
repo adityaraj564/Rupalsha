@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiChevronDown, FiChevronRight } from 'react-icons/fi';
+import { useEffect, useState, useRef } from 'react';
+import Image from 'next/image';
+import { FiPlus, FiEdit2, FiTrash2, FiChevronDown, FiChevronRight, FiImage, FiUpload } from 'react-icons/fi';
 import { adminAPI } from '@/lib/api';
 import { AdminTableSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
@@ -12,6 +13,8 @@ export default function AdminCategoriesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [expandedIds, setExpandedIds] = useState(new Set());
+  const [uploadingImageFor, setUploadingImageFor] = useState(null);
+  const imageInputRef = useRef(null);
   const [form, setForm] = useState({
     name: '',
     parentId: '',
@@ -103,6 +106,24 @@ export default function AdminCategoriesPage() {
     }
   };
 
+  const handleImageUpload = async (categoryId) => {
+    const file = imageInputRef.current?.files?.[0];
+    if (!file) return;
+    setUploadingImageFor(categoryId);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      await adminAPI.uploadCategoryImage(categoryId, formData);
+      toast.success('Image updated');
+      fetchCategories();
+    } catch (err) {
+      toast.error(err.message || 'Failed to upload image');
+    } finally {
+      setUploadingImageFor(null);
+      imageInputRef.current.value = '';
+    }
+  };
+
   const renderCategory = (category, depth = 0) => {
     const children = buildTree(category._id);
     const isExpanded = expandedIds.has(category._id);
@@ -132,6 +153,30 @@ export default function AdminCategoriesPage() {
               </button>
             ) : (
               <span className="w-6" /> 
+            )}
+            {/* Category Image Thumbnail */}
+            {category.level === 0 && (
+              <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 group cursor-pointer"
+                onClick={() => {
+                  imageInputRef.current.dataset.categoryId = category._id;
+                  imageInputRef.current.click();
+                }}
+              >
+                {category.image?.url ? (
+                  <Image src={category.image.url} alt={category.name} fill className="object-cover" sizes="40px" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    <FiImage size={16} />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  {uploadingImageFor === category._id ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <FiUpload size={12} className="text-white" />
+                  )}
+                </div>
+              </div>
             )}
             <span className="font-medium text-sm">{category.name}</span>
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${levelColors[category.level] || ''}`}>
@@ -259,6 +304,17 @@ export default function AdminCategoriesPage() {
           </div>
         </div>
       )}
+      {/* Hidden image input */}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const catId = e.target.dataset?.categoryId;
+          if (catId && e.target.files?.[0]) handleImageUpload(catId);
+        }}
+      />
     </div>
   );
 }

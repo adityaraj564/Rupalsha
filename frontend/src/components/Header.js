@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon } from 'react-icons/fi';
 import { useAuthStore, useCartStore, useWishlistStore, useThemeStore } from '@/lib/store';
@@ -144,7 +145,15 @@ export default function Header() {
             </button>
 
             {/* Logo */}
-            <Link href="/" className="flex-shrink-0">
+            <Link href="/" className="flex-shrink-0 flex items-center gap-2">
+              <Image
+                src="/rupalshaLogo.png"
+                alt="Rupalsha Logo"
+                width={90}
+                height={90}
+                className="rounded-full"
+                priority
+              />
               <h1 className="font-serif text-2xl md:text-3xl font-bold text-brand-green dark:text-[#F8F0E8] tracking-wide">
                 RUPALSHA
               </h1>

@@ -276,6 +276,7 @@ export const adminAPI = {
   getCategories: () => request('/admin/categories'),
   createCategory: (data) => request('/admin/categories', { method: 'POST', body: data }).then(d => { clearApiCache('categories'); return d; }),
   updateCategory: (id, data) => request(`/admin/categories/${id}`, { method: 'PUT', body: data }).then(d => { clearApiCache('categories'); return d; }),
+  uploadCategoryImage: (id, formData) => request(`/admin/categories/${id}`, { method: 'PUT', body: formData }).then(d => { clearApiCache('categories'); return d; }),
   deleteCategory: (id) => request(`/admin/categories/${id}`, { method: 'DELETE' }).then(d => { clearApiCache('categories'); return d; }),
   // Banners
   getBanners: () => request('/admin/banners'),

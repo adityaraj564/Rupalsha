@@ -4,13 +4,15 @@ import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { adminAPI } from '@/lib/api';
 import { AdminTableSkeleton } from '@/components/Skeleton';
-import { FiPlus, FiTrash2, FiUpload, FiToggleLeft, FiToggleRight, FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiUpload, FiToggleLeft, FiToggleRight, FiArrowUp, FiArrowDown, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
 
 export default function AdminBannersPage() {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({ title: '', link: '' });
   const fileRef = useRef(null);
   const [newTitle, setNewTitle] = useState('');
   const [newLink, setNewLink] = useState('');
@@ -76,6 +78,22 @@ export default function AdminBannersPage() {
       await fetchBanners();
     } catch (err) {
       showMessage(err.message || 'Failed to update banner');
+    }
+  };
+
+  const startEdit = (banner) => {
+    setEditingId(banner._id);
+    setEditForm({ title: banner.title || '', link: banner.link || '' });
+  };
+
+  const saveEdit = async (id) => {
+    try {
+      await adminAPI.updateBanner(id, { title: editForm.title, link: editForm.link });
+      setEditingId(null);
+      await fetchBanners();
+      showMessage('Banner updated');
+    } catch (err) {
+      showMessage(err.message || 'Failed to update');
     }
   };
 
@@ -211,11 +229,42 @@ export default function AdminBannersPage() {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-brand-charcoal dark:text-gray-100 truncate">
-                    {banner.title || 'Untitled Banner'}
-                  </p>
-                  {banner.link && (
-                    <p className="text-xs text-gray-400 truncate">{banner.link}</p>
+                  {editingId === banner._id ? (
+                    <div className="space-y-1.5">
+                      <input
+                        type="text"
+                        value={editForm.title}
+                        onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                        placeholder="Banner title / offer text"
+                        className="w-full px-2 py-1 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        autoFocus
+                      />
+                      <input
+                        type="text"
+                        value={editForm.link}
+                        onChange={(e) => setEditForm({ ...editForm, link: e.target.value })}
+                        placeholder="Link (e.g. /products)"
+                        className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      />
+                      <div className="flex gap-1">
+                        <button onClick={() => saveEdit(banner._id)} className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded">
+                          <FiCheck size={14} />
+                        </button>
+                        <button onClick={() => setEditingId(null)} className="p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                          <FiX size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="cursor-pointer" onClick={() => startEdit(banner)}>
+                      <p className="font-medium text-brand-charcoal dark:text-gray-100 truncate flex items-center gap-1.5">
+                        {banner.title || 'Untitled Banner'}
+                        <FiEdit2 size={12} className="text-gray-400 flex-shrink-0" />
+                      </p>
+                      {banner.link && (
+                        <p className="text-xs text-gray-400 truncate">{banner.link}</p>
+                      )}
+                    </div>
                   )}
                 </div>
 
