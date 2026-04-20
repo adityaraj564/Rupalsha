@@ -130,7 +130,11 @@
     @apply border-2 border-brand-green text-brand-green px-8 py-3 rounded-full font-medium
            transition-all duration-300 hover:bg-brand-green hover:text-white
            active:scale-[0.98]
-           dark:border-[#F8F0E8] dark:text-[#F8F0E8] dark:hover:bg-[#F8F0E8] dark:hover:text-gray-900;
+           dark:border-[#F8F0E8] dark:text-[#F8F0E8] dark:hover:bg-[#F8F0E8];
+  }
+
+  .dark .btn-secondary:hover {
+    color: #2D6A4F !important;
   }
 
   .btn-gold {

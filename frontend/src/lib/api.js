@@ -48,7 +48,7 @@ const getToken = () => {
   return null;
 };
 
-const request = async (endpoint, options = {}) => {
+const request = async (endpoint, options = {}, retries = 2) => {
   const token = getToken();
   const headers = {
     ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
@@ -56,20 +56,30 @@ const request = async (endpoint, options = {}) => {
     ...options.headers,
   };
 
-  const res = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers,
-    cache: 'no-store',
-    body: options.body instanceof FormData ? options.body : options.body ? JSON.stringify(options.body) : undefined,
-  });
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        headers,
+        cache: 'no-store',
+        body: options.body instanceof FormData ? options.body : options.body ? JSON.stringify(options.body) : undefined,
+      });
 
-  const data = await res.json();
+      const data = await res.json();
 
-  if (!res.ok) {
-    throw new ApiError(data.error || data.errors?.[0]?.msg || 'Something went wrong', res.status);
+      if (!res.ok) {
+        throw new ApiError(data.error || data.errors?.[0]?.msg || 'Something went wrong', res.status);
+      }
+
+      return data;
+    } catch (err) {
+      // Don't retry client errors (4xx) or if it's the last attempt
+      if (err instanceof ApiError && err.status >= 400 && err.status < 500) throw err;
+      if (attempt === retries) throw err;
+      // Wait before retrying: 1s, then 2s
+      await new Promise((r) => setTimeout(r, (attempt + 1) * 1000));
+    }
   }
-
-  return data;
 };
 
 // Auth

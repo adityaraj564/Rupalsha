@@ -80,6 +80,10 @@ export default function CategoryPage() {
         setTotalPages(data.totalPages);
       } catch (err) {
         console.error(err);
+        if (products.length === 0) {
+          setTimeout(() => fetchProducts(), 3000);
+          return;
+        }
       } finally {
         setLoading(false);
       }

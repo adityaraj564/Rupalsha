@@ -24,8 +24,25 @@ export default function HomePage() {
 
   useEffect(() => {
     const extra = !isAuthenticated ? { hideOutOfStock: 'true' } : {};
-    productsAPI.getAll({ featured: 'true', limit: 8, ...extra }).then((data) => setFeatured(data.products)).catch(() => {});
-    productsAPI.getAll({ trending: 'true', limit: 8, ...extra }).then((data) => setTrending(data.products)).catch(() => {});
+    const loadProducts = async () => {
+      try {
+        const [featuredData, trendingData] = await Promise.all([
+          productsAPI.getAll({ featured: 'true', limit: 8, ...extra }),
+          productsAPI.getAll({ trending: 'true', limit: 8, ...extra }),
+        ]);
+        setFeatured(featuredData.products);
+        setTrending(trendingData.products);
+      } catch {
+        // Retry once more after 3s if both failed
+        if (featured.length === 0 && trending.length === 0) {
+          setTimeout(() => {
+            productsAPI.getAll({ featured: 'true', limit: 8, ...extra }).then((d) => setFeatured(d.products)).catch(() => {});
+            productsAPI.getAll({ trending: 'true', limit: 8, ...extra }).then((d) => setTrending(d.products)).catch(() => {});
+          }, 3000);
+        }
+      }
+    };
+    loadProducts();
   }, [isAuthenticated]);
 
   return (

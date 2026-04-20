@@ -77,6 +77,11 @@ function ProductsContent() {
         setTotalPages(data.totalPages);
       } catch (err) {
         console.error(err);
+        // Auto-retry after 3s if we got 0 products
+        if (products.length === 0) {
+          setTimeout(() => fetchProducts(), 3000);
+          return;
+        }
       } finally {
         setLoading(false);
       }

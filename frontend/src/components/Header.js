@@ -26,8 +26,10 @@ export default function Header() {
   const [currentCoupon, setCurrentCoupon] = useState(0);
   const [slideAnim, setSlideAnim] = useState(false);
   const searchRef = useRef(null);
+  const profileRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const { isAuthenticated, user } = useAuthStore();
   const cartCount = useCartStore((s) => s.getCount());
@@ -42,7 +44,16 @@ export default function Header() {
 
   useEffect(() => {
     setMobileMenuOpen(false);
+    setProfileOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -165,14 +176,6 @@ export default function Header() {
                 <FiSearch size={20} />
               </button>
 
-              <button
-                onClick={toggleTheme}
-                className="p-2 hover:text-brand-green transition-colors"
-                aria-label="Toggle dark mode"
-              >
-                {isDark ? <FiSun size={20} /> : <FiMoon size={20} />}
-              </button>
-
               {isAuthenticated && (
                 <Link
                   href="/wishlist"
@@ -199,12 +202,54 @@ export default function Header() {
                 )}
               </Link>
 
-              <Link
-                href={isAuthenticated ? '/profile' : '/auth/login'}
-                className="p-2 hover:text-brand-green transition-colors"
-              >
-                <FiUser size={20} />
-              </Link>
+              {/* Profile Dropdown */}
+              <div className="relative" ref={profileRef}>
+                <button
+                  onClick={() => setProfileOpen(!profileOpen)}
+                  className="p-2 hover:text-brand-green transition-colors"
+                  aria-label="Profile"
+                >
+                  <FiUser size={20} />
+                </button>
+                {profileOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
+                    {isAuthenticated ? (
+                      <>
+                        <Link
+                          href="/profile"
+                          onClick={() => setProfileOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <FiUser size={16} /> My Profile
+                        </Link>
+                        <Link
+                          href="/orders"
+                          onClick={() => setProfileOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <FiShoppingBag size={16} /> My Orders
+                        </Link>
+                      </>
+                    ) : (
+                      <Link
+                        href="/auth/login"
+                        onClick={() => setProfileOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-brand-green dark:text-[#F8F0E8] font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <FiUser size={16} /> Login / Register
+                      </Link>
+                    )}
+                    <hr className="my-1 border-gray-100 dark:border-gray-700" />
+                    <button
+                      onClick={() => { toggleTheme(); setProfileOpen(false); }}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full text-left"
+                    >
+                      {isDark ? <FiSun size={16} /> : <FiMoon size={16} />}
+                      {isDark ? 'Light Mode' : 'Night Mode'}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -271,6 +316,13 @@ export default function Header() {
                   Login / Register
                 </Link>
               )}
+              <button
+                onClick={() => { toggleTheme(); setMobileMenuOpen(false); }}
+                className="flex items-center gap-2 w-full py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                {isDark ? <FiSun size={18} /> : <FiMoon size={18} />}
+                {isDark ? 'Light Mode' : 'Night Mode'}
+              </button>
             </nav>
           </div>
         )}
