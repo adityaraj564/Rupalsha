@@ -153,11 +153,11 @@ export default function ProfilePage() {
       {/* Quick Links */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         <Link href="/orders" className="card p-4 text-center hover:shadow-md transition-shadow">
-          <FiPackage className="mx-auto mb-2 text-brand-green" size={24} />
+          <FiPackage className="mx-auto mb-2 text-brand-green dark:text-[#F8F0E8]" size={24} />
           <span className="text-sm font-medium">My Orders</span>
         </Link>
         <Link href="/wishlist" className="card p-4 text-center hover:shadow-md transition-shadow">
-          <FiHeart className="mx-auto mb-2 text-brand-green" size={24} />
+          <FiHeart className="mx-auto mb-2 text-brand-green dark:text-[#F8F0E8]" size={24} />
           <span className="text-sm font-medium">Wishlist</span>
         </Link>
         <button onClick={handleLogout} className="card p-4 text-center hover:shadow-md transition-shadow">
@@ -167,7 +167,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-white rounded-xl p-1">
+      <div className="flex gap-1 mb-6 bg-white dark:bg-gray-800 rounded-xl p-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -189,7 +189,7 @@ export default function ProfilePage() {
             <h2 className="font-serif text-xl font-semibold">Personal Information</h2>
             <button
               onClick={() => setEditingProfile(!editingProfile)}
-              className="text-brand-green text-sm hover:underline flex items-center gap-1"
+              className="text-brand-green dark:text-[#F8F0E8] text-sm hover:underline flex items-center gap-1"
             >
               <FiEdit2 size={14} /> Edit
             </button>
@@ -265,7 +265,7 @@ export default function ProfilePage() {
 
           {/* Add New Address Form */}
           {addingAddress && (
-            <div className="border border-brand-green rounded-xl p-4 mb-4 bg-green-50/30">
+            <div className="border border-brand-green rounded-xl p-4 mb-4 bg-green-50/30 dark:bg-green-900/20">
               <h3 className="font-medium text-sm mb-3">New Address</h3>
               <div className="space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -295,7 +295,7 @@ export default function ProfilePage() {
           ) : (
             <div className="space-y-4">
               {user.addresses?.map((addr) => (
-                <div key={addr._id} className="border border-gray-200 rounded-xl p-4">
+                <div key={addr._id} className="border border-gray-200 dark:border-gray-600 rounded-xl p-4">
                   {editingAddress === addr._id ? (
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-3">
@@ -371,7 +371,7 @@ export default function ProfilePage() {
                         <p className="text-sm text-gray-500 mt-1">{addr.phone}</p>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => handleEditAddress(addr)} className="text-gray-400 hover:text-brand-green">
+                        <button onClick={() => handleEditAddress(addr)} className="text-gray-400 hover:text-brand-green dark:hover:text-[#F8F0E8]">
                           <FiEdit2 size={16} />
                         </button>
                         <button onClick={() => handleDeleteAddress(addr._id)} className="text-gray-400 hover:text-red-500">

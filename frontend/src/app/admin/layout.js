@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers, FiClipboard } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { AdminDashboardSkeleton } from '@/components/Skeleton';
 
 const ADMIN_NAV = [
   { href: '/admin', label: 'Dashboard', icon: FiGrid },
@@ -45,7 +45,7 @@ export default function AdminLayout({ children }) {
     }
   }, [isLoading, isAuthenticated, user, router]);
 
-  if (isLoading) return <LoadingSpinner />;
+  if (isLoading) return <AdminDashboardSkeleton />;
   if (!isAuthenticated || user?.role !== 'admin') return null;
 
   return (

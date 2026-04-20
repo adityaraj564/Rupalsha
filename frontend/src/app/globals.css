@@ -10,11 +10,112 @@
   }
 
   body {
-    @apply bg-brand-cream text-brand-charcoal font-sans;
+    @apply bg-brand-cream text-brand-charcoal font-sans transition-colors duration-300;
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-serif;
+  }
+
+  /* Global dark mode text overrides — catch all brand-charcoal and gray text */
+  .dark {
+    color-scheme: dark;
+  }
+
+  .dark .text-brand-green {
+    color: #F8F0E8;
+  }
+
+  .dark .hover\:text-brand-green:hover {
+    color: #F8F0E8;
+  }
+
+  .dark .group:hover .group-hover\:text-brand-green {
+    color: #F8F0E8;
+  }
+
+  .dark .text-brand-charcoal {
+    color: #f3f4f6; /* gray-100 */
+  }
+
+  .dark .text-gray-700 {
+    color: #d1d5db; /* gray-300 */
+  }
+
+  .dark .text-gray-600 {
+    color: #9ca3af; /* gray-400 */
+  }
+
+  .dark .text-gray-900 {
+    color: #f9fafb; /* gray-50 */
+  }
+
+  .dark .text-gray-800 {
+    color: #e5e7eb; /* gray-200 */
+  }
+
+  .dark .bg-white {
+    background-color: #1f2937; /* gray-800 */
+  }
+
+  .dark .bg-gray-50 {
+    background-color: #374151; /* gray-700 */
+  }
+
+  .dark .bg-gray-100 {
+    background-color: #374151; /* gray-700 */
+  }
+
+  .dark .bg-brand-cream {
+    background-color: #030712; /* gray-950 */
+  }
+
+  .dark .border-gray-100 {
+    border-color: #374151; /* gray-700 */
+  }
+
+  .dark .border-gray-200 {
+    border-color: #4b5563; /* gray-600 */
+  }
+
+  .dark .border-gray-300 {
+    border-color: #4b5563; /* gray-600 */
+  }
+
+  .dark .hover\:bg-gray-50:hover {
+    background-color: #374151; /* gray-700 */
+  }
+
+  .dark .hover\:bg-gray-100:hover {
+    background-color: #374151;
+  }
+
+  .dark .hover\:bg-brand-cream:hover {
+    background-color: #1f2937; /* gray-800 */
+  }
+
+  .dark .bg-green-50 {
+    background-color: rgba(6, 78, 59, 0.2); /* green-900/20 */
+  }
+
+  .dark .hover\:bg-green-50:hover {
+    background-color: rgba(6, 78, 59, 0.25);
+  }
+
+  .dark .bg-green-50\/50 {
+    background-color: rgba(6, 78, 59, 0.15);
+  }
+
+  .dark .bg-green-50\/30 {
+    background-color: rgba(6, 78, 59, 0.12);
+  }
+
+  .dark .hover\:border-gray-300:hover {
+    border-color: #6b7280; /* gray-500 */
+  }
+
+  .dark .hover\:border-gray-400:hover {
+    border-color: #9ca3af; /* gray-400 */
   }
 }
 
@@ -28,7 +129,8 @@
   .btn-secondary {
     @apply border-2 border-brand-green text-brand-green px-8 py-3 rounded-full font-medium
            transition-all duration-300 hover:bg-brand-green hover:text-white
-           active:scale-[0.98];
+           active:scale-[0.98]
+           dark:border-[#F8F0E8] dark:text-[#F8F0E8] dark:hover:bg-[#F8F0E8] dark:hover:text-gray-900;
   }
 
   .btn-gold {
@@ -40,19 +142,22 @@
   .input-field {
     @apply w-full px-4 py-3 border border-gray-300 rounded-lg bg-white
            focus:outline-none focus:ring-2 focus:ring-brand-green/30 focus:border-brand-green
-           transition-all duration-200 text-brand-charcoal placeholder-gray-400;
+           transition-all duration-200 text-brand-charcoal placeholder-gray-400
+           dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-500;
   }
 
   .card {
-    @apply bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300;
+    @apply bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300
+           dark:bg-gray-800;
   }
 
   .section-title {
-    @apply text-3xl md:text-4xl font-serif font-semibold text-brand-charcoal text-center;
+    @apply text-3xl md:text-4xl font-serif font-semibold text-brand-charcoal text-center
+           dark:text-gray-100;
   }
 
   .section-subtitle {
-    @apply text-gray-500 text-center mt-2 max-w-xl mx-auto;
+    @apply text-gray-500 text-center mt-2 max-w-xl mx-auto dark:text-gray-400;
   }
 }
 
@@ -139,4 +244,34 @@
 .animate-accordion-open {
   animation: accordion-open 0.25s ease-out;
   overflow: hidden;
+}
+
+/* Skeleton shimmer effect */
+.skeleton {
+  background: linear-gradient(90deg, #e5e7eb 25%, #d1d5db 37%, #e5e7eb 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 37%, #374151 63%);
+  background-size: 200% 100%;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Smooth content fade-in after skeleton */
+.skeleton-to-content {
+  animation: fadeIn 0.3s ease-in-out;
 }

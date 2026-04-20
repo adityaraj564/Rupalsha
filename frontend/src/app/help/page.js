@@ -114,9 +114,9 @@ export default function HelpPage() {
             <li>Refund processed within 5-7 business days</li>
             <li>Intimates and accessories are non-returnable</li>
           </ul>
-          <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-            <p className="font-semibold text-orange-700">⚠️ Mandatory: Unboxing Video Required</p>
-            <p className="text-orange-600 mt-1">You must record a video while opening your package. This unboxing video is mandatory for processing any return or exchange request. Claims without an unboxing video will not be accepted.</p>
+          <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg">
+            <p className="font-semibold text-orange-700 dark:text-orange-400">⚠️ Mandatory: Unboxing Video Required</p>
+            <p className="text-orange-600 dark:text-orange-300 mt-1">You must record a video while opening your package. This unboxing video is mandatory for processing any return or exchange request. Claims without an unboxing video will not be accepted.</p>
           </div>
         </div>
       </section>
@@ -128,8 +128,8 @@ export default function HelpPage() {
           <div>
             <div className="space-y-4 mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-brand-cream flex items-center justify-center">
-                  <FiMail className="text-brand-green" />
+                <div className="w-10 h-10 rounded-full bg-brand-cream dark:bg-gray-700 flex items-center justify-center">
+                  <FiMail className="text-brand-green dark:text-[#F8F0E8]" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Email</p>
@@ -137,8 +137,8 @@ export default function HelpPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-brand-cream flex items-center justify-center">
-                  <FiPhone className="text-brand-green" />
+                <div className="w-10 h-10 rounded-full bg-brand-cream dark:bg-gray-700 flex items-center justify-center">
+                  <FiPhone className="text-brand-green dark:text-[#F8F0E8]" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Phone</p>

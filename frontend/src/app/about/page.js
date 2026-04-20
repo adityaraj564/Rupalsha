@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { aboutAPI } from '@/lib/api';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { AboutSkeleton } from '@/components/Skeleton';
 import { FiHeart, FiStar, FiPackage } from 'react-icons/fi';
 
 export default function AboutPage() {
@@ -17,7 +17,7 @@ export default function AboutPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <AboutSkeleton />;
   if (!about) return <div className="text-center py-20 text-gray-500">About information not available.</div>;
 
   const currentYear = new Date().getFullYear();

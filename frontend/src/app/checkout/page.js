@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FiMapPin, FiPlus, FiCreditCard, FiTruck, FiMinus, FiTrash2, FiTag } from 'react-icons/fi';
 import { useAuthStore, useCartStore } from '@/lib/store';
 import { ordersAPI, couponsAPI, paymentAPI, authAPI } from '@/lib/api';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { CartSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
 export default function CheckoutPage() {
@@ -70,7 +70,7 @@ export default function CheckoutPage() {
     couponsAPI.getActive().then(setAvailableCoupons).catch(() => {});
   }, [isAuthenticated, items.length, router, user]);
 
-  if (!user || items.length === 0) return <LoadingSpinner />;
+  if (!user || items.length === 0) return <CartSkeleton />;
 
   const subtotal = items.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
   const maxProductShipping = Math.max(...items.map(item => item.product?.shippingCharge || 0), 0);
@@ -87,6 +87,7 @@ export default function CheckoutPage() {
     } catch (err) {
       setCouponApplied('');
       setDiscount(0);
+      setCouponCode('');
       toast.error(err.message);
     }
   };
@@ -209,7 +210,7 @@ export default function CheckoutPage() {
           {/* Delivery Address */}
           <div className="card p-6">
             <h2 className="font-serif text-xl font-semibold mb-4 flex items-center gap-2">
-              <FiMapPin className="text-brand-green" /> Delivery Address
+              <FiMapPin className="text-brand-green dark:text-[#F8F0E8]" /> Delivery Address
             </h2>
 
             {user.addresses?.length > 0 && (
@@ -218,7 +219,7 @@ export default function CheckoutPage() {
                   <label
                     key={addr._id}
                     className={`block p-4 border rounded-xl cursor-pointer transition-colors ${
-                      selectedAddress?._id === addr._id ? 'border-brand-green bg-green-50/50' : 'border-gray-200 hover:border-gray-300'
+                      selectedAddress?._id === addr._id ? 'border-brand-green bg-green-50/50 dark:bg-green-900/30' : 'border-gray-200 hover:border-gray-300 dark:border-gray-600'
                     }`}
                   >
                     <input
@@ -316,12 +317,12 @@ export default function CheckoutPage() {
           {/* Payment Method */}
           <div className="card p-6">
             <h2 className="font-serif text-xl font-semibold mb-4 flex items-center gap-2">
-              <FiCreditCard className="text-brand-green" /> Payment Method
+              <FiCreditCard className="text-brand-green dark:text-[#F8F0E8]" /> Payment Method
             </h2>
             <div className="space-y-3">
               <label
                 className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${
-                  paymentMethod === 'razorpay' ? 'border-brand-green bg-green-50/50' : 'border-gray-200'
+                  paymentMethod === 'razorpay' ? 'border-brand-green bg-green-50/50 dark:bg-green-900/30' : 'border-gray-200 dark:border-gray-600'
                 }`}
               >
                 <input
@@ -339,7 +340,7 @@ export default function CheckoutPage() {
               </label>
               <label
                 className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${
-                  paymentMethod === 'cod' ? 'border-brand-green bg-green-50/50' : 'border-gray-200'
+                  paymentMethod === 'cod' ? 'border-brand-green bg-green-50/50 dark:bg-green-900/30' : 'border-gray-200 dark:border-gray-600'
                 }`}
               >
                 <input
@@ -422,7 +423,7 @@ export default function CheckoutPage() {
                       key={c._id}
                       onClick={() => { setCouponCode(c.code); }}
                       className={`w-full text-left p-2.5 border rounded-lg text-xs transition-colors ${
-                        couponApplied === c.code ? 'border-brand-green bg-green-50 ring-1 ring-brand-green' : couponCode === c.code ? 'border-brand-green bg-green-50/50' : 'border-gray-200 hover:border-brand-green'
+                        couponApplied === c.code ? 'border-brand-green bg-green-50 dark:bg-green-900/30 ring-1 ring-brand-green' : couponCode === c.code ? 'border-brand-green bg-green-50/50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-brand-green'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -451,12 +452,12 @@ export default function CheckoutPage() {
                 placeholder="Coupon code"
                 className="input-field flex-1 py-2 text-sm"
               />
-              <button onClick={handleApplyCoupon} className="px-4 py-2 bg-brand-green text-white rounded-lg text-sm font-medium hover:bg-opacity-90">
+              <button onClick={handleApplyCoupon} className="px-4 py-2 bg-brand-green text-white rounded-lg text-sm font-medium hover:bg-opacity-90 border border-[#F8F0E8]">
                 Apply
               </button>
             </div>
 
-            <div className="space-y-3 text-sm border-t pt-4">
+            <div className="space-y-3 text-sm border-t pt-4 dark:border-gray-600">
               <div className="flex justify-between">
                 <span className="text-gray-500">Subtotal</span>
                 <span>₹{subtotal.toLocaleString()}</span>

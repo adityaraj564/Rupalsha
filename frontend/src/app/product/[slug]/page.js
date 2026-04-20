@@ -9,7 +9,7 @@ import { productsAPI, reviewsAPI } from '@/lib/api';
 import { useAuthStore, useCartStore, useWishlistStore } from '@/lib/store';
 import SizeGuideModal from '@/components/SizeGuideModal';
 import ProductCard from '@/components/ProductCard';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { ProductDetailSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
 export default function ProductDetailPage() {
@@ -214,7 +214,7 @@ export default function ProductDetailPage() {
     }
   };
 
-  if (initialLoad && loading) return <LoadingSpinner size="lg" />;
+  if (initialLoad && loading) return <ProductDetailSkeleton />;
   if (!product) return null;
 
   const inWishlist = isAuthenticated && isInWishlist(product._id);
@@ -233,7 +233,7 @@ export default function ProductDetailPage() {
   return (
     <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12 animate-fade-in overflow-x-hidden">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-gray-400 mb-8 overflow-hidden">
+      <nav className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 mb-8 overflow-hidden">
         <Link href="/" className="hover:text-brand-green">Home</Link>
         <span>/</span>
         <Link href="/products" className="hover:text-brand-green">Shop</Link>
@@ -242,14 +242,14 @@ export default function ProductDetailPage() {
           {product.category}
         </Link>
         <span>/</span>
-        <span className="text-brand-charcoal truncate">{product.name}</span>
+        <span className="text-brand-charcoal dark:text-gray-200 truncate">{product.name}</span>
       </nav>
 
       <div className="grid md:grid-cols-2 gap-8 md:gap-12 overflow-hidden">
         {/* Images */}
         <div className="md:sticky md:top-24 md:self-start min-w-0">
           <div
-            className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 mb-4 md:cursor-crosshair"
+            className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-4 md:cursor-crosshair"
             onMouseMove={(e) => {
               if (window.innerWidth < 768) return;
               const rect = e.currentTarget.getBoundingClientRect();
@@ -293,7 +293,7 @@ export default function ProductDetailPage() {
               src={product.images[selectedImage]?.url || '/placeholder.jpg'}
               alt={product.name}
               fill
-              className="object-contain pointer-events-none transition-transform duration-150"
+              className="object-cover pointer-events-none transition-transform duration-150"
               style={{ transform: `scale(${pinchScale})`, transformOrigin: pinchOrigin }}
               priority
               sizes="(max-width: 768px) 100vw, 50vw"
@@ -306,13 +306,13 @@ export default function ProductDetailPage() {
               <>
                 <button
                   onClick={() => setSelectedImage((prev) => (prev === 0 ? product.images.length - 1 : prev - 1))}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 flex items-center justify-center hover:bg-white transition-colors"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 dark:bg-gray-700/80 flex items-center justify-center hover:bg-white dark:hover:bg-gray-600 transition-colors"
                 >
                   <FiChevronLeft size={20} />
                 </button>
                 <button
                   onClick={() => setSelectedImage((prev) => (prev === product.images.length - 1 ? 0 : prev + 1))}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 flex items-center justify-center hover:bg-white transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 dark:bg-gray-700/80 flex items-center justify-center hover:bg-white dark:hover:bg-gray-600 transition-colors"
                 >
                   <FiChevronRight size={20} />
                 </button>
@@ -336,7 +336,7 @@ export default function ProductDetailPage() {
                     selectedImage === i ? 'border-brand-green' : 'border-transparent'
                   }`}
                 >
-                  <Image src={img.url} alt="" fill className="object-contain" sizes="80px" />
+                  <Image src={img.url} alt="" fill className="object-cover" sizes="80px" />
                 </button>
               ))}
             </div>
@@ -346,7 +346,7 @@ export default function ProductDetailPage() {
         {/* Details */}
         <div className="min-w-0">
           <p className="text-brand-gold text-sm font-medium uppercase tracking-wider mb-2">{product.category}</p>
-          <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal mb-4">{product.name}</h1>
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal dark:text-gray-100 mb-4">{product.name}</h1>
 
           {/* Rating */}
           {product.numReviews > 0 && (
@@ -368,7 +368,7 @@ export default function ProductDetailPage() {
 
           {/* Price */}
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-3xl font-bold text-brand-charcoal">₹{product.price.toLocaleString()}</span>
+            <span className="text-3xl font-bold text-brand-charcoal dark:text-gray-100">₹{product.price.toLocaleString()}</span>
             {product.comparePrice && (
               <span className="text-xl text-gray-400 line-through">₹{product.comparePrice.toLocaleString()}</span>
             )}
@@ -440,7 +440,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Actions */}
-          <div className="mb-8 sticky bottom-0 bg-brand-cream md:static md:bg-transparent py-4 md:py-0 -mx-4 px-4 md:mx-0 md:px-0 border-t md:border-0 border-gray-200 space-y-3">
+          <div className="mb-8 sticky bottom-0 bg-brand-cream dark:bg-gray-900 md:static md:bg-transparent md:dark:bg-transparent py-4 md:py-0 -mx-4 px-4 md:mx-0 md:px-0 border-t md:border-0 border-gray-200 dark:border-gray-700 space-y-3">
             <div className="flex gap-3">
               {isOutOfStock ? (
                 <button
@@ -755,7 +755,7 @@ export default function ProductDetailPage() {
       {/* Suggested Products */}
       {suggestedProducts.length > 0 && (
         <div className="mt-16 border-t border-gray-200 pt-12">
-          <h2 className="font-serif text-2xl font-bold text-brand-charcoal mb-8">You May Also Like</h2>
+          <h2 className="font-serif text-2xl font-bold text-brand-charcoal dark:text-gray-100 mb-8">You May Also Like</h2>
           <div className="relative group/carousel">
             {/* Left Arrow */}
             <button

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FiShoppingCart, FiDollarSign, FiUsers, FiPackage } from 'react-icons/fi';
 import { adminAPI } from '@/lib/api';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { AdminDashboardSkeleton } from '@/components/Skeleton';
 
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
@@ -16,7 +16,7 @@ export default function AdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <AdminDashboardSkeleton />;
   if (!data) return <p>Failed to load dashboard</p>;
 
   const stats = [

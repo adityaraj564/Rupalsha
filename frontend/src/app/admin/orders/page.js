@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FiTrash2, FiAlertTriangle, FiX, FiEye, FiMapPin, FiUser, FiPhone, FiMail, FiPackage, FiCreditCard, FiCopy, FiTruck } from 'react-icons/fi';
 import { adminAPI } from '@/lib/api';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { AdminTableSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
 const STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'];
@@ -63,7 +63,7 @@ export default function AdminOrdersPage() {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <AdminTableSkeleton />;
 
   return (
     <div className="animate-fade-in">

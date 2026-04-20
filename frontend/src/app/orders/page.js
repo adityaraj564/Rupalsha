@@ -7,17 +7,17 @@ import { useRouter } from 'next/navigation';
 import { FiPackage, FiChevronRight, FiSearch, FiChevronDown } from 'react-icons/fi';
 import { ordersAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { OrdersSkeleton } from '@/components/Skeleton';
 
 const STATUS_COLORS = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-blue-100 text-blue-800',
-  processing: 'bg-indigo-100 text-indigo-800',
-  shipped: 'bg-purple-100 text-purple-800',
-  delivered: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
-  returned: 'bg-gray-100 text-gray-800',
-  failed: 'bg-red-100 text-red-800',
+  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+  confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  processing: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
+  shipped: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+  delivered: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  returned: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+  failed: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
 };
 
 const SORT_OPTIONS = [
@@ -51,7 +51,7 @@ export default function OrdersPage() {
       .finally(() => setLoading(false));
   }, [isAuthenticated, router]);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <OrdersSkeleton />;
 
   // Filter and sort
   let filtered = orders;

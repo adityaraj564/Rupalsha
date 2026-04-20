@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { FiHeart, FiTrash2 } from 'react-icons/fi';
 import { useAuthStore, useWishlistStore } from '@/lib/store';
 import ProductCard from '@/components/ProductCard';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { ProductGridSkeleton } from '@/components/Skeleton';
 
 export default function WishlistPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -16,7 +16,12 @@ export default function WishlistPage() {
     if (isAuthenticated) fetchWishlist(true);
   }, [isAuthenticated, fetchWishlist]);
 
-  if (authLoading) return <LoadingSpinner />;
+  if (authLoading) return (
+    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12">
+      <div className="skeleton h-9 w-48 rounded-lg mb-8" />
+      <ProductGridSkeleton count={4} />
+    </div>
+  );
 
   if (!isAuthenticated) {
     return (

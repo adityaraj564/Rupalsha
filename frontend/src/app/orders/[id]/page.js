@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { FiCheckCircle, FiPackage, FiTruck, FiMapPin, FiAlertCircle, FiClock, FiShoppingBag } from 'react-icons/fi';
 import { ordersAPI, paymentAPI } from '@/lib/api';
 import { useAuthStore, useCartStore } from '@/lib/store';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { OrdersSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
@@ -138,7 +138,7 @@ export default function OrderDetailPage() {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <OrdersSkeleton />;
   if (!order) return null;
 
   const currentStep = STATUS_STEPS.indexOf(order.status);
@@ -191,11 +191,11 @@ export default function OrderDetailPage() {
 
       {/* Pending payment banner */}
       {order.status === 'pending' && order.paymentMethod === 'razorpay' && !order.isPaid && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-          <FiClock className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-4 mb-6 flex items-start gap-3">
+          <FiClock className="text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" size={20} />
           <div className="flex-1">
-            <p className="text-yellow-800 font-medium">Payment Pending</p>
-            <p className="text-yellow-700 text-sm mt-1">Complete your payment to confirm this order. The order will expire if not paid within 1 hour.</p>
+            <p className="text-yellow-800 dark:text-yellow-300 font-medium">Payment Pending</p>
+            <p className="text-yellow-700 dark:text-yellow-400 text-sm mt-1">Complete your payment to confirm this order. The order will expire if not paid within 1 hour.</p>
             <button
               onClick={handleRetryPayment}
               disabled={retryingPayment}
@@ -208,18 +208,18 @@ export default function OrderDetailPage() {
       )}
 
       {order.status === 'cancelled' && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-          <p className="text-red-800 font-medium">Order Cancelled</p>
-          {order.cancelReason && <p className="text-red-600 text-sm mt-1">Reason: {order.cancelReason}</p>}
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl p-4 mb-6">
+          <p className="text-red-800 dark:text-red-300 font-medium">Order Cancelled</p>
+          {order.cancelReason && <p className="text-red-600 dark:text-red-400 text-sm mt-1">Reason: {order.cancelReason}</p>}
         </div>
       )}
 
       {order.status === 'failed' && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-          <FiAlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl p-4 mb-6 flex items-start gap-3">
+          <FiAlertCircle className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" size={20} />
           <div className="flex-1">
-            <p className="text-red-800 font-medium">Order Failed</p>
-            <p className="text-red-600 text-sm mt-1">Payment was not completed within the allowed time. You can add these items to your cart and place a new order.</p>
+            <p className="text-red-800 dark:text-red-300 font-medium">Order Failed</p>
+            <p className="text-red-600 dark:text-red-400 text-sm mt-1">Payment was not completed within the allowed time. You can add these items to your cart and place a new order.</p>
             <button
               onClick={handleAddToCartAgain}
               className="mt-3 px-5 py-2 bg-brand-green text-white text-sm font-medium rounded-lg hover:bg-green-800 transition-colors inline-flex items-center gap-2"
@@ -270,7 +270,7 @@ export default function OrderDetailPage() {
               <hr />
               <div className="flex justify-between font-semibold text-base"><span>Total</span><span>₹{order.totalAmount.toLocaleString()}</span></div>
               <p className="text-gray-500 capitalize">Payment: {order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online'}</p>
-              {order.isPaid && <p className="text-green-600">Paid ✓</p>}
+              {order.isPaid && <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">Paid ✓</span>}
             </div>
           </div>
 
@@ -291,7 +291,7 @@ export default function OrderDetailPage() {
           {['pending', 'confirmed', 'processing'].includes(order.status) && (
             <div>
               {!showCancel ? (
-                <button onClick={() => setShowCancel(true)} className="text-red-500 text-sm hover:underline">
+                <button onClick={() => setShowCancel(true)} className="w-full px-4 py-2.5 border-2 border-red-400 text-red-500 dark:border-red-400 dark:text-red-400 rounded-xl text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                   Cancel Order
                 </button>
               ) : (
@@ -314,11 +314,11 @@ export default function OrderDetailPage() {
 
           {order.status === 'delivered' && order.items.every(item => item.product?.isReturnable !== false) && (
             <div className="space-y-2">
-              <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm">
-                <p className="font-semibold text-orange-700">⚠️ Unboxing Video Required</p>
-                <p className="text-orange-600 mt-1">An unboxing video recorded while opening the package is mandatory for return claims. Returns without video proof will not be accepted.</p>
+              <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg text-sm">
+                <p className="font-semibold text-orange-700 dark:text-orange-300">⚠️ Unboxing Video Required</p>
+                <p className="text-orange-600 dark:text-orange-400 mt-1">An unboxing video recorded while opening the package is mandatory for return claims. Returns without video proof will not be accepted.</p>
               </div>
-              <button onClick={handleReturn} className="text-orange-500 text-sm hover:underline">
+              <button onClick={handleReturn} className="w-full px-4 py-2.5 border-2 border-orange-400 text-orange-500 dark:border-orange-400 dark:text-orange-400 rounded-xl text-sm font-medium hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors">
                 Request Return
               </button>
             </div>

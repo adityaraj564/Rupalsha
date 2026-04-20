@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiChevronDown, FiChevronRight } from 'react-icons/fi';
 import { adminAPI } from '@/lib/api';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { AdminTableSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
 export default function AdminCategoriesPage() {
@@ -170,7 +170,7 @@ export default function AdminCategoriesPage() {
     );
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <AdminTableSkeleton />;
 
   const rootCategories = buildTree(null);
 

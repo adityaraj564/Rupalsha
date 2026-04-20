@@ -105,8 +105,8 @@ export default function CategorySidebar({
             className="absolute inset-0 bg-black/40"
             onClick={onMobileClose}
           />
-          <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-white shadow-xl overflow-y-auto animate-slide-right">
-            <div className="sticky top-0 bg-white z-10 flex items-center justify-between p-4 border-b">
+          <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-white dark:bg-gray-900 shadow-xl overflow-y-auto animate-slide-right">
+            <div className="sticky top-0 bg-white dark:bg-gray-900 z-10 flex items-center justify-between p-4 border-b dark:border-gray-700">
               <h2 className="font-serif text-lg font-semibold">Filters</h2>
               <button
                 onClick={onMobileClose}
@@ -134,7 +134,7 @@ export default function CategorySidebar({
                 onSortChange={onSortChange}
               />
             </div>
-            <div className="sticky bottom-0 bg-white border-t p-4">
+            <div className="sticky bottom-0 bg-white dark:bg-gray-900 border-t dark:border-gray-700 p-4">
               <button
                 onClick={onMobileClose}
                 className="btn-primary w-full text-sm py-2.5"

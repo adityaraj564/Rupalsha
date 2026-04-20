@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FiCheck, FiTrash2, FiStar } from 'react-icons/fi';
 import { adminAPI } from '@/lib/api';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { AdminTableSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
 export default function AdminReviewsPage() {
@@ -47,7 +47,7 @@ export default function AdminReviewsPage() {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <AdminTableSkeleton />;
 
   return (
     <div className="animate-fade-in">

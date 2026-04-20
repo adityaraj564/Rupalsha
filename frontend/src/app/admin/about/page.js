@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { aboutAPI } from '@/lib/api';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { AdminTableSkeleton } from '@/components/Skeleton';
 import { FiSave, FiUpload, FiPlus, FiTrash2, FiImage, FiEdit3 } from 'react-icons/fi';
 
 export default function AdminAboutPage() {
@@ -151,7 +151,7 @@ export default function AdminAboutPage() {
     });
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <AdminTableSkeleton />;
 
   return (
     <div className="space-y-8">

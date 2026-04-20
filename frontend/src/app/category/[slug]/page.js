@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
 import CategorySidebar from '@/components/CategorySidebar';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { ProductGridSkeleton } from '@/components/Skeleton';
 import { productsAPI, categoriesAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { FiFilter, FiChevronDown, FiChevronRight } from 'react-icons/fi';
@@ -194,7 +194,7 @@ export default function CategoryPage() {
         {/* Products Grid */}
         <div className="flex-1 min-w-0">
           {loading && products.length === 0 ? (
-            <LoadingSpinner />
+            <ProductGridSkeleton count={6} cols="grid-cols-2 md:grid-cols-3" />
           ) : products.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-gray-500 text-lg">No products found in this category</p>

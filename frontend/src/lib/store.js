@@ -130,3 +130,30 @@ export const useWishlistStore = create((set, get) => ({
     return get().items.some((item) => item._id === productId);
   },
 }));
+
+// Theme Store
+export const useThemeStore = create((set, get) => ({
+  isDark: false,
+
+  init: () => {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem('rupalsha_theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = stored ? stored === 'dark' : prefersDark;
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    }
+    set({ isDark });
+  },
+
+  toggle: () => {
+    const next = !get().isDark;
+    if (next) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('rupalsha_theme', next ? 'dark' : 'light');
+    set({ isDark: next });
+  },
+}));

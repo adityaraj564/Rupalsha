@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
 import { adminAPI, categoriesAPI } from '@/lib/api';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { AdminTableSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
@@ -223,7 +223,7 @@ export default function AdminProductsPage() {
     setForm({ ...form, sizes: newSizes });
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <AdminTableSkeleton />;
 
   return (
     <div className="animate-fade-in">

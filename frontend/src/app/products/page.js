@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
 import CategorySidebar from '@/components/CategorySidebar';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { ProductsPageSkeleton, ProductGridSkeleton } from '@/components/Skeleton';
 import { productsAPI, categoriesAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { FiFilter, FiX, FiChevronDown } from 'react-icons/fi';
@@ -168,7 +168,7 @@ function ProductsContent() {
         {/* Products Grid */}
         <div className="flex-1 min-w-0">
           {loading && products.length === 0 ? (
-            <LoadingSpinner />
+            <ProductGridSkeleton count={6} cols="grid-cols-2 md:grid-cols-3" />
           ) : products.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-gray-500 text-lg">No products found</p>
@@ -210,7 +210,7 @@ function ProductsContent() {
 
 export default function ProductsPage() {
   return (
-    <Suspense fallback={<LoadingSpinner />}>
+    <Suspense fallback={<ProductsPageSkeleton />}>
       <ProductsContent />
     </Suspense>
   );

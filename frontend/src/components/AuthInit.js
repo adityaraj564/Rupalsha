@@ -2,12 +2,13 @@
 
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuthStore, useCartStore, useWishlistStore } from '@/lib/store';
+import { useAuthStore, useCartStore, useWishlistStore, useThemeStore } from '@/lib/store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function AuthInit() {
   const init = useAuthStore((s) => s.init);
+  const initTheme = useThemeStore((s) => s.init);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
   const user = useAuthStore((s) => s.user);
@@ -18,7 +19,8 @@ export default function AuthInit() {
 
   useEffect(() => {
     init();
-  }, [init]);
+    initTheme();
+  }, [init, initTheme]);
 
   // Keep-alive ping to prevent Render free-tier cold starts (every 4 min)
   useEffect(() => {

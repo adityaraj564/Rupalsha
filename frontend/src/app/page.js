@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FiArrowRight, FiTruck, FiRefreshCw, FiShield, FiHeart } from 'react-icons/fi';
 import ProductCard from '@/components/ProductCard';
+import { HomeSectionSkeleton } from '@/components/Skeleton';
 import { productsAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
@@ -30,7 +31,7 @@ export default function HomePage() {
   return (
     <div className="animate-fade-in">
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] md:min-h-[85vh] flex items-center bg-brand-cream overflow-hidden">
+      <section className="relative min-h-[90vh] md:min-h-[85vh] flex items-center bg-brand-cream dark:bg-gray-950 overflow-hidden">
         <div className="absolute inset-0">
           <Image
             src="https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=1600"
@@ -39,7 +40,7 @@ export default function HomePage() {
             className="object-cover opacity-20"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-brand-cream via-brand-cream/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-brand-cream via-brand-cream/80 to-transparent dark:from-gray-950 dark:via-gray-950/80" />
         </div>
 
         <div className="relative mx-auto px-4 sm:px-6 lg:px-[50px] py-20">
@@ -47,12 +48,12 @@ export default function HomePage() {
             <p className="text-brand-gold font-medium tracking-[0.3em] uppercase text-sm mb-4 animate-slide-up">
               New Collection 2026
             </p>
-            <h1 className="font-serif text-5xl md:text-7xl font-bold text-brand-charcoal leading-tight mb-6">
+            <h1 className="font-serif text-5xl md:text-7xl font-bold text-brand-charcoal dark:text-gray-100 leading-tight mb-6">
               Where Comfort
               <br />
               Meets <span className="text-brand-green italic">Style</span>
             </h1>
-            <p className="text-lg text-gray-600 mb-8 max-w-lg leading-relaxed">
+            <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-lg leading-relaxed">
               Discover our exquisite collection of ethnic and contemporary fashion.
               Crafted with love for the modern woman who embraces elegance.
             </p>
@@ -69,7 +70,7 @@ export default function HomePage() {
       </section>
 
       {/* Features Bar */}
-      <section className="bg-white border-y border-gray-100">
+      <section className="bg-white dark:bg-gray-900 border-y border-gray-100 dark:border-gray-800">
         <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
           {[
             { icon: FiTruck, title: 'Free Shipping', desc: 'Orders above ₹999' },
@@ -82,7 +83,7 @@ export default function HomePage() {
                 <feature.icon className="text-brand-green" size={20} />
               </div>
               <div>
-                <p className="font-medium text-sm text-brand-charcoal">{feature.title}</p>
+                <p className="font-medium text-sm text-brand-charcoal dark:text-gray-200">{feature.title}</p>
                 <p className="text-xs text-gray-400">{feature.desc}</p>
               </div>
             </div>
@@ -122,8 +123,8 @@ export default function HomePage() {
       </section>
 
       {/* Featured Collections */}
-      {featured.length > 0 && (
-        <section className="py-16 md:py-24 bg-white">
+      {featured.length > 0 ? (
+        <section className="py-16 md:py-24 bg-white dark:bg-gray-900 skeleton-to-content">
           <div className="mx-auto px-4 sm:px-6 lg:px-[50px]">
             <div className="flex items-end justify-between mb-10">
               <div>
@@ -142,6 +143,8 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+      ) : (
+        <HomeSectionSkeleton />
       )}
 
       {/* Banner */}
@@ -174,8 +177,8 @@ export default function HomePage() {
       </section>
 
       {/* Trending Products */}
-      {trending.length > 0 && (
-        <section className="py-16 md:py-24 bg-white">
+      {trending.length > 0 ? (
+        <section className="py-16 md:py-24 bg-white dark:bg-gray-900 skeleton-to-content">
           <div className="mx-auto px-4 sm:px-6 lg:px-[50px]">
             <div className="flex items-end justify-between mb-10">
               <div>
@@ -194,6 +197,8 @@ export default function HomePage() {
             </div>
           </div>
         </section>
+      ) : (
+        <HomeSectionSkeleton />
       )}
 
       {/* Instagram Section */}

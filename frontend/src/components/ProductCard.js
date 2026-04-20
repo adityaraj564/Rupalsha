@@ -68,7 +68,7 @@ export default function ProductCard({ product }) {
       <div className={`card overflow-hidden ${isOutOfStock ? 'opacity-60' : ''}`}>
         {/* Image */}
         <div
-          className="relative aspect-[3/4] overflow-hidden bg-gray-100 product-image-zoom"
+          className="relative aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-gray-700 product-image-zoom"
           onMouseEnter={startSlide}
           onMouseLeave={stopSlide}
         >
@@ -76,7 +76,7 @@ export default function ProductCard({ product }) {
             src={product.images?.[currentImage]?.url || product.images?.[0]?.url || '/placeholder.jpg'}
             alt={product.images?.[currentImage]?.alt || product.name}
             fill
-            className={`object-contain transition-opacity duration-500 ${isOutOfStock ? 'grayscale' : ''}`}
+            className={`object-cover transition-opacity duration-500 ${isOutOfStock ? 'grayscale' : ''}`}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             loading="lazy"
           />
@@ -136,11 +136,11 @@ export default function ProductCard({ product }) {
         {/* Info */}
         <div className="p-4">
           <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">{product.category}</p>
-          <h3 className="font-serif text-sm md:text-base font-medium text-brand-charcoal line-clamp-2 group-hover:text-brand-green transition-colors">
+          <h3 className="font-serif text-sm md:text-base font-medium text-brand-charcoal dark:text-gray-100 line-clamp-2 group-hover:text-brand-green dark:group-hover:text-[#F8F0E8] transition-colors">
             {product.name}
           </h3>
           <div className="flex items-center gap-2 mt-2">
-            <span className="text-lg font-semibold text-brand-charcoal">₹{product.price.toLocaleString()}</span>
+            <span className="text-lg font-semibold text-brand-charcoal dark:text-gray-100">₹{product.price.toLocaleString()}</span>
             {product.comparePrice && (
               <span className="text-sm text-gray-400 line-through">₹{product.comparePrice.toLocaleString()}</span>
             )}

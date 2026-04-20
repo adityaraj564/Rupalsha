@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FiMinus, FiPlus, FiTrash2, FiArrowLeft, FiShoppingBag } from 'react-icons/fi';
 import { useCartStore, useAuthStore } from '@/lib/store';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { CartSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
 export default function CartPage() {
@@ -17,7 +17,7 @@ export default function CartPage() {
     if (isAuthenticated) fetchCart(true);
   }, [isAuthenticated, fetchCart]);
 
-  if (authLoading || isLoading) return <LoadingSpinner />;
+  if (authLoading || isLoading) return <CartSkeleton />;
 
   if (!isAuthenticated) {
     return (
