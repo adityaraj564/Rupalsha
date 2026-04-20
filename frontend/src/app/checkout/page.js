@@ -64,7 +64,8 @@ export default function CheckoutPage() {
   if (!user || items.length === 0) return <LoadingSpinner />;
 
   const subtotal = items.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
-  const shipping = subtotal >= 999 ? 0 : 79;
+  const maxProductShipping = Math.max(...items.map(item => item.product?.shippingCharge || 0), 0);
+  const shipping = subtotal >= 999 ? 0 : maxProductShipping;
   const total = subtotal + shipping - discount;
 
   const handleApplyCoupon = async () => {

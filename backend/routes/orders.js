@@ -10,7 +10,6 @@ const { sendOrderConfirmation, sendOrderCancellation, sendReturnConfirmation } =
 const router = express.Router();
 
 const FREE_SHIPPING_THRESHOLD = 999;
-const SHIPPING_CHARGE = 79;
 
 // POST /api/orders - Create order
 router.post('/', auth, [
@@ -49,7 +48,9 @@ router.post('/', auth, [
     }
 
     let itemsTotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    let shippingCharge = itemsTotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_CHARGE;
+    // Use the highest per-product shipping charge from the cart items
+    const maxProductShipping = Math.max(...cart.items.map(item => item.product.shippingCharge || 0));
+    let shippingCharge = itemsTotal >= FREE_SHIPPING_THRESHOLD ? 0 : maxProductShipping;
     let discount = 0;
 
     // Apply coupon
