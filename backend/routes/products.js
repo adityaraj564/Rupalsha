@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const { query } = require('express-validator');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const cache = require('../utils/cache');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -14,6 +15,19 @@ router.get('/', async (req, res, next) => {
       category, categorySlug, search, sort, minPrice, maxPrice,
       size, page = 1, limit = 12, featured, trending, hideOutOfStock,
     } = req.query;
+
+    // Cache key for simple queries (featured/trending homepage calls)
+    const cacheKey = !search && !categorySlug && !category && !minPrice && !maxPrice && !size
+      ? `products:${featured || ''}:${trending || ''}:${hideOutOfStock || ''}:${sort || ''}:${page}:${limit}`
+      : null;
+
+    if (cacheKey) {
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        res.set('X-Cache', 'HIT');
+        return res.json(cached);
+      }
+    }
 
     const filter = { isActive: true };
 
@@ -77,6 +91,16 @@ router.get('/', async (req, res, next) => {
       totalPages: Math.ceil(total / limitNum),
       total,
     });
+
+    // Cache simple queries for 3 minutes
+    if (cacheKey) {
+      cache.set(cacheKey, {
+        products,
+        page: pageNum,
+        totalPages: Math.ceil(total / limitNum),
+        total,
+      }, 180);
+    }
   } catch (error) {
     next(error);
   }

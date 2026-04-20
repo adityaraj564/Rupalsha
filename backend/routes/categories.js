@@ -1,18 +1,28 @@
 const express = require('express');
 const Category = require('../models/Category');
+const cache = require('../utils/cache');
 
 const router = express.Router();
 
 // GET /api/categories - Get all categories as a tree
 router.get('/', async (req, res, next) => {
   try {
+    const cached = cache.get('categories:tree');
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+
     const categories = await Category.find({ isActive: true })
       .sort({ sortOrder: 1, name: 1 })
       .lean();
 
     // Build tree structure
     const tree = buildTree(categories);
-    res.json({ categories: tree });
+    const result = { categories: tree };
+    cache.set('categories:tree', result, 600); // cache 10 min
+    res.set('X-Cache', 'MISS');
+    res.json(result);
   } catch (error) {
     next(error);
   }

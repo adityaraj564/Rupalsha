@@ -1,5 +1,39 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+// ── Client-side response cache (SWR-style) ──
+const responseCache = new Map();
+const CACHE_TTL = {
+  short: 60 * 1000,    // 1 min - products, search results
+  medium: 5 * 60 * 1000, // 5 min - categories, about page
+  long: 15 * 60 * 1000,  // 15 min - rarely changing data
+};
+
+const getCached = (key) => {
+  const entry = responseCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    responseCache.delete(key);
+    return null;
+  }
+  return entry.value;
+};
+
+const setCache = (key, value, ttl = CACHE_TTL.short) => {
+  // Limit cache size to prevent memory issues
+  if (responseCache.size > 100) {
+    const firstKey = responseCache.keys().next().value;
+    responseCache.delete(firstKey);
+  }
+  responseCache.set(key, { value, expiresAt: Date.now() + ttl });
+};
+
+export const clearApiCache = (prefix) => {
+  if (!prefix) { responseCache.clear(); return; }
+  for (const key of responseCache.keys()) {
+    if (key.startsWith(prefix)) responseCache.delete(key);
+  }
+};
+
 class ApiError extends Error {
   constructor(message, status) {
     super(message);
@@ -25,6 +59,7 @@ const request = async (endpoint, options = {}) => {
   const res = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers,
+    cache: 'no-store',
     body: options.body instanceof FormData ? options.body : options.body ? JSON.stringify(options.body) : undefined,
   });
 
@@ -55,21 +90,50 @@ export const authAPI = {
 export const productsAPI = {
   getAll: (params) => {
     const query = new URLSearchParams(params).toString();
-    return request(`/products?${query}`);
+    const cacheKey = `products:${query}`;
+    const cached = getCached(cacheKey);
+    if (cached) return Promise.resolve(cached);
+    return request(`/products?${query}`).then(data => { setCache(cacheKey, data, CACHE_TTL.short); return data; });
   },
-  getBySlug: (slug) => request(`/products/${slug}`),
-  getSimilar: (slug, limit = 8) => request(`/products/${slug}/similar?limit=${limit}`),
-  getCategories: () => request('/products/categories'),
+  getBySlug: (slug) => {
+    const cacheKey = `product:${slug}`;
+    const cached = getCached(cacheKey);
+    if (cached) return Promise.resolve(cached);
+    return request(`/products/${slug}`).then(data => { setCache(cacheKey, data, CACHE_TTL.short); return data; });
+  },
+  getSimilar: (slug, limit = 8) => {
+    const cacheKey = `similar:${slug}:${limit}`;
+    const cached = getCached(cacheKey);
+    if (cached) return Promise.resolve(cached);
+    return request(`/products/${slug}/similar?limit=${limit}`).then(data => { setCache(cacheKey, data, CACHE_TTL.medium); return data; });
+  },
+  getCategories: () => {
+    const cached = getCached('productCategories');
+    if (cached) return Promise.resolve(cached);
+    return request('/products/categories').then(data => { setCache('productCategories', data, CACHE_TTL.medium); return data; });
+  },
 };
 
 // Categories
 export const categoriesAPI = {
-  getTree: () => request('/categories'),
+  getTree: () => {
+    const cached = getCached('categoriesTree');
+    if (cached) return Promise.resolve(cached);
+    return request('/categories').then(data => { setCache('categoriesTree', data, CACHE_TTL.medium); return data; });
+  },
   getFlat: (params) => {
     const query = new URLSearchParams(params).toString();
-    return request(`/categories/flat?${query}`);
+    const cacheKey = `categoriesFlat:${query}`;
+    const cached = getCached(cacheKey);
+    if (cached) return Promise.resolve(cached);
+    return request(`/categories/flat?${query}`).then(data => { setCache(cacheKey, data, CACHE_TTL.medium); return data; });
   },
-  getBySlug: (slug) => request(`/categories/${slug}`),
+  getBySlug: (slug) => {
+    const cacheKey = `category:${slug}`;
+    const cached = getCached(cacheKey);
+    if (cached) return Promise.resolve(cached);
+    return request(`/categories/${slug}`).then(data => { setCache(cacheKey, data, CACHE_TTL.medium); return data; });
+  },
 };
 
 // Cart
@@ -128,7 +192,11 @@ export const paymentAPI = {
 // Coupons
 export const couponsAPI = {
   validate: (code, orderTotal) => request('/coupons/validate', { method: 'POST', body: { code, orderTotal } }),
-  getActive: () => request('/coupons/active', { auth: false }),
+  getActive: () => {
+    const cached = getCached('couponsActive');
+    if (cached) return Promise.resolve(cached);
+    return request('/coupons/active', { auth: false }).then(data => { setCache('couponsActive', data, CACHE_TTL.medium); return data; });
+  },
 };
 
 // Contact
@@ -138,7 +206,11 @@ export const contactAPI = {
 
 // About
 export const aboutAPI = {
-  get: () => request('/about'),
+  get: () => {
+    const cached = getCached('about');
+    if (cached) return Promise.resolve(cached);
+    return request('/about').then(data => { setCache('about', data, CACHE_TTL.long); return data; });
+  },
   update: (data) => request('/about', { method: 'PUT', body: data }),
   uploadCover: (formData) => request('/about/cover', { method: 'PUT', body: formData }),
   updateTeamMember: (index, data) => request(`/about/team/${index}`, { method: 'PUT', body: data }),
@@ -155,9 +227,9 @@ export const adminAPI = {
     const query = new URLSearchParams(params).toString();
     return request(`/admin/products?${query}`);
   },
-  createProduct: (formData) => request('/admin/products', { method: 'POST', body: formData }),
-  updateProduct: (id, formData) => request(`/admin/products/${id}`, { method: 'PUT', body: formData }),
-  deleteProduct: (id) => request(`/admin/products/${id}`, { method: 'DELETE' }),
+  createProduct: (formData) => request('/admin/products', { method: 'POST', body: formData }).then(d => { clearApiCache('products'); clearApiCache('product'); return d; }),
+  updateProduct: (id, formData) => request(`/admin/products/${id}`, { method: 'PUT', body: formData }).then(d => { clearApiCache('products'); clearApiCache('product'); return d; }),
+  deleteProduct: (id) => request(`/admin/products/${id}`, { method: 'DELETE' }).then(d => { clearApiCache('products'); clearApiCache('product'); return d; }),
   // Inventory
   getInventory: (params) => {
     const query = new URLSearchParams(params).toString();
@@ -192,7 +264,7 @@ export const adminAPI = {
   getContacts: () => request('/admin/contacts'),
   // Categories
   getCategories: () => request('/admin/categories'),
-  createCategory: (data) => request('/admin/categories', { method: 'POST', body: data }),
-  updateCategory: (id, data) => request(`/admin/categories/${id}`, { method: 'PUT', body: data }),
-  deleteCategory: (id) => request(`/admin/categories/${id}`, { method: 'DELETE' }),
+  createCategory: (data) => request('/admin/categories', { method: 'POST', body: data }).then(d => { clearApiCache('categories'); return d; }),
+  updateCategory: (id, data) => request(`/admin/categories/${id}`, { method: 'PUT', body: data }).then(d => { clearApiCache('categories'); return d; }),
+  deleteCategory: (id) => request(`/admin/categories/${id}`, { method: 'DELETE' }).then(d => { clearApiCache('categories'); return d; }),
 };

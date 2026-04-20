@@ -147,5 +147,10 @@ productSchema.index({ category: 1, price: 1 });
 productSchema.index({ categoryRef: 1 });
 productSchema.index({ subcategory: 1 });
 productSchema.index({ childCategory: 1 });
+// Performance indexes for common queries
+productSchema.index({ isActive: 1, isFeatured: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, isTrending: 1, createdAt: -1 });
+productSchema.index({ isActive: 1, createdAt: -1 });
+productSchema.index({ slug: 1 });
 
 module.exports = mongoose.model('Product', productSchema);

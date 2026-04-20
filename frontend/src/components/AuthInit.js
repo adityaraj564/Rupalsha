@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore, useCartStore, useWishlistStore } from '@/lib/store';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
 export default function AuthInit() {
   const init = useAuthStore((s) => s.init);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -17,6 +19,15 @@ export default function AuthInit() {
   useEffect(() => {
     init();
   }, [init]);
+
+  // Keep-alive ping to prevent Render free-tier cold starts (every 4 min)
+  useEffect(() => {
+    const ping = () => fetch(`${API_URL}/health`, { method: 'GET' }).catch(() => {});
+    // Ping immediately on app load to wake up the server
+    ping();
+    const interval = setInterval(ping, 4 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Redirect admin users away from customer pages to /admin
   useEffect(() => {

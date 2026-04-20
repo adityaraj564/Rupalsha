@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
@@ -16,6 +17,9 @@ app.set('trust proxy', 1);
 
 // Connect to Database
 connectDB();
+
+// Compression - gzip responses (reduces transfer size ~70%)
+app.use(compression());
 
 // Security middleware
 app.use(helmet());

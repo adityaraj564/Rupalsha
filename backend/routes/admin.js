@@ -11,6 +11,7 @@ const Contact = require('../models/Contact');
 const upload = require('../utils/upload');
 const cloudinary = require('../config/cloudinary');
 const { sendOrderStatusUpdate } = require('../utils/email');
+const cache = require('../utils/cache');
 
 const router = express.Router();
 
@@ -123,6 +124,7 @@ router.post('/products', upload.array('images', 5), async (req, res, next) => {
       shippingCharge: shippingCharge ? Number(shippingCharge) : 0,
     });
 
+    cache.clear('products');
     res.status(201).json({ product });
   } catch (error) {
     next(error);
@@ -177,6 +179,7 @@ router.put('/products/:id', upload.array('images', 5), async (req, res, next) =>
     }
 
     await product.save();
+    cache.clear('products');
     res.json({ product });
   } catch (error) {
     next(error);
@@ -197,6 +200,7 @@ router.delete('/products/:id', async (req, res, next) => {
     }
 
     await product.deleteOne();
+    cache.clear('products');
     res.json({ message: 'Product deleted' });
   } catch (error) {
     next(error);
@@ -503,6 +507,7 @@ router.post('/categories', [
       level,
       sortOrder: sortOrder || 0,
     });
+    cache.clear('categories');
     res.status(201).json({ category });
   } catch (error) {
     next(error);
@@ -520,6 +525,7 @@ router.put('/categories/:id', async (req, res, next) => {
     if (req.body.sortOrder !== undefined) category.sortOrder = req.body.sortOrder;
 
     await category.save();
+    cache.clear('categories');
     res.json({ category });
   } catch (error) {
     next(error);
@@ -537,6 +543,7 @@ router.delete('/categories/:id', async (req, res, next) => {
     const descendantIds = getDescendantIds(allCats, category._id);
     await Category.deleteMany({ _id: { $in: [...descendantIds, category._id] } });
 
+    cache.clear('categories');
     res.json({ message: 'Category and its subcategories deleted' });
   } catch (error) {
     next(error);
