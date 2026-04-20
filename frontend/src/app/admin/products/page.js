@@ -405,6 +405,7 @@ export default function AdminProductsPage() {
               {/* Images */}
               <div>
                 <label className="block text-sm font-medium mb-1">Images (max 5)</label>
+                <p className="text-xs text-gray-400 mb-1">Recommended: 600×800 px (3:4 ratio). Use portrait orientation for best display.</p>
                 <input
                   type="file"
                   accept="image/*"
