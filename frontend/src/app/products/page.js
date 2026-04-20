@@ -101,7 +101,9 @@ function ProductsContent() {
   };
 
   const handleSelectCategory = (slug) => {
-    setSelectedCategorySlug(selectedCategorySlug === slug ? '' : slug);
+    const newSlug = selectedCategorySlug === slug ? '' : slug;
+    setSelectedCategorySlug(newSlug);
+    if (newSlug !== 'rings') setSize('');
     setPage(1);
   };
 
@@ -163,6 +165,7 @@ function ProductsContent() {
           size={size}
           sizes={SIZES}
           onSizeChange={(s) => { setSize(s); setPage(1); }}
+          showSizeFilter={selectedCategorySlug === 'rings'}
           sort={sort}
           sortOptions={SORT_OPTIONS}
           onSortChange={(s) => { setSort(s); setPage(1); }}

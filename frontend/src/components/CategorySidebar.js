@@ -88,6 +88,7 @@ export default function CategorySidebar({
   size,
   sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'],
   onSizeChange,
+  showSizeFilter = false,
   sort,
   sortOptions = [],
   onSortChange,
@@ -129,6 +130,7 @@ export default function CategorySidebar({
                 size={size}
                 sizes={sizes}
                 onSizeChange={onSizeChange}
+                showSizeFilter={showSizeFilter}
                 sort={sort}
                 sortOptions={sortOptions}
                 onSortChange={onSortChange}
@@ -162,6 +164,7 @@ export default function CategorySidebar({
             size={size}
             sizes={sizes}
             onSizeChange={onSizeChange}
+            showSizeFilter={showSizeFilter}
             sort={sort}
             sortOptions={sortOptions}
             onSortChange={onSortChange}
@@ -185,6 +188,7 @@ function SidebarContent({
   size,
   sizes,
   onSizeChange,
+  showSizeFilter = false,
   sort,
   sortOptions,
   onSortChange,
@@ -232,7 +236,7 @@ function SidebarContent({
       </div>
 
       {/* Size Filter */}
-      <div>
+      {showSizeFilter && <div>
         <h3 className="font-medium text-sm text-gray-900 mb-3 uppercase tracking-wider">
           Size
         </h3>
@@ -251,7 +255,7 @@ function SidebarContent({
             </button>
           ))}
         </div>
-      </div>
+      </div>}
 
       {/* Sort (mobile) */}
       {sortOptions.length > 0 && onSortChange && (

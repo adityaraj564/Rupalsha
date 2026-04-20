@@ -135,9 +135,11 @@ export default function Header() {
       >
         <div className="w-full px-4 sm:px-6 lg:px-[50px]">
           <div className="flex items-center justify-between h-16 md:h-20">
+            {/* Left: Mobile menu + Logo */}
+            <div className="flex items-center gap-0">
             {/* Mobile menu toggle */}
             <button
-              className="md:hidden p-2 -ml-2"
+              className="md:hidden p-1 -ml-3"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label="Toggle menu"
             >
@@ -149,15 +151,16 @@ export default function Header() {
               <Image
                 src="/rupalshaLogo.png"
                 alt="Rupalsha Logo"
-                width={90}
-                height={90}
+                width={70}
+                height={70}
                 className="rounded-full"
                 priority
               />
-              <h1 className="font-serif text-2xl md:text-3xl font-bold text-brand-green dark:text-[#F8F0E8] tracking-wide">
+              <h1 className="hidden md:block font-serif text-2xl md:text-3xl font-bold text-brand-green dark:text-[#F8F0E8] tracking-wide">
                 RUPALSHA
               </h1>
             </Link>
+            </div>
 
             {/* Desktop Nav */}
             <nav className="hidden md:flex items-center space-x-8">
