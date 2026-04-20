@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FiTrash2, FiAlertTriangle, FiX } from 'react-icons/fi';
+import { FiTrash2, FiAlertTriangle, FiX, FiEye, FiMapPin, FiUser, FiPhone, FiMail, FiPackage, FiCreditCard, FiCopy, FiTruck } from 'react-icons/fi';
 import { adminAPI } from '@/lib/api';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -106,8 +106,8 @@ export default function AdminOrdersPage() {
             </thead>
             <tbody>
               {orders.map((order) => (
-                <tr key={order._id} className="border-t hover:bg-gray-50">
-                  <td className="p-4 font-medium">{order.orderNumber}</td>
+                <tr key={order._id} className="border-t hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedOrder(order)}>
+                  <td className="p-4 font-medium text-brand-green">{order.orderNumber}</td>
                   <td className="p-4">
                     <p className="font-medium">{order.user?.name || 'N/A'}</p>
                     <p className="text-xs text-gray-400">{order.user?.email}</p>
@@ -127,7 +127,14 @@ export default function AdminOrdersPage() {
                     {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => setSelectedOrder(order)}
+                        className="p-1.5 hover:bg-blue-50 rounded-lg text-blue-600 transition-colors"
+                        title="View details"
+                      >
+                        <FiEye size={14} />
+                      </button>
                       <select
                         value={order.status}
                         onChange={(e) => handleStatusUpdate(order._id, e.target.value)}
@@ -156,6 +163,152 @@ export default function AdminOrdersPage() {
           <p className="text-center text-gray-500 py-10">No orders found</p>
         )}
       </div>
+
+      {/* Order Detail Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setSelectedOrder(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-2xl my-8 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <div>
+                <h3 className="text-lg font-bold text-brand-charcoal">Order #{selectedOrder.orderNumber}</h3>
+                <p className="text-xs text-gray-500">
+                  {new Date(selectedOrder.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[selectedOrder.status]}`}>
+                  {selectedOrder.status}
+                </span>
+                <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-gray-100 rounded-full">
+                  <FiX size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              {/* Customer Info */}
+              <div className="bg-blue-50 rounded-xl p-4">
+                <h4 className="font-semibold text-sm text-brand-charcoal mb-3 flex items-center gap-2">
+                  <FiUser size={16} /> Customer Details
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                  <p className="flex items-center gap-2"><FiUser size={14} className="text-gray-400" /> {selectedOrder.user?.name || 'N/A'}</p>
+                  <p className="flex items-center gap-2"><FiMail size={14} className="text-gray-400" /> {selectedOrder.user?.email || 'N/A'}</p>
+                </div>
+              </div>
+
+              {/* Delivery Address */}
+              <div className="bg-green-50 rounded-xl p-4">
+                <h4 className="font-semibold text-sm text-brand-charcoal mb-3 flex items-center gap-2">
+                  <FiMapPin size={16} /> Delivery Address
+                </h4>
+                {selectedOrder.shippingAddress ? (
+                  <div className="text-sm space-y-1">
+                    <p className="font-medium">{selectedOrder.shippingAddress.fullName}</p>
+                    <p className="flex items-center gap-2"><FiPhone size={14} className="text-gray-400" /> {selectedOrder.shippingAddress.phone}</p>
+                    <p>{selectedOrder.shippingAddress.addressLine1}</p>
+                    {selectedOrder.shippingAddress.addressLine2 && <p>{selectedOrder.shippingAddress.addressLine2}</p>}
+                    <p>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} — {selectedOrder.shippingAddress.pincode}</p>
+                    <button
+                      onClick={() => {
+                        const addr = selectedOrder.shippingAddress;
+                        const text = `${addr.fullName}\n${addr.phone}\n${addr.addressLine1}${addr.addressLine2 ? '\n' + addr.addressLine2 : ''}\n${addr.city}, ${addr.state} - ${addr.pincode}`;
+                        navigator.clipboard.writeText(text);
+                        toast.success('Address copied!');
+                      }}
+                      className="mt-2 text-xs text-brand-green hover:underline flex items-center gap-1"
+                    >
+                      <FiCopy size={12} /> Copy address
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No address provided</p>
+                )}
+              </div>
+
+              {/* Order Items */}
+              <div>
+                <h4 className="font-semibold text-sm text-brand-charcoal mb-3 flex items-center gap-2">
+                  <FiPackage size={16} /> Items ({selectedOrder.items?.length || 0})
+                </h4>
+                <div className="space-y-3">
+                  {selectedOrder.items?.map((item, i) => (
+                    <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                      {item.image && (
+                        <img src={item.image} alt={item.name} className="w-14 h-14 rounded-lg object-cover" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{item.name}</p>
+                        <p className="text-xs text-gray-500">Size: {item.size} &middot; Qty: {item.quantity}</p>
+                      </div>
+                      <p className="font-medium text-sm whitespace-nowrap">₹{(item.price * item.quantity).toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Payment & Totals */}
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h4 className="font-semibold text-sm text-brand-charcoal mb-3 flex items-center gap-2">
+                  <FiCreditCard size={16} /> Payment Details
+                </h4>
+                <div className="text-sm space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Method</span>
+                    <span className="capitalize font-medium">{selectedOrder.paymentMethod} {selectedOrder.isPaid ? '(Paid ✓)' : '(Unpaid)'}</span>
+                  </div>
+                  {selectedOrder.paymentResult?.razorpay_payment_id && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Payment ID</span>
+                      <span className="text-xs font-mono">{selectedOrder.paymentResult.razorpay_payment_id}</span>
+                    </div>
+                  )}
+                  <hr />
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Subtotal</span>
+                    <span>₹{selectedOrder.itemsTotal?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Shipping</span>
+                    <span className={selectedOrder.shippingCharge === 0 ? 'text-green-600' : ''}>
+                      {selectedOrder.shippingCharge === 0 ? 'Free' : `₹${selectedOrder.shippingCharge}`}
+                    </span>
+                  </div>
+                  {selectedOrder.discount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Discount {selectedOrder.couponCode && `(${selectedOrder.couponCode})`}</span>
+                      <span className="text-green-600">-₹{selectedOrder.discount?.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <hr />
+                  <div className="flex justify-between font-bold text-base">
+                    <span>Total</span>
+                    <span>₹{selectedOrder.totalAmount?.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Update Status */}
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium text-gray-600">Update Status:</label>
+                <select
+                  value={selectedOrder.status}
+                  onChange={(e) => {
+                    handleStatusUpdate(selectedOrder._id, e.target.value);
+                    setSelectedOrder({ ...selectedOrder, status: e.target.value });
+                  }}
+                  className="text-sm border border-gray-200 rounded-lg px-3 py-2 flex-1"
+                >
+                  {STATUSES.map(s => (
+                    <option key={s} value={s} className="capitalize">{s}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
