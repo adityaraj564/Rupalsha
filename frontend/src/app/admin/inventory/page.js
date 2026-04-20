@@ -96,7 +96,7 @@ export default function AdminInventoryPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <button
           onClick={() => handleFilterChange('all')}
-          className={`p-4 rounded-2xl text-left transition-all ${filter === 'all' ? 'ring-2 ring-brand-green bg-white shadow-md' : 'bg-white shadow-sm hover:shadow-md'}`}
+          className={`p-4 rounded-2xl text-left transition-all ${filter === 'all' ? 'ring-2 ring-brand-green bg-white dark:bg-gray-800 shadow-md' : 'bg-white dark:bg-gray-800 shadow-sm hover:shadow-md'}`}
         >
           <div className="flex items-center gap-2 mb-2">
             <FiPackage className="text-gray-500" size={18} />
@@ -106,7 +106,7 @@ export default function AdminInventoryPage() {
         </button>
         <button
           onClick={() => handleFilterChange('in-stock')}
-          className={`p-4 rounded-2xl text-left transition-all ${filter === 'in-stock' ? 'ring-2 ring-green-500 bg-white shadow-md' : 'bg-white shadow-sm hover:shadow-md'}`}
+          className={`p-4 rounded-2xl text-left transition-all ${filter === 'in-stock' ? 'ring-2 ring-green-500 bg-white dark:bg-gray-800 shadow-md' : 'bg-white dark:bg-gray-800 shadow-sm hover:shadow-md'}`}
         >
           <div className="flex items-center gap-2 mb-2">
             <FiCheckCircle className="text-green-500" size={18} />
@@ -116,7 +116,7 @@ export default function AdminInventoryPage() {
         </button>
         <button
           onClick={() => handleFilterChange('low-stock')}
-          className={`p-4 rounded-2xl text-left transition-all ${filter === 'low-stock' ? 'ring-2 ring-amber-500 bg-white shadow-md' : 'bg-white shadow-sm hover:shadow-md'}`}
+          className={`p-4 rounded-2xl text-left transition-all ${filter === 'low-stock' ? 'ring-2 ring-amber-500 bg-white dark:bg-gray-800 shadow-md' : 'bg-white dark:bg-gray-800 shadow-sm hover:shadow-md'}`}
         >
           <div className="flex items-center gap-2 mb-2">
             <FiAlertTriangle className="text-amber-500" size={18} />
@@ -126,7 +126,7 @@ export default function AdminInventoryPage() {
         </button>
         <button
           onClick={() => handleFilterChange('out-of-stock')}
-          className={`p-4 rounded-2xl text-left transition-all ${filter === 'out-of-stock' ? 'ring-2 ring-red-500 bg-white shadow-md' : 'bg-white shadow-sm hover:shadow-md'}`}
+          className={`p-4 rounded-2xl text-left transition-all ${filter === 'out-of-stock' ? 'ring-2 ring-red-500 bg-white dark:bg-gray-800 shadow-md' : 'bg-white dark:bg-gray-800 shadow-sm hover:shadow-md'}`}
         >
           <div className="flex items-center gap-2 mb-2">
             <FiXCircle className="text-red-500" size={18} />
@@ -149,11 +149,11 @@ export default function AdminInventoryPage() {
       </div>
 
       {/* Inventory Table */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 text-left text-gray-500">
+              <tr className="bg-gray-50 dark:bg-gray-700 text-left text-gray-500 dark:text-gray-300">
                 <th className="p-4 font-medium">Product</th>
                 <th className="p-4 font-medium">Code</th>
                 <th className="p-4 font-medium">Category</th>
@@ -172,7 +172,7 @@ export default function AdminInventoryPage() {
                 </tr>
               ) : (
                 filtered.map((item) => (
-                  <tr key={item._id} className={`border-t hover:bg-gray-50 ${item.status === 'out-of-stock' ? 'bg-red-50/50' : item.status === 'low-stock' ? 'bg-amber-50/50' : ''}`}>
+                  <tr key={item._id} className={`border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 ${item.status === 'out-of-stock' ? 'bg-red-50/50 dark:bg-red-900/10' : item.status === 'low-stock' ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''}`}>
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         {item.image && (
@@ -185,7 +185,7 @@ export default function AdminInventoryPage() {
                       </div>
                     </td>
                     <td className="p-4">
-                      <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded font-semibold">
+                      <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded font-semibold">
                         {item.productCode || '—'}
                       </span>
                     </td>
@@ -205,7 +205,7 @@ export default function AdminInventoryPage() {
                         {item.sizes.map((s) => (
                           <span
                             key={s.size}
-                            className={`text-xs px-1.5 py-0.5 rounded ${s.stock === 0 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}
+                            className={`text-xs px-1.5 py-0.5 rounded ${s.stock === 0 ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}
                           >
                             {s.size}: {s.stock}
                           </span>
@@ -214,13 +214,13 @@ export default function AdminInventoryPage() {
                     </td>
                     <td className="p-4">
                       {item.status === 'out-of-stock' && (
-                        <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs font-medium">Out of Stock</span>
+                        <span className="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded-full text-xs font-medium">Out of Stock</span>
                       )}
                       {item.status === 'low-stock' && (
-                        <span className="bg-amber-100 text-amber-600 px-2 py-1 rounded-full text-xs font-medium">Low Stock</span>
+                        <span className="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-full text-xs font-medium">Low Stock</span>
                       )}
                       {item.status === 'in-stock' && (
-                        <span className="bg-green-100 text-green-600 px-2 py-1 rounded-full text-xs font-medium">In Stock</span>
+                        <span className="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded-full text-xs font-medium">In Stock</span>
                       )}
                     </td>
                   </tr>

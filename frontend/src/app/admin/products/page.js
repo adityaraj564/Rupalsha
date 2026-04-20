@@ -253,7 +253,7 @@ export default function AdminProductsPage() {
       {/* Product Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-2xl my-8 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl my-8 p-6">
             <h2 className="font-serif text-xl font-semibold mb-6">
               {editingProduct ? 'Edit Product' : 'Add New Product'}
             </h2>
@@ -564,11 +564,11 @@ export default function AdminProductsPage() {
       )}
 
       {/* Products Table */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 text-left text-gray-500">
+              <tr className="bg-gray-50 dark:bg-gray-700 text-left text-gray-500 dark:text-gray-300">
                 <th className="p-4 font-medium">Product</th>
                 <th className="p-4 font-medium">Category</th>
                 <th className="p-4 font-medium">Price</th>
@@ -582,7 +582,7 @@ export default function AdminProductsPage() {
                 const totalStock = product.sizes?.reduce((sum, s) => sum + s.stock, 0) || 0;
                 const catPath = [product.category, product.subcategory, product.childCategory].filter(Boolean).join(' → ');
                 return (
-                  <tr key={product._id} className="border-t hover:bg-gray-50">
+                  <tr key={product._id} className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         {product.images?.[0] && (

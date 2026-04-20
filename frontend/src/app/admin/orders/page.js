@@ -8,14 +8,14 @@ import toast from 'react-hot-toast';
 
 const STATUSES = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned'];
 const STATUS_COLORS = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-blue-100 text-blue-800',
-  processing: 'bg-indigo-100 text-indigo-800',
-  shipped: 'bg-purple-100 text-purple-800',
-  delivered: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
-  returned: 'bg-gray-100 text-gray-800',
-  failed: 'bg-red-100 text-red-800',
+  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+  confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  processing: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
+  shipped: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+  delivered: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  returned: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+  failed: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
 };
 
 export default function AdminOrdersPage() {
@@ -89,11 +89,11 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Orders Table */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 text-left text-gray-500">
+              <tr className="bg-gray-50 dark:bg-gray-700 text-left text-gray-500 dark:text-gray-300">
                 <th className="p-4 font-medium">Order</th>
                 <th className="p-4 font-medium">Customer</th>
                 <th className="p-4 font-medium">Items</th>
@@ -106,7 +106,7 @@ export default function AdminOrdersPage() {
             </thead>
             <tbody>
               {orders.map((order) => (
-                <tr key={order._id} className="border-t hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedOrder(order)}>
+                <tr key={order._id} className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer" onClick={() => setSelectedOrder(order)}>
                   <td className="p-4 font-medium text-brand-green">{order.orderNumber}</td>
                   <td className="p-4">
                     <p className="font-medium">{order.user?.name || 'N/A'}</p>
@@ -167,9 +167,9 @@ export default function AdminOrdersPage() {
       {/* Order Detail Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setSelectedOrder(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-2xl my-8 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl my-8 animate-fade-in" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b">
+            <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
               <div>
                 <h3 className="text-lg font-bold text-brand-charcoal">Order #{selectedOrder.orderNumber}</h3>
                 <p className="text-xs text-gray-500">
@@ -188,23 +188,23 @@ export default function AdminOrdersPage() {
 
             <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
               {/* Customer Info */}
-              <div className="bg-blue-50 rounded-xl p-4">
-                <h4 className="font-semibold text-sm text-brand-charcoal mb-3 flex items-center gap-2">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
+                <h4 className="font-semibold text-sm text-brand-charcoal dark:text-gray-100 mb-3 flex items-center gap-2">
                   <FiUser size={16} /> Customer Details
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm dark:text-gray-200">
                   <p className="flex items-center gap-2"><FiUser size={14} className="text-gray-400" /> {selectedOrder.user?.name || 'N/A'}</p>
                   <p className="flex items-center gap-2"><FiMail size={14} className="text-gray-400" /> {selectedOrder.user?.email || 'N/A'}</p>
                 </div>
               </div>
 
               {/* Delivery Address */}
-              <div className="bg-green-50 rounded-xl p-4">
-                <h4 className="font-semibold text-sm text-brand-charcoal mb-3 flex items-center gap-2">
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
+                <h4 className="font-semibold text-sm text-brand-charcoal dark:text-gray-100 mb-3 flex items-center gap-2">
                   <FiMapPin size={16} /> Delivery Address
                 </h4>
                 {selectedOrder.shippingAddress ? (
-                  <div className="text-sm space-y-1">
+                  <div className="text-sm space-y-1 dark:text-gray-200">
                     <p className="font-medium">{selectedOrder.shippingAddress.fullName}</p>
                     <p className="flex items-center gap-2"><FiPhone size={14} className="text-gray-400" /> {selectedOrder.shippingAddress.phone}</p>
                     <p>{selectedOrder.shippingAddress.addressLine1}</p>
@@ -234,7 +234,7 @@ export default function AdminOrdersPage() {
                 </h4>
                 <div className="space-y-3">
                   {selectedOrder.items?.map((item, i) => (
-                    <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                    <div key={i} className="flex items-center gap-3 bg-gray-50 dark:bg-gray-700 rounded-xl p-3">
                       {item.image && (
                         <img src={item.image} alt={item.name} className="w-14 h-14 rounded-lg object-cover" />
                       )}
@@ -249,8 +249,8 @@ export default function AdminOrdersPage() {
               </div>
 
               {/* Payment & Totals */}
-              <div className="bg-gray-50 rounded-xl p-4">
-                <h4 className="font-semibold text-sm text-brand-charcoal mb-3 flex items-center gap-2">
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4">
+                <h4 className="font-semibold text-sm text-brand-charcoal dark:text-gray-100 mb-3 flex items-center gap-2">
                   <FiCreditCard size={16} /> Payment Details
                 </h4>
                 <div className="text-sm space-y-2">
@@ -313,9 +313,9 @@ export default function AdminOrdersPage() {
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md p-6 animate-fade-in">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
                 <FiAlertTriangle className="text-red-500" size={20} />
               </div>
               <h3 className="text-lg font-semibold text-brand-charcoal">Delete Order</h3>

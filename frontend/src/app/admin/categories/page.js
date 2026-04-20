@@ -109,16 +109,16 @@ export default function AdminCategoriesPage() {
     const hasChildren = children.length > 0;
     const levelLabels = ['Main', 'Sub', 'Child'];
     const levelColors = [
-      'bg-brand-green/10 text-brand-green',
-      'bg-blue-50 text-blue-600',
-      'bg-purple-50 text-purple-600',
+      'bg-brand-green/10 text-brand-green dark:bg-brand-green/20',
+      'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+      'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
     ];
 
     return (
       <div key={category._id}>
         <div
-          className={`flex items-center justify-between py-3 px-4 hover:bg-gray-50 transition-colors border-b border-gray-100 ${
-            depth > 0 ? 'bg-gray-50/50' : ''
+          className={`flex items-center justify-between py-3 px-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 ${
+            depth > 0 ? 'bg-gray-50 dark:bg-gray-800/50' : ''
           }`}
           style={{ paddingLeft: `${depth * 24 + 16}px` }}
         >
@@ -138,7 +138,7 @@ export default function AdminCategoriesPage() {
               {levelLabels[category.level]}
             </span>
             {!category.isActive && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-500">Inactive</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-400">Inactive</span>
             )}
           </div>
           <div className="flex items-center gap-1">
@@ -207,7 +207,7 @@ export default function AdminCategoriesPage() {
       </div>
 
       {/* Category Tree */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
         {rootCategories.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             No categories yet. Create your first main category.
@@ -220,7 +220,7 @@ export default function AdminCategoriesPage() {
       {/* Add/Edit Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md p-6">
             <h2 className="font-serif text-lg font-semibold mb-4">
               {editingCategory ? 'Edit Category' : 'Add Category'}
             </h2>
@@ -238,7 +238,7 @@ export default function AdminCategoriesPage() {
                 />
               </div>
               {!editingCategory && form.parentId && (
-                <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
+                <div className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-700 dark:text-gray-300 p-3 rounded-lg">
                   Adding as a <strong>{['Main', 'Sub', 'Child'][form.level]}</strong> category under{' '}
                   <strong>{allCategories.find(c => c._id === form.parentId)?.name}</strong>
                 </div>

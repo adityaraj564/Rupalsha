@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers, FiClipboard } from 'react-icons/fi';
-import { useAuthStore } from '@/lib/store';
+import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers, FiClipboard, FiSun, FiMoon } from 'react-icons/fi';
+import { useAuthStore, useThemeStore } from '@/lib/store';
 import { AdminDashboardSkeleton } from '@/components/Skeleton';
 
 const ADMIN_NAV = [
@@ -21,6 +21,7 @@ const ADMIN_NAV = [
 
 export default function AdminLayout({ children }) {
   const { user, isAuthenticated, isLoading, logout } = useAuthStore();
+  const { isDark, toggle: toggleTheme } = useThemeStore();
   const router = useRouter();
   const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -49,14 +50,22 @@ export default function AdminLayout({ children }) {
   if (!isAuthenticated || user?.role !== 'admin') return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Admin Header */}
       <header className="bg-brand-green text-white">
         <div className="w-full px-4 sm:px-6 lg:px-[50px] py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="font-serif text-xl font-bold">Rupalsha Admin</h1>
           </div>
-          <div className="relative" ref={profileRef}>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDark ? <FiSun size={18} /> : <FiMoon size={18} />}
+            </button>
+            <div className="relative" ref={profileRef}>
             <button
               onClick={() => setProfileOpen(!profileOpen)}
               className="flex items-center gap-2 text-sm text-gray-200 hover:text-white transition-colors"
@@ -68,22 +77,23 @@ export default function AdminLayout({ children }) {
               <FiChevronDown size={14} className={`transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
             </button>
             {profileOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border py-2 z-50">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border dark:border-gray-700 py-2 z-50">
                 <Link
                   href="/admin/profile"
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
                   onClick={() => setProfileOpen(false)}
                 >
                   <FiUser size={16} /> Edit Profile
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left"
                 >
                   <FiLogOut size={16} /> Logout
                 </button>
               </div>
             )}
+          </div>
           </div>
         </div>
       </header>
@@ -100,7 +110,7 @@ export default function AdminLayout({ children }) {
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                     pathname === item.href
                       ? 'bg-brand-green text-white'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
                   <item.icon size={18} />
@@ -111,7 +121,7 @@ export default function AdminLayout({ children }) {
           </aside>
 
           {/* Mobile Nav */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t z-40">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t dark:border-gray-700 z-40">
             <div className="flex">
               {ADMIN_NAV.slice(0, 5).map((item) => (
                 <Link
