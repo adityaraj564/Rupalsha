@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiMapPin, FiPlus, FiCreditCard, FiTruck, FiMinus, FiTrash2, FiTag } from 'react-icons/fi';
 import { useAuthStore, useCartStore } from '@/lib/store';
-import { ordersAPI, couponsAPI, paymentAPI } from '@/lib/api';
+import { ordersAPI, couponsAPI, paymentAPI, authAPI } from '@/lib/api';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -14,6 +14,7 @@ export default function CheckoutPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
   const { items, clearCart, updateItem, removeItem } = useCartStore();
+  const updateUser = useAuthStore((s) => s.updateUser);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [couponCode, setCouponCode] = useState('');
@@ -50,6 +51,14 @@ export default function CheckoutPage() {
       router.push('/auth/login');
       return;
     }
+    // Re-fetch user to get latest addresses
+    authAPI.getMe().then(({ user: fresh }) => {
+      updateUser(fresh);
+    }).catch(() => {});
+  }, [isAuthenticated, isLoading]);
+
+  useEffect(() => {
+    if (isLoading) return;
     if (items.length === 0) {
       router.push('/cart');
       return;

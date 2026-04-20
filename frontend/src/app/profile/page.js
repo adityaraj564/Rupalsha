@@ -28,10 +28,12 @@ export default function ProfilePage() {
       router.push('/auth/login');
       return;
     }
-    if (user) {
-      setProfileForm({ name: user.name, phone: user.phone || '' });
-    }
-  }, [isAuthenticated, isLoading, router, user]);
+    // Re-fetch user to get latest addresses
+    authAPI.getMe().then(({ user: fresh }) => {
+      updateUser(fresh);
+      setProfileForm({ name: fresh.name, phone: fresh.phone || '' });
+    }).catch(() => {});
+  }, [isAuthenticated, isLoading, router]);
 
   if (isLoading || !user) return null;
 
