@@ -293,7 +293,7 @@ export default function ProductDetailPage() {
               src={product.images[selectedImage]?.url || '/placeholder.jpg'}
               alt={product.name}
               fill
-              className="object-cover pointer-events-none transition-transform duration-150"
+              className="object-contain pointer-events-none transition-transform duration-150"
               style={{ transform: `scale(${pinchScale})`, transformOrigin: pinchOrigin }}
               priority
               sizes="(max-width: 768px) 100vw, 50vw"
@@ -336,7 +336,7 @@ export default function ProductDetailPage() {
                     selectedImage === i ? 'border-brand-green' : 'border-transparent'
                   }`}
                 >
-                  <Image src={img.url} alt="" fill className="object-cover" sizes="80px" />
+                  <Image src={img.url} alt="" fill className="object-contain" sizes="80px" />
                 </button>
               ))}
             </div>

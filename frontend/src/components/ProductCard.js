@@ -76,7 +76,7 @@ export default function ProductCard({ product }) {
             src={product.images?.[currentImage]?.url || product.images?.[0]?.url || '/placeholder.jpg'}
             alt={product.images?.[currentImage]?.alt || product.name}
             fill
-            className={`object-cover transition-opacity duration-500 ${isOutOfStock ? 'grayscale' : ''}`}
+            className={`object-contain transition-opacity duration-500 ${isOutOfStock ? 'grayscale' : ''}`}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             loading="lazy"
           />

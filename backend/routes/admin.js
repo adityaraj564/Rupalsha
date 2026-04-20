@@ -178,6 +178,20 @@ router.put('/products/:id', upload.array('images', 5), async (req, res, next) =>
       product.images = product.images.filter(img => !removeIds.includes(img.public_id));
     }
 
+    // Reorder existing images
+    if (req.body.imageOrder) {
+      const order = typeof req.body.imageOrder === 'string' ? JSON.parse(req.body.imageOrder) : req.body.imageOrder;
+      const imageMap = new Map(product.images.map(img => [img.public_id || img.url, img]));
+      const reordered = order.map(id => imageMap.get(id)).filter(Boolean);
+      // Append any images not in the order list (newly uploaded ones)
+      const orderedSet = new Set(order);
+      product.images.forEach(img => {
+        const key = img.public_id || img.url;
+        if (!orderedSet.has(key)) reordered.push(img);
+      });
+      product.images = reordered;
+    }
+
     await product.save();
     cache.clear('products');
     res.json({ product });

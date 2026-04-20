@@ -33,6 +33,8 @@ export default function AdminProductsPage() {
     shippingCharge: '0',
   });
   const [images, setImages] = useState([]);
+  const [dragIndex, setDragIndex] = useState(null);
+  const [existingImages, setExistingImages] = useState([]);
 
   const fetchProducts = async () => {
     try {
@@ -119,6 +121,7 @@ export default function AdminProductsPage() {
       shippingCharge: '0',
     });
     setImages([]);
+    setExistingImages([]);
     setEditingProduct(null);
   };
 
@@ -149,6 +152,7 @@ export default function AdminProductsPage() {
       shippingCharge: product.shippingCharge || '0',
     });
     setEditingProduct(product);
+    setExistingImages(product.images ? [...product.images] : []);
     setShowForm(true);
   };
 
@@ -178,6 +182,12 @@ export default function AdminProductsPage() {
 
     for (const img of images) {
       formData.append('images', img);
+    }
+
+    // Send image order for existing images when editing
+    if (editingProduct && existingImages.length > 0) {
+      const order = existingImages.map(img => img.public_id || img.url);
+      formData.append('imageOrder', JSON.stringify(order));
     }
 
     try {
@@ -401,7 +411,7 @@ export default function AdminProductsPage() {
                   multiple
                   onChange={(e) => {
                     const files = Array.from(e.target.files);
-                    const existingCount = editingProduct?.images?.length || 0;
+                    const existingCount = existingImages.length;
                     const maxNew = 5 - existingCount;
                     if (files.length > maxNew) {
                       toast.error(`You can upload up to ${maxNew} more image${maxNew !== 1 ? 's' : ''} (${existingCount} existing)`);
@@ -412,27 +422,67 @@ export default function AdminProductsPage() {
                   }}
                   className="input-field"
                 />
+                <p className="text-xs text-gray-400 mt-1">Drag images to reorder. First image is the main display image.</p>
+
+                {/* New images - drag to reorder */}
                 {images.length > 0 && (
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {images.map((file, i) => (
-                      <div key={i} className="relative w-16 h-20 rounded-lg overflow-hidden border">
-                        <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => setImages(images.filter((_, idx) => idx !== i))}
-                          className="absolute top-0 right-0 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-bl"
-                        >×</button>
-                      </div>
-                    ))}
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 mb-1">New images:</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {images.map((file, i) => (
+                        <div
+                          key={i}
+                          draggable
+                          onDragStart={() => setDragIndex({ type: 'new', index: i })}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => {
+                            if (dragIndex?.type === 'new' && dragIndex.index !== i) {
+                              const reordered = [...images];
+                              const [moved] = reordered.splice(dragIndex.index, 1);
+                              reordered.splice(i, 0, moved);
+                              setImages(reordered);
+                            }
+                            setDragIndex(null);
+                          }}
+                          className={`relative w-16 h-20 rounded-lg overflow-hidden border-2 cursor-grab active:cursor-grabbing select-none ${i === 0 ? 'border-brand-green' : 'border-gray-200'} ${dragIndex?.type === 'new' && dragIndex.index === i ? 'opacity-50' : ''}`}
+                        >
+                          <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                          <span className="absolute top-0 left-0 bg-black/60 text-white text-[10px] px-1">{i + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => setImages(images.filter((_, idx) => idx !== i))}
+                            className="absolute top-0 right-0 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-bl"
+                          >×</button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
-                {editingProduct?.images?.length > 0 && (
+
+                {/* Existing images (when editing) - drag to reorder */}
+                {existingImages.length > 0 && (
                   <div className="mt-2">
-                    <p className="text-xs text-gray-500 mb-1">{editingProduct.images.length} existing image{editingProduct.images.length !== 1 ? 's' : ''}</p>
+                    <p className="text-xs text-gray-500 mb-1">{existingImages.length} existing image{existingImages.length !== 1 ? 's' : ''} (drag to reorder):</p>
                     <div className="flex gap-2 flex-wrap">
-                      {editingProduct.images.map((img, i) => (
-                        <div key={i} className="relative w-16 h-20 rounded-lg overflow-hidden border">
+                      {existingImages.map((img, i) => (
+                        <div
+                          key={img.public_id || img.url}
+                          draggable
+                          onDragStart={() => setDragIndex({ type: 'existing', index: i })}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => {
+                            if (dragIndex?.type === 'existing' && dragIndex.index !== i) {
+                              const reordered = [...existingImages];
+                              const [moved] = reordered.splice(dragIndex.index, 1);
+                              reordered.splice(i, 0, moved);
+                              setExistingImages(reordered);
+                            }
+                            setDragIndex(null);
+                          }}
+                          className={`relative w-16 h-20 rounded-lg overflow-hidden border-2 cursor-grab active:cursor-grabbing select-none ${i === 0 ? 'border-brand-green' : 'border-gray-200'} ${dragIndex?.type === 'existing' && dragIndex.index === i ? 'opacity-50' : ''}`}
+                        >
                           <img src={img.url} alt="" className="w-full h-full object-cover" />
+                          <span className="absolute top-0 left-0 bg-black/60 text-white text-[10px] px-1">{i + 1}</span>
                         </div>
                       ))}
                     </div>
