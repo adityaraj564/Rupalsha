@@ -5,11 +5,9 @@ import { FiInstagram, FiMail, FiPhone, FiMapPin } from 'react-icons/fi';
 import { usePathname } from 'next/navigation';
 
 const CATEGORIES = [
-  { href: '/products?category=sarees', label: 'Sarees' },
-  { href: '/products?category=kurtis', label: 'Kurtis' },
-  { href: '/products?category=lehengas', label: 'Lehengas' },
-  { href: '/products?category=dresses', label: 'Dresses' },
-  { href: '/products?category=accessories', label: 'Accessories' },
+  { href: '/products?featured=true', label: 'New Arrivals' },
+  { href: '/products?trending=true', label: 'Trending' },
+  { href: '/products', label: 'Shop All' },
 ];
 
 const HELP_LINKS = [
@@ -32,8 +30,8 @@ export default function Footer() {
           <div>
             <h2 className="font-serif text-3xl font-bold text-white mb-4">RUPALSHA</h2>
             <p className="text-gray-300 text-sm leading-relaxed mb-6">
-              Where Comfort Meets Style. Discover an exquisite collection of ethnic and modern fashion,
-              crafted with love for the contemporary woman.
+              Adorn Your Elegance. Discover handcrafted jewellery that tells your story —
+              from timeless classics to modern masterpieces.
             </p>
             <div className="flex items-center space-x-4">
               <a

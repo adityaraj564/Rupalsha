@@ -6,7 +6,9 @@ import { adminAPI, categoriesAPI } from '@/lib/api';
 import { AdminTableSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
+const JEWELRY_SIZES = ['Free Size', '2.2', '2.4', '2.6', '2.8', '2.10'];
+const RING_SIZES = ['5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18'];
+const ALL_SIZES = ['Free Size', ...JEWELRY_SIZES.slice(1), ...RING_SIZES];
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState([]);
@@ -25,7 +27,7 @@ export default function AdminProductsPage() {
     name: '', description: '', price: '', comparePrice: '', category: '',
     subcategory: '', childCategory: '', categoryRef: '',
     fabric: '', careInstructions: '', isFeatured: false, isTrending: false,
-    sizes: SIZES.map(s => ({ size: s, stock: 0 })),
+    sizes: ALL_SIZES.map(s => ({ size: s, stock: 0 })),
     tags: '', sku: '', lowStockThreshold: '5',
     isReturnable: true,
     returnDays: '7',
@@ -113,7 +115,7 @@ export default function AdminProductsPage() {
       name: '', description: '', price: '', comparePrice: '', category: '',
       subcategory: '', childCategory: '', categoryRef: '',
       fabric: '', careInstructions: '', isFeatured: false, isTrending: false,
-      sizes: SIZES.map(s => ({ size: s, stock: 0 })),
+      sizes: ALL_SIZES.map(s => ({ size: s, stock: 0 })),
       tags: '', sku: '', lowStockThreshold: '5',
       isReturnable: true,
       returnDays: '7',
@@ -139,7 +141,7 @@ export default function AdminProductsPage() {
       careInstructions: product.careInstructions || '',
       isFeatured: product.isFeatured,
       isTrending: product.isTrending,
-      sizes: SIZES.map(s => {
+      sizes: ALL_SIZES.map(s => {
         const existing = product.sizes?.find(ps => ps.size === s);
         return { size: s, stock: existing?.stock || 0 };
       }),
@@ -335,8 +337,8 @@ export default function AdminProductsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Fabric</label>
-                <input type="text" value={form.fabric} onChange={(e) => setForm({ ...form, fabric: e.target.value })} className="input-field" />
+                <label className="block text-sm font-medium mb-1">Material</label>
+                <input type="text" value={form.fabric} onChange={(e) => setForm({ ...form, fabric: e.target.value })} className="input-field" placeholder="e.g. Gold Plated, 925 Sterling Silver, Brass" />
               </div>
 
               {/* Inventory Management */}
@@ -369,19 +371,53 @@ export default function AdminProductsPage() {
 
                 <div>
                   <label className="block text-xs font-medium mb-2 text-gray-600">Sizes & Stock *</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {form.sizes.map((s, i) => (
-                      <div key={s.size} className="flex items-center gap-2">
-                        <span className="text-sm font-medium w-12">{s.size}</span>
-                        <input
-                          type="number"
-                          value={s.stock}
-                          onChange={(e) => updateSizeStock(i, e.target.value)}
-                          className="input-field py-1.5 text-sm"
-                          min="0"
-                        />
-                      </div>
-                    ))}
+                  
+                  {/* Free Size */}
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">General</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {form.sizes.filter(s => s.size === 'Free Size').map((s, _i) => {
+                        const i = form.sizes.findIndex(fs => fs.size === s.size);
+                        return (
+                          <div key={s.size} className="flex items-center gap-2">
+                            <span className="text-sm font-medium w-16">{s.size}</span>
+                            <input type="number" value={s.stock} onChange={(e) => updateSizeStock(i, e.target.value)} className="input-field py-1.5 text-sm" min="0" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Bangle Sizes */}
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Bangle Sizes</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {form.sizes.filter(s => JEWELRY_SIZES.includes(s.size) && s.size !== 'Free Size').map((s) => {
+                        const i = form.sizes.findIndex(fs => fs.size === s.size);
+                        return (
+                          <div key={s.size} className="flex items-center gap-2">
+                            <span className="text-sm font-medium w-16">{s.size}</span>
+                            <input type="number" value={s.stock} onChange={(e) => updateSizeStock(i, e.target.value)} className="input-field py-1.5 text-sm" min="0" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Ring Sizes */}
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Ring Sizes</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {form.sizes.filter(s => RING_SIZES.includes(s.size)).map((s) => {
+                        const i = form.sizes.findIndex(fs => fs.size === s.size);
+                        return (
+                          <div key={s.size} className="flex items-center gap-2">
+                            <span className="text-sm font-medium w-16">{s.size}</span>
+                            <input type="number" value={s.stock} onChange={(e) => updateSizeStock(i, e.target.value)} className="input-field py-1.5 text-sm" min="0" />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 

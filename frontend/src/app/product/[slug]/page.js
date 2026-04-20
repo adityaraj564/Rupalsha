@@ -388,10 +388,10 @@ export default function ProductDetailPage() {
           {/* Description */}
           <p className="text-gray-600 leading-relaxed mb-6">{product.description}</p>
 
-          {/* Fabric */}
+          {/* Material */}
           {product.fabric && (
             <p className="text-sm text-gray-500 mb-4">
-              <span className="font-medium text-brand-charcoal">Fabric:</span> {product.fabric}
+              <span className="font-medium text-brand-charcoal">Material:</span> {product.fabric}
             </p>
           )}
 

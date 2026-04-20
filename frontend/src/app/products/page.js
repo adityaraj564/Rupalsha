@@ -17,7 +17,7 @@ const SORT_OPTIONS = [
   { value: 'rating', label: 'Top Rated' },
 ];
 
-const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
+const SIZES = ['Free Size', '2.2', '2.4', '2.6', '2.8', '2.10', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18'];
 
 function ProductsContent() {
   const searchParams = useSearchParams();

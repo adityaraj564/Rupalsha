@@ -10,11 +10,11 @@ import { productsAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
 const CATEGORIES = [
-  { name: 'Sarees', slug: 'sarees', image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600', color: 'from-rose-900/60' },
-  { name: 'Kurtis', slug: 'kurtis', image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=600', color: 'from-emerald-900/60' },
-  { name: 'Lehengas', slug: 'lehengas', image: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=600', color: 'from-indigo-900/60' },
-  { name: 'Dresses', slug: 'dresses', image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600', color: 'from-amber-900/60' },
-  { name: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600', color: 'from-purple-900/60' },
+  { name: 'Necklaces', slug: 'necklaces', image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=600', color: 'from-rose-900/60' },
+  { name: 'Earrings', slug: 'earrings', image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=600', color: 'from-amber-900/60' },
+  { name: 'Bangles', slug: 'bangles', image: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=600', color: 'from-emerald-900/60' },
+  { name: 'Rings', slug: 'rings', image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=600', color: 'from-indigo-900/60' },
+  { name: 'Anklets', slug: 'anklets', image: 'https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=600', color: 'from-purple-900/60' },
 ];
 
 export default function HomePage() {
@@ -51,8 +51,8 @@ export default function HomePage() {
       <section className="relative min-h-[90vh] md:min-h-[85vh] flex items-center bg-brand-cream dark:bg-gray-950 overflow-hidden">
         <div className="absolute inset-0">
           <Image
-            src="https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=1600"
-            alt="Fashion Hero"
+            src="https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=1600"
+            alt="Jewellery Hero"
             fill
             className="object-cover opacity-20"
             priority
@@ -63,16 +63,16 @@ export default function HomePage() {
         <div className="relative mx-auto px-4 sm:px-6 lg:px-[50px] py-20">
           <div className="max-w-2xl">
             <p className="text-brand-gold font-medium tracking-[0.3em] uppercase text-sm mb-4 animate-slide-up">
-              New Collection 2026
+              Exquisite Jewellery Collection
             </p>
             <h1 className="font-serif text-5xl md:text-7xl font-bold text-brand-charcoal dark:text-gray-100 leading-tight mb-6">
-              Where Comfort
+              Adorn Your
               <br />
-              Meets <span className="text-brand-green italic">Style</span>
+              <span className="text-brand-gold italic">Elegance</span>
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-lg leading-relaxed">
-              Discover our exquisite collection of ethnic and contemporary fashion.
-              Crafted with love for the modern woman who embraces elegance.
+              Discover handcrafted jewellery that tells your story.
+              From timeless classics to modern masterpieces — crafted with love.
             </p>
             <div className="flex flex-wrap gap-4">
               <Link href="/products" className="btn-primary inline-flex items-center gap-2">
@@ -92,8 +92,8 @@ export default function HomePage() {
           {[
             { icon: FiTruck, title: 'Free Shipping', desc: 'Orders above ₹999' },
             { icon: FiRefreshCw, title: 'Easy Returns', desc: '7-day return policy' },
-            { icon: FiShield, title: 'Secure Payment', desc: '100% secure checkout' },
-            { icon: FiHeart, title: 'Premium Quality', desc: 'Handpicked fabrics' },
+            { icon: FiShield, title: 'Certified Jewellery', desc: 'Quality guaranteed' },
+            { icon: FiHeart, title: 'Handcrafted', desc: 'Made with love' },
           ].map((feature) => (
             <div key={feature.title} className="flex items-center gap-3">
               <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-brand-cream flex items-center justify-center flex-shrink-0">
@@ -111,7 +111,7 @@ export default function HomePage() {
       {/* Shop by Category */}
       <section className="py-16 md:py-24 mx-auto px-4 sm:px-6 lg:px-[50px]">
         <h2 className="section-title">Shop by Category</h2>
-        <p className="section-subtitle">Find your perfect style from our curated categories</p>
+        <p className="section-subtitle">Find the perfect piece from our curated collections</p>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-10">
           {CATEGORIES.map((cat) => (
@@ -145,8 +145,8 @@ export default function HomePage() {
           <div className="mx-auto px-4 sm:px-6 lg:px-[50px]">
             <div className="flex items-end justify-between mb-10">
               <div>
-                <h2 className="section-title text-left">Featured Collection</h2>
-                <p className="text-gray-500 mt-2">Handpicked styles for you</p>
+                <h2 className="section-title text-left">New Arrivals</h2>
+                <p className="text-gray-500 mt-2">Handpicked pieces for you</p>
               </div>
               <Link href="/products?featured=true" className="text-brand-green font-medium text-sm hover:underline hidden md:block">
                 View All →
@@ -170,7 +170,7 @@ export default function HomePage() {
           <div className="relative rounded-3xl overflow-hidden bg-brand-green min-h-[400px] flex items-center">
             <div className="absolute inset-0 opacity-10">
               <Image
-                src="https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=1200"
+                src="https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=1200"
                 alt="Pattern"
                 fill
                 className="object-cover"

@@ -8,13 +8,11 @@ import { useAuthStore, useCartStore, useWishlistStore, useThemeStore } from '@/l
 import { couponsAPI } from '@/lib/api';
 
 const NAV_LINKS = [
+  { href: '/', label: 'Home' },
+  { href: '/products?featured=true', label: 'New Arrival' },
+  { href: '/products?trending=true', label: 'Trending' },
   { href: '/products', label: 'Shop All' },
-  { href: '/category/fashion', label: 'Fashion' },
-  { href: '/category/genz', label: 'GenZ' },
-  { href: '/category/kids', label: 'Kids' },
-  { href: '/category/home-living', label: 'Home & Living' },
-  { href: '/category/handcrafted', label: 'Handcrafted' },
-  { href: '/category/accessories', label: 'Accessories' },
+  { href: '/about', label: 'About Us' },
 ];
 
 export default function Header() {
