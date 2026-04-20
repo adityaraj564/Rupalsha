@@ -30,8 +30,7 @@ export default function AuthInit() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchCart();
-      fetchWishlist();
+      Promise.all([fetchCart(), fetchWishlist()]);
     }
   }, [isAuthenticated, fetchCart, fetchWishlist]);
 

@@ -13,7 +13,7 @@ export default function WishlistPage() {
   const { items, fetchWishlist } = useWishlistStore();
 
   useEffect(() => {
-    if (isAuthenticated) fetchWishlist();
+    if (isAuthenticated) fetchWishlist(true);
   }, [isAuthenticated, fetchWishlist]);
 
   if (authLoading) return <LoadingSpinner />;

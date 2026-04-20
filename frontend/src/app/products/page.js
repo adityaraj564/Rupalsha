@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
 import CategorySidebar from '@/components/CategorySidebar';
@@ -36,8 +36,19 @@ function ProductsContent() {
   const [sort, setSort] = useState(searchParams.get('sort') || 'newest');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
+  const [debouncedMinPrice, setDebouncedMinPrice] = useState('');
+  const [debouncedMaxPrice, setDebouncedMaxPrice] = useState('');
   const [size, setSize] = useState('');
   const search = searchParams.get('search') || '';
+
+  // Debounce price filters
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedMinPrice(minPrice);
+      setDebouncedMaxPrice(maxPrice);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [minPrice, maxPrice]);
 
   // Fetch category tree
   useEffect(() => {
@@ -53,8 +64,8 @@ function ProductsContent() {
         const params = { page, limit: 12, sort };
         if (selectedCategorySlug) params.categorySlug = selectedCategorySlug;
         if (search) params.search = search;
-        if (minPrice) params.minPrice = minPrice;
-        if (maxPrice) params.maxPrice = maxPrice;
+        if (debouncedMinPrice) params.minPrice = debouncedMinPrice;
+        if (debouncedMaxPrice) params.maxPrice = debouncedMaxPrice;
         if (size) params.size = size;
         if (searchParams.get('featured')) params.featured = 'true';
         if (searchParams.get('trending')) params.trending = 'true';
@@ -71,12 +82,14 @@ function ProductsContent() {
       }
     };
     fetchProducts();
-  }, [selectedCategorySlug, sort, minPrice, maxPrice, size, page, search, searchParams, isAuthenticated]);
+  }, [selectedCategorySlug, sort, debouncedMinPrice, debouncedMaxPrice, size, page, search, searchParams, isAuthenticated]);
 
   const clearFilters = () => {
     setSelectedCategorySlug('');
     setMinPrice('');
     setMaxPrice('');
+    setDebouncedMinPrice('');
+    setDebouncedMaxPrice('');
     setSize('');
     setSort('newest');
     setPage(1);

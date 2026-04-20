@@ -51,12 +51,15 @@ export const useAuthStore = create((set, get) => ({
 export const useCartStore = create((set, get) => ({
   items: [],
   isLoading: false,
+  _lastFetched: 0,
 
-  fetchCart: async () => {
+  fetchCart: async (force = false) => {
+    const now = Date.now();
+    if (!force && now - get()._lastFetched < 30000) return;
     try {
       set({ isLoading: true });
       const { cart } = await cartAPI.get();
-      set({ items: cart.items || [], isLoading: false });
+      set({ items: cart.items || [], isLoading: false, _lastFetched: now });
     } catch {
       set({ isLoading: false });
     }
@@ -98,11 +101,14 @@ export const useCartStore = create((set, get) => ({
 // Wishlist Store
 export const useWishlistStore = create((set, get) => ({
   items: [],
+  _lastFetched: 0,
 
-  fetchWishlist: async () => {
+  fetchWishlist: async (force = false) => {
+    const now = Date.now();
+    if (!force && now - get()._lastFetched < 30000) return;
     try {
       const { wishlist } = await wishlistAPI.get();
-      set({ items: wishlist || [] });
+      set({ items: wishlist || [], _lastFetched: now });
     } catch {
       // ignore
     }
@@ -110,7 +116,7 @@ export const useWishlistStore = create((set, get) => ({
 
   addItem: async (productId) => {
     await wishlistAPI.add(productId);
-    await get().fetchWishlist();
+    await get().fetchWishlist(true);
   },
 
   removeItem: async (productId) => {

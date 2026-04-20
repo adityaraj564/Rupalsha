@@ -50,15 +50,15 @@ export default function ProductDetailPage() {
         setProduct(p);
         if (p.sizes.length === 1) setSelectedSize(p.sizes[0].size);
 
-        // Fetch reviews
-        const { reviews: r, total } = await reviewsAPI.getByProduct(p._id, { limit: 2, page: 1 });
-        setReviews(r);
-        setTotalReviews(total);
-
-        // Fetch similar products (tag-based, keyword-based, excludes out-of-stock)
-        productsAPI.getSimilar(slug, 20).then(({ products: similar }) => {
-          setSuggestedProducts(similar);
-        }).catch(() => {});
+        // Fetch reviews and similar products in parallel
+        const [reviewData] = await Promise.all([
+          reviewsAPI.getByProduct(p._id, { limit: 2, page: 1 }),
+          productsAPI.getSimilar(slug, 20).then(({ products: similar }) => {
+            setSuggestedProducts(similar);
+          }).catch(() => {}),
+        ]);
+        setReviews(reviewData.reviews);
+        setTotalReviews(reviewData.total);
       } catch (err) {
         toast.error('Product not found');
         router.push('/products');

@@ -14,7 +14,7 @@ export default function CartPage() {
   const authLoading = useAuthStore((s) => s.isLoading);
 
   useEffect(() => {
-    if (isAuthenticated) fetchCart();
+    if (isAuthenticated) fetchCart(true);
   }, [isAuthenticated, fetchCart]);
 
   if (authLoading || isLoading) return <LoadingSpinner />;

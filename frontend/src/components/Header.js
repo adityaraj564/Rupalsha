@@ -44,10 +44,14 @@ export default function Header() {
   }, [pathname]);
 
   useEffect(() => {
+    let cancelled = false;
+    // Skip if we already have coupons (prevents re-fetch on every mount)
+    if (coupons.length > 0) return;
     couponsAPI.getActive().then((data) => {
-      if (data?.length) setCoupons(data);
+      if (!cancelled && data?.length) setCoupons(data);
     }).catch(() => {});
-  }, []);
+    return () => { cancelled = true; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (coupons.length <= 1) return;
