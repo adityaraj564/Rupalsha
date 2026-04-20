@@ -277,4 +277,19 @@ export const adminAPI = {
   createCategory: (data) => request('/admin/categories', { method: 'POST', body: data }).then(d => { clearApiCache('categories'); return d; }),
   updateCategory: (id, data) => request(`/admin/categories/${id}`, { method: 'PUT', body: data }).then(d => { clearApiCache('categories'); return d; }),
   deleteCategory: (id) => request(`/admin/categories/${id}`, { method: 'DELETE' }).then(d => { clearApiCache('categories'); return d; }),
+  // Banners
+  getBanners: () => request('/admin/banners'),
+  createBanner: (formData) => request('/admin/banners', { method: 'POST', body: formData }).then(d => { clearApiCache('banners'); return d; }),
+  updateBanner: (id, data) => request(`/admin/banners/${id}`, { method: 'PUT', body: data }).then(d => { clearApiCache('banners'); return d; }),
+  reorderBanners: (order) => request('/admin/banners-reorder', { method: 'PUT', body: { order } }).then(d => { clearApiCache('banners'); return d; }),
+  deleteBanner: (id) => request(`/admin/banners/${id}`, { method: 'DELETE' }).then(d => { clearApiCache('banners'); return d; }),
+};
+
+// Banners (public)
+export const bannersAPI = {
+  getActive: () => {
+    const cached = getCached('banners:active');
+    if (cached) return Promise.resolve(cached);
+    return request('/banners').then(data => { setCache('banners:active', data, CACHE_TTL.medium); return data; });
+  },
 };

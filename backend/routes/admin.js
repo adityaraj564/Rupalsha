@@ -8,6 +8,7 @@ const User = require('../models/User');
 const Review = require('../models/Review');
 const Coupon = require('../models/Coupon');
 const Contact = require('../models/Contact');
+const Banner = require('../models/Banner');
 const upload = require('../utils/upload');
 const cloudinary = require('../config/cloudinary');
 const { sendOrderStatusUpdate } = require('../utils/email');
@@ -562,6 +563,75 @@ router.delete('/categories/:id', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+// ===== BANNERS =====
+// GET /api/admin/banners
+router.get('/banners', async (req, res, next) => {
+  try {
+    const banners = await Banner.find().sort({ order: 1, createdAt: -1 }).lean();
+    res.json(banners);
+  } catch (err) { next(err); }
+});
+
+// POST /api/admin/banners
+router.post('/banners', upload.single('image'), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Image is required' });
+
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'rupalsha/banners',
+      transformation: [{ width: 1920, quality: 'auto:good', fetch_format: 'auto' }],
+    });
+
+    const count = await Banner.countDocuments();
+    const banner = await Banner.create({
+      image: { url: result.secure_url, public_id: result.public_id },
+      title: req.body.title || '',
+      link: req.body.link || '',
+      order: count,
+    });
+
+    cache.clear('banners');
+    res.status(201).json(banner);
+  } catch (err) { next(err); }
+});
+
+// PUT /api/admin/banners/:id
+router.put('/banners/:id', async (req, res, next) => {
+  try {
+    const banner = await Banner.findByIdAndUpdate(req.params.id, {
+      title: req.body.title,
+      link: req.body.link,
+      isActive: req.body.isActive,
+    }, { new: true });
+    cache.clear('banners');
+    res.json(banner);
+  } catch (err) { next(err); }
+});
+
+// PUT /api/admin/banners/reorder
+router.put('/banners-reorder', async (req, res, next) => {
+  try {
+    const { order } = req.body; // array of banner IDs in desired order
+    await Promise.all(order.map((id, i) => Banner.findByIdAndUpdate(id, { order: i })));
+    cache.clear('banners');
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/admin/banners/:id
+router.delete('/banners/:id', async (req, res, next) => {
+  try {
+    const banner = await Banner.findById(req.params.id);
+    if (!banner) return res.status(404).json({ error: 'Banner not found' });
+    if (banner.image?.public_id) {
+      await cloudinary.uploader.destroy(banner.image.public_id);
+    }
+    await banner.deleteOne();
+    cache.clear('banners');
+    res.json({ success: true });
+  } catch (err) { next(err); }
 });
 
 function getDescendantIds(allCategories, parentId) {

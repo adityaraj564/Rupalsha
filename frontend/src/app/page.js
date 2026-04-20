@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiArrowRight, FiTruck, FiRefreshCw, FiShield, FiHeart } from 'react-icons/fi';
+import { FiArrowRight, FiTruck, FiRefreshCw, FiShield, FiHeart, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import ProductCard from '@/components/ProductCard';
 import { HomeSectionSkeleton } from '@/components/Skeleton';
-import { productsAPI } from '@/lib/api';
+import { productsAPI, bannersAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
 const CATEGORIES = [
@@ -20,7 +20,29 @@ const CATEGORIES = [
 export default function HomePage() {
   const [featured, setFeatured] = useState([]);
   const [trending, setTrending] = useState([]);
+  const [banners, setBanners] = useState([]);
+  const [currentBanner, setCurrentBanner] = useState(0);
+  const bannerInterval = useRef(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  // Auto-slide banners
+  const startAutoSlide = useCallback(() => {
+    if (bannerInterval.current) clearInterval(bannerInterval.current);
+    bannerInterval.current = setInterval(() => {
+      setCurrentBanner((prev) => (prev + 1) % (banners.length || 1));
+    }, 4000);
+  }, [banners.length]);
+
+  useEffect(() => {
+    bannersAPI.getActive().then(setBanners).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (banners.length > 1) {
+      startAutoSlide();
+      return () => clearInterval(bannerInterval.current);
+    }
+  }, [banners.length, startAutoSlide]);
 
   useEffect(() => {
     const extra = !isAuthenticated ? { hideOutOfStock: 'true' } : {};
@@ -107,6 +129,79 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* Auto-Slide Banner Carousel */}
+      {banners.length > 0 && (
+        <section className="relative w-full overflow-hidden bg-gray-100 dark:bg-gray-950">
+          <div className="relative w-full" style={{ aspectRatio: '16/5' }}>
+            {banners.map((banner, index) => {
+              const Wrapper = banner.link ? Link : 'div';
+              const wrapperProps = banner.link ? { href: banner.link } : {};
+              return (
+                <Wrapper
+                  key={banner._id}
+                  {...wrapperProps}
+                  className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                    index === currentBanner ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                  }`}
+                >
+                  <Image
+                    src={banner.image?.url}
+                    alt={banner.title || 'Banner'}
+                    fill
+                    className="object-cover"
+                    sizes="100vw"
+                    priority={index === 0}
+                  />
+                  {banner.title && (
+                    <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/40 to-transparent">
+                      <p className="text-white text-lg md:text-2xl font-serif font-semibold px-6 md:px-12 pb-6 md:pb-10">
+                        {banner.title}
+                      </p>
+                    </div>
+                  )}
+                </Wrapper>
+              );
+            })}
+
+            {/* Arrows */}
+            {banners.length > 1 && (
+              <>
+                <button
+                  onClick={() => { setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length); startAutoSlide(); }}
+                  className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/80 dark:bg-black/50 flex items-center justify-center text-brand-charcoal dark:text-white hover:bg-white transition-colors shadow"
+                  aria-label="Previous banner"
+                >
+                  <FiChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={() => { setCurrentBanner((prev) => (prev + 1) % banners.length); startAutoSlide(); }}
+                  className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/80 dark:bg-black/50 flex items-center justify-center text-brand-charcoal dark:text-white hover:bg-white transition-colors shadow"
+                  aria-label="Next banner"
+                >
+                  <FiChevronRight size={20} />
+                </button>
+              </>
+            )}
+
+            {/* Dots */}
+            {banners.length > 1 && (
+              <div className="absolute bottom-3 md:bottom-5 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+                {banners.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setCurrentBanner(i); startAutoSlide(); }}
+                    className={`w-2.5 h-2.5 rounded-full transition-all ${
+                      i === currentBanner ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/80'
+                    }`}
+                    aria-label={`Go to banner ${i + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Shop by Category */}
       <section className="py-16 md:py-24 mx-auto px-4 sm:px-6 lg:px-[50px]">
