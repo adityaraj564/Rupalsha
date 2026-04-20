@@ -98,7 +98,7 @@ export default function HelpPage() {
             <li>Standard delivery: 5-7 business days</li>
             <li>Metro cities: 3-5 business days</li>
             <li>Free shipping on orders above ₹999</li>
-            <li>Flat ₹79 shipping fee on smaller orders</li>
+            <li>Shipping charges vary by product</li>
           </ul>
         </div>
       </section>
