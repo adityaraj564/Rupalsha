@@ -65,7 +65,7 @@ export default function CategoryPage() {
   // Fetch products
   useEffect(() => {
     const fetchProducts = async () => {
-      setLoading(true);
+      if (products.length === 0) setLoading(true);
       try {
         const params = { page, limit: 12, sort };
         params.categorySlug = selectedSlug;
@@ -193,7 +193,7 @@ export default function CategoryPage() {
 
         {/* Products Grid */}
         <div className="flex-1 min-w-0">
-          {loading ? (
+          {loading && products.length === 0 ? (
             <LoadingSpinner />
           ) : products.length === 0 ? (
             <div className="text-center py-20">

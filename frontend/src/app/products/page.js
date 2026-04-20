@@ -59,7 +59,7 @@ function ProductsContent() {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      setLoading(true);
+      if (products.length === 0) setLoading(true);
       try {
         const params = { page, limit: 12, sort };
         if (selectedCategorySlug) params.categorySlug = selectedCategorySlug;
@@ -167,7 +167,7 @@ function ProductsContent() {
 
         {/* Products Grid */}
         <div className="flex-1 min-w-0">
-          {loading ? (
+          {loading && products.length === 0 ? (
             <LoadingSpinner />
           ) : products.length === 0 ? (
             <div className="text-center py-20">

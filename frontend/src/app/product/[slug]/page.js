@@ -17,6 +17,7 @@ export default function ProductDetailPage() {
   const router = useRouter();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedImage, setSelectedImage] = useState(0);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
@@ -64,6 +65,7 @@ export default function ProductDetailPage() {
         router.push('/products');
       } finally {
         setLoading(false);
+        setInitialLoad(false);
       }
     };
     fetchProduct();
@@ -212,7 +214,7 @@ export default function ProductDetailPage() {
     }
   };
 
-  if (loading) return <LoadingSpinner size="lg" />;
+  if (initialLoad && loading) return <LoadingSpinner size="lg" />;
   if (!product) return null;
 
   const inWishlist = isAuthenticated && isInWishlist(product._id);
