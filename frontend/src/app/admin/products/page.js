@@ -350,7 +350,8 @@ export default function AdminProductsPage() {
 
               <div>
                 <label className="block text-sm font-medium mb-1">Description *</label>
-                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input-field" rows={3} required />
+                <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value.slice(0, 1000) })} className="input-field" rows={3} required maxLength={1000} />
+                <p className="text-xs text-gray-400 mt-1 text-right">{form.description.length}/1000</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

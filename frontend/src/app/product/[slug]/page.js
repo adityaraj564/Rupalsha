@@ -40,21 +40,12 @@ export default function ProductDetailPage() {
   const [highlightsOpen, setHighlightsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
-  const descRef = useRef(null);
-  const [descClamped, setDescClamped] = useState(false);
   const pinchStartDist = useRef(null);
 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
   const addToCart = useCartStore((s) => s.addItem);
   const { isInWishlist, addItem: addToWishlist, removeItem: removeFromWishlist } = useWishlistStore();
-
-  // Detect if description text is clamped (exceeds 4 lines)
-  useEffect(() => {
-    if (descRef.current) {
-      setDescClamped(descRef.current.scrollHeight > descRef.current.clientHeight);
-    }
-  }, [product]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -259,7 +250,7 @@ export default function ProductDetailPage() {
 
       <div className="md:flex md:gap-12 md:items-start">
         {/* Images */}
-        <div className="md:sticky md:top-24 md:w-1/2 md:flex-shrink-0 min-w-0">
+        <div className="md:sticky md:top-24 md:w-1/2 md:flex-shrink-0 min-w-0 md:self-start">
           <div
             className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-4 md:cursor-crosshair"
             onMouseMove={(e) => {
@@ -387,9 +378,14 @@ export default function ProductDetailPage() {
           </div>
           {product.comparePrice && discount > 0 && (
             <div className="flex items-center gap-2 mb-6">
-              <span className="bg-green-100 text-green-700 text-sm font-medium px-2 py-0.5 rounded-full">
+              <span className="bg-green-100 text-green-700 text-base font-semibold px-3 py-1 rounded-full">
                 Save {discount}%
               </span>
+              {discount > 30 && (
+                <span className="bg-green-100 text-green-700 text-base font-bold px-3 py-1 rounded-full">
+                  Hot Deal
+                </span>
+              )}
               <span className="text-sm text-gray-500">
                 MRP: <span className="line-through">₹{product.comparePrice.toLocaleString()}</span>
               </span>
@@ -399,20 +395,19 @@ export default function ProductDetailPage() {
 
           {/* Description */}
           <div className="mb-6">
-            <p
-              ref={descRef}
-              className={`text-gray-600 dark:text-gray-400 leading-relaxed transition-all duration-300 ${!descExpanded ? 'line-clamp-4' : ''}`}
-            >
-              {product.description}
+            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+              {descExpanded || product.description.length <= 200
+                ? product.description
+                : product.description.slice(0, 200).trimEnd() + '..'}
+              {product.description.length > 200 && (
+                <button
+                  onClick={() => setDescExpanded(!descExpanded)}
+                  className="inline text-blue-600 font-bold text-sm ml-0.5 hover:underline"
+                >
+                  {descExpanded ? 'show less' : 'see more'}
+                </button>
+              )}
             </p>
-            {descClamped && (
-              <button
-                onClick={() => setDescExpanded(!descExpanded)}
-                className="text-sm text-brand-green font-medium mt-1 hover:underline"
-              >
-                {descExpanded ? 'Show Less' : 'Show More'}
-              </button>
-            )}
           </div>
 
           {/* Material */}
@@ -623,18 +618,20 @@ export default function ProductDetailPage() {
                 </div>
                 <FiChevronDown className={`text-gray-500 transition-transform duration-200 ${highlightsOpen ? 'rotate-180' : ''}`} size={18} />
               </button>
-              {highlightsOpen && (
-                <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-                  <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2">
-                    {product.highlights.map((h, i) => (
-                      <React.Fragment key={i}>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 py-1">{h.key}</span>
-                        <span className="text-xs text-brand-charcoal dark:text-gray-200 font-medium py-1">{h.value}</span>
-                      </React.Fragment>
-                    ))}
+              <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${highlightsOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                <div className="overflow-hidden">
+                  <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                    <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2">
+                      {product.highlights.map((h, i) => (
+                        <React.Fragment key={i}>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 py-1">{h.key}</span>
+                          <span className="text-xs text-brand-charcoal dark:text-gray-200 font-medium py-1">{h.value}</span>
+                        </React.Fragment>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -651,28 +648,30 @@ export default function ProductDetailPage() {
                 </div>
                 <FiChevronDown className={`text-gray-500 transition-transform duration-200 ${detailsOpen ? 'rotate-180' : ''}`} size={18} />
               </button>
-              {detailsOpen && (
-                <div className="border-t border-gray-200 dark:border-gray-700">
-                  <div className="px-4 py-3">
-                    <p className="text-sm font-semibold text-brand-charcoal dark:text-gray-100 mb-3">Specifications</p>
-                    {product.specifications.map((group, gi) => (
-                      <div key={gi} className="mb-4 last:mb-0">
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 pb-1 border-b border-gray-100 dark:border-gray-700">{group.group}</p>
-                        <table className="w-full">
-                          <tbody>
-                            {group.fields.map((f, fi) => (
-                              <tr key={fi} className="border-b border-gray-50 dark:border-gray-800 last:border-0">
-                                <td className="text-xs text-gray-500 dark:text-gray-400 py-2 pr-4 w-2/5 align-top">{f.key}</td>
-                                <td className="text-xs text-brand-charcoal dark:text-gray-200 font-medium py-2">{f.value}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ))}
+              <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${detailsOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                <div className="overflow-hidden">
+                  <div className="border-t border-gray-200 dark:border-gray-700">
+                    <div className="px-4 py-3">
+                      <p className="text-sm font-semibold text-brand-charcoal dark:text-gray-100 mb-3">Specifications</p>
+                      {product.specifications.map((group, gi) => (
+                        <div key={gi} className="mb-4 last:mb-0">
+                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 pb-1 border-b border-gray-100 dark:border-gray-700">{group.group}</p>
+                          <table className="w-full">
+                            <tbody>
+                              {group.fields.map((f, fi) => (
+                                <tr key={fi} className="border-b border-gray-50 dark:border-gray-800 last:border-0">
+                                  <td className="text-xs text-gray-500 dark:text-gray-400 py-2 pr-4 w-2/5 align-top">{f.key}</td>
+                                  <td className="text-xs text-brand-charcoal dark:text-gray-200 font-medium py-2">{f.value}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
