@@ -77,7 +77,7 @@ router.get('/products', async (req, res, next) => {
 // POST /api/admin/products
 router.post('/products', upload.array('images', 5), async (req, res, next) => {
   try {
-    const { name, description, price, comparePrice, category, subcategory, childCategory, categoryRef, sku, lowStockThreshold, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, isReturnable, returnDays, returnPolicy, shippingCharge } = req.body;
+    const { name, description, price, comparePrice, category, subcategory, childCategory, categoryRef, sku, lowStockThreshold, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, isReturnable, returnDays, returnPolicy, shippingCharge, highlights, specifications } = req.body;
 
     const images = req.files ? req.files.map(file => ({
       url: file.path,
@@ -98,6 +98,16 @@ router.post('/products', upload.array('images', 5), async (req, res, next) => {
     let parsedTags = tags;
     if (typeof tags === 'string' && tags) {
       parsedTags = JSON.parse(tags);
+    }
+
+    let parsedHighlights = highlights;
+    if (typeof highlights === 'string' && highlights) {
+      parsedHighlights = JSON.parse(highlights);
+    }
+
+    let parsedSpecifications = specifications;
+    if (typeof specifications === 'string' && specifications) {
+      parsedSpecifications = JSON.parse(specifications);
     }
 
     const product = await Product.create({
@@ -123,6 +133,8 @@ router.post('/products', upload.array('images', 5), async (req, res, next) => {
       returnDays: returnDays ? Number(returnDays) : 7,
       returnPolicy,
       shippingCharge: shippingCharge ? Number(shippingCharge) : 0,
+      highlights: parsedHighlights || [],
+      specifications: parsedSpecifications || [],
     });
 
     cache.clear('products');
@@ -160,6 +172,12 @@ router.put('/products/:id', upload.array('images', 5), async (req, res, next) =>
     }
     if (req.body.tags) {
       product.tags = typeof req.body.tags === 'string' ? JSON.parse(req.body.tags) : req.body.tags;
+    }
+    if (req.body.highlights !== undefined) {
+      product.highlights = typeof req.body.highlights === 'string' ? JSON.parse(req.body.highlights) : req.body.highlights;
+    }
+    if (req.body.specifications !== undefined) {
+      product.specifications = typeof req.body.specifications === 'string' ? JSON.parse(req.body.specifications) : req.body.specifications;
     }
 
     if (req.files && req.files.length > 0) {

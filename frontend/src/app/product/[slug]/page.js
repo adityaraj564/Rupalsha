@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { FiHeart, FiShoppingBag, FiTruck, FiRefreshCw, FiChevronLeft, FiChevronRight, FiStar, FiMapPin, FiCheck, FiX, FiShare2, FiCamera, FiBell, FiVideo } from 'react-icons/fi';
+import { FiHeart, FiShoppingBag, FiTruck, FiRefreshCw, FiChevronLeft, FiChevronRight, FiStar, FiMapPin, FiCheck, FiX, FiShare2, FiCamera, FiBell, FiVideo, FiChevronDown } from 'react-icons/fi';
 import { productsAPI, reviewsAPI } from '@/lib/api';
 import { useAuthStore, useCartStore, useWishlistStore } from '@/lib/store';
 import SizeGuideModal from '@/components/SizeGuideModal';
@@ -37,6 +37,8 @@ export default function ProductDetailPage() {
   const [suggestedProducts, setSuggestedProducts] = useState([]);
   const [pinchScale, setPinchScale] = useState(1);
   const [pinchOrigin, setPinchOrigin] = useState('center center');
+  const [highlightsOpen, setHighlightsOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const pinchStartDist = useRef(null);
 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -231,7 +233,7 @@ export default function ProductDetailPage() {
   const isOutOfStock = totalStock === 0;
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12 animate-fade-in overflow-x-hidden">
+    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12 animate-fade-in" style={{ overflowClipMargin: 'content-box', overflowX: 'clip' }}>
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 mb-8 overflow-hidden">
         <Link href="/" className="hover:text-brand-green">Home</Link>
@@ -245,9 +247,9 @@ export default function ProductDetailPage() {
         <span className="text-brand-charcoal dark:text-gray-200 truncate">{product.name}</span>
       </nav>
 
-      <div className="grid md:grid-cols-2 gap-8 md:gap-12 overflow-hidden">
+      <div className="md:flex md:gap-12 md:items-start">
         {/* Images */}
-        <div className="md:sticky md:top-24 md:self-start min-w-0">
+        <div className="md:sticky md:top-24 md:w-1/2 md:flex-shrink-0 min-w-0">
           <div
             className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-4 md:cursor-crosshair"
             onMouseMove={(e) => {
@@ -344,7 +346,7 @@ export default function ProductDetailPage() {
         </div>
 
         {/* Details */}
-        <div className="min-w-0">
+        <div className="mt-8 md:mt-0 md:flex-1 min-w-0">
           <p className="text-brand-gold text-sm font-medium uppercase tracking-wider mb-2">{product.category}</p>
           <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal dark:text-gray-100 mb-4">{product.name}</h1>
 
@@ -583,21 +585,90 @@ export default function ProductDetailPage() {
             )}
           </div>
 
-          {/* Reviews Section */}
-          <div className="py-6 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif text-xl font-semibold">
-                Customer Reviews {totalReviews > 0 && <span className="text-gray-400 text-base font-normal">({totalReviews})</span>}
-              </h3>
-              {isAuthenticated && (
-                <button
-                  onClick={() => setShowReviewForm(!showReviewForm)}
-                  className="text-sm text-brand-green font-medium hover:underline"
-                >
-                  {showReviewForm ? 'Cancel' : 'Write a Review'}
-                </button>
+          {/* Product Highlights - Flipkart style collapsible */}
+          {product.highlights && product.highlights.length > 0 && (
+            <div className="border border-gray-200 dark:border-gray-700 rounded-xl mb-4 overflow-hidden">
+              <button
+                onClick={() => setHighlightsOpen(!highlightsOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div>
+                  <span className="font-semibold text-sm text-brand-charcoal dark:text-gray-100 block text-left">Product Highlights</span>
+                  {!highlightsOpen && <span className="text-xs text-gray-400 dark:text-gray-500 block text-left">Key Feature, usage and more</span>}
+                </div>
+                <FiChevronDown className={`text-gray-500 transition-transform duration-200 ${highlightsOpen ? 'rotate-180' : ''}`} size={18} />
+              </button>
+              {highlightsOpen && (
+                <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2">
+                    {product.highlights.map((h, i) => (
+                      <React.Fragment key={i}>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 py-1">{h.key}</span>
+                        <span className="text-xs text-brand-charcoal dark:text-gray-200 font-medium py-1">{h.value}</span>
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
+          )}
+
+          {/* All Details / Specifications - Flipkart style collapsible */}
+          {product.specifications && product.specifications.length > 0 && (
+            <div className="border border-gray-200 dark:border-gray-700 rounded-xl mb-4 overflow-hidden">
+              <button
+                onClick={() => setDetailsOpen(!detailsOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div>
+                  <span className="font-semibold text-sm text-brand-charcoal dark:text-gray-100 block text-left">All Details</span>
+                  {!detailsOpen && <span className="text-xs text-gray-400 dark:text-gray-500 block text-left">Features, description and more</span>}
+                </div>
+                <FiChevronDown className={`text-gray-500 transition-transform duration-200 ${detailsOpen ? 'rotate-180' : ''}`} size={18} />
+              </button>
+              {detailsOpen && (
+                <div className="border-t border-gray-200 dark:border-gray-700">
+                  <div className="px-4 py-3">
+                    <p className="text-sm font-semibold text-brand-charcoal dark:text-gray-100 mb-3">Specifications</p>
+                    {product.specifications.map((group, gi) => (
+                      <div key={gi} className="mb-4 last:mb-0">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 pb-1 border-b border-gray-100 dark:border-gray-700">{group.group}</p>
+                        <table className="w-full">
+                          <tbody>
+                            {group.fields.map((f, fi) => (
+                              <tr key={fi} className="border-b border-gray-50 dark:border-gray-800 last:border-0">
+                                <td className="text-xs text-gray-500 dark:text-gray-400 py-2 pr-4 w-2/5 align-top">{f.key}</td>
+                                <td className="text-xs text-brand-charcoal dark:text-gray-200 font-medium py-2">{f.value}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>{/* end right column */}
+      </div>{/* end flex layout */}
+
+      {/* Reviews Section - full width, outside the 2-col grid so image doesn't stay sticky */}
+      <div className="py-6 border-t border-gray-200 mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-serif text-xl font-semibold">
+            Customer Reviews {totalReviews > 0 && <span className="text-gray-400 text-base font-normal">({totalReviews})</span>}
+          </h3>
+          {isAuthenticated && (
+            <button
+              onClick={() => setShowReviewForm(!showReviewForm)}
+              className="text-sm text-brand-green font-medium hover:underline"
+            >
+              {showReviewForm ? 'Cancel' : 'Write a Review'}
+            </button>
+          )}
+        </div>
 
             {/* Review Form */}
             {showReviewForm && (
@@ -749,8 +820,6 @@ export default function ProductDetailPage() {
               <p className="text-sm text-gray-400">No reviews yet. Be the first to review this product!</p>
             )}
           </div>
-        </div>
-      </div>
 
       {/* Suggested Products */}
       {suggestedProducts.length > 0 && (

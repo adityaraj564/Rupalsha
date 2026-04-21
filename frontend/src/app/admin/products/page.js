@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiX } from 'react-icons/fi';
 import { adminAPI, categoriesAPI } from '@/lib/api';
 import { AdminTableSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
@@ -33,6 +33,8 @@ export default function AdminProductsPage() {
     returnDays: '7',
     returnPolicy: 'Easy return policy. Product must be unused with original tags. Recording an unboxing video while opening the package is mandatory for return claims.',
     shippingCharge: '0',
+    highlights: [],
+    specifications: [{ group: 'General', fields: [] }],
   });
   const [images, setImages] = useState([]);
   const [dragIndex, setDragIndex] = useState(null);
@@ -121,6 +123,8 @@ export default function AdminProductsPage() {
       returnDays: '7',
       returnPolicy: 'Easy return policy. Product must be unused with original tags. Recording an unboxing video while opening the package is mandatory for return claims.',
       shippingCharge: '0',
+      highlights: [],
+      specifications: [{ group: 'General', fields: [] }],
     });
     setImages([]);
     setExistingImages([]);
@@ -152,6 +156,8 @@ export default function AdminProductsPage() {
       returnDays: product.returnDays || '7',
       returnPolicy: product.returnPolicy || 'Easy return policy. Product must be unused with original tags. Recording an unboxing video while opening the package is mandatory for return claims.',
       shippingCharge: product.shippingCharge || '0',
+      highlights: product.highlights?.length ? product.highlights.map(h => ({ key: h.key, value: h.value })) : [],
+      specifications: product.specifications?.length ? product.specifications.map(g => ({ group: g.group, fields: g.fields.map(f => ({ key: f.key, value: f.value })) })) : [{ group: 'General', fields: [] }],
     });
     setEditingProduct(product);
     setExistingImages(product.images ? [...product.images] : []);
@@ -181,6 +187,18 @@ export default function AdminProductsPage() {
     formData.append('isTrending', form.isTrending);
     formData.append('sizes', JSON.stringify(form.sizes.filter(s => s.stock > 0)));
     formData.append('tags', JSON.stringify(form.tags.split(',').map(t => t.trim()).filter(Boolean)));
+
+    // Filter out empty highlights and specifications
+    const validHighlights = form.highlights.filter(h => h.key.trim() && h.value.trim());
+    formData.append('highlights', JSON.stringify(validHighlights));
+
+    const validSpecs = form.specifications
+      .map(g => ({
+        group: g.group.trim(),
+        fields: g.fields.filter(f => f.key.trim() && f.value.trim()),
+      }))
+      .filter(g => g.group && g.fields.length > 0);
+    formData.append('specifications', JSON.stringify(validSpecs));
 
     for (const img of images) {
       formData.append('images', img);
@@ -530,6 +548,148 @@ export default function AdminProductsPage() {
               <div>
                 <label className="block text-sm font-medium mb-1">Tags (comma-separated)</label>
                 <input type="text" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} className="input-field" placeholder="wedding, festive, premium" />
+              </div>
+
+              {/* Product Highlights */}
+              <div className="space-y-3 p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-700">Product Highlights</p>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, highlights: [...form.highlights, { key: '', value: '' }] })}
+                    className="text-xs text-brand-green font-medium flex items-center gap-1 hover:underline"
+                  >
+                    <FiPlus size={12} /> Add Highlight
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400">Key-value pairs shown as product highlights (e.g. Base Material → Brass, Copper)</p>
+                {form.highlights.map((h, i) => (
+                  <div key={i} className="flex gap-2 items-start">
+                    <input
+                      type="text"
+                      value={h.key}
+                      onChange={(e) => {
+                        const updated = [...form.highlights];
+                        updated[i] = { ...updated[i], key: e.target.value };
+                        setForm({ ...form, highlights: updated });
+                      }}
+                      className="input-field text-sm py-2 flex-1"
+                      placeholder="Key (e.g. Base Material)"
+                    />
+                    <input
+                      type="text"
+                      value={h.value}
+                      onChange={(e) => {
+                        const updated = [...form.highlights];
+                        updated[i] = { ...updated[i], value: e.target.value };
+                        setForm({ ...form, highlights: updated });
+                      }}
+                      className="input-field text-sm py-2 flex-1"
+                      placeholder="Value (e.g. Brass, Copper)"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, highlights: form.highlights.filter((_, idx) => idx !== i) })}
+                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg flex-shrink-0"
+                    >
+                      <FiX size={14} />
+                    </button>
+                  </div>
+                ))}
+                {form.highlights.length === 0 && (
+                  <p className="text-xs text-gray-400 italic">No highlights added yet.</p>
+                )}
+              </div>
+
+              {/* All Details / Specifications */}
+              <div className="space-y-3 p-4 bg-gray-50 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-700">All Details (Specifications)</p>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, specifications: [...form.specifications, { group: '', fields: [] }] })}
+                    className="text-xs text-brand-green font-medium flex items-center gap-1 hover:underline"
+                  >
+                    <FiPlus size={12} /> Add Group
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400">Grouped specification tables (like Flipkart). Each group has a title and key-value fields.</p>
+                {form.specifications.map((group, gi) => (
+                  <div key={gi} className="border border-gray-200 rounded-lg p-3 bg-white space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        value={group.group}
+                        onChange={(e) => {
+                          const updated = [...form.specifications];
+                          updated[gi] = { ...updated[gi], group: e.target.value };
+                          setForm({ ...form, specifications: updated });
+                        }}
+                        className="input-field text-sm py-1.5 font-medium flex-1"
+                        placeholder="Group name (e.g. General, Product Details)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, specifications: form.specifications.filter((_, idx) => idx !== gi) })}
+                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg flex-shrink-0"
+                      >
+                        <FiX size={14} />
+                      </button>
+                    </div>
+                    {group.fields.map((f, fi) => (
+                      <div key={fi} className="flex gap-2 items-start ml-3">
+                        <input
+                          type="text"
+                          value={f.key}
+                          onChange={(e) => {
+                            const updated = [...form.specifications];
+                            const fields = [...updated[gi].fields];
+                            fields[fi] = { ...fields[fi], key: e.target.value };
+                            updated[gi] = { ...updated[gi], fields };
+                            setForm({ ...form, specifications: updated });
+                          }}
+                          className="input-field text-xs py-1.5 flex-1"
+                          placeholder="Key (e.g. Brand)"
+                        />
+                        <input
+                          type="text"
+                          value={f.value}
+                          onChange={(e) => {
+                            const updated = [...form.specifications];
+                            const fields = [...updated[gi].fields];
+                            fields[fi] = { ...fields[fi], value: e.target.value };
+                            updated[gi] = { ...updated[gi], fields };
+                            setForm({ ...form, specifications: updated });
+                          }}
+                          className="input-field text-xs py-1.5 flex-1"
+                          placeholder="Value (e.g. NAKMAN JEWELLERY)"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = [...form.specifications];
+                            updated[gi] = { ...updated[gi], fields: updated[gi].fields.filter((_, idx) => idx !== fi) };
+                            setForm({ ...form, specifications: updated });
+                          }}
+                          className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg flex-shrink-0"
+                        >
+                          <FiX size={12} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = [...form.specifications];
+                        updated[gi] = { ...updated[gi], fields: [...updated[gi].fields, { key: '', value: '' }] };
+                        setForm({ ...form, specifications: updated });
+                      }}
+                      className="text-xs text-brand-green font-medium flex items-center gap-1 hover:underline ml-3"
+                    >
+                      <FiPlus size={10} /> Add Field
+                    </button>
+                  </div>
+                ))}
               </div>
 
               {/* Return Policy & Shipping */}

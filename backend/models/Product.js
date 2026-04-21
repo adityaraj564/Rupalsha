@@ -116,6 +116,17 @@ const productSchema = new mongoose.Schema({
     type: String,
     default: 'Easy return policy. Product must be unused with original tags. Recording an unboxing video while opening the package is mandatory for return claims.',
   },
+  highlights: [{
+    key: { type: String, trim: true },
+    value: { type: String, trim: true },
+  }],
+  specifications: [{
+    group: { type: String, trim: true },
+    fields: [{
+      key: { type: String, trim: true },
+      value: { type: String, trim: true },
+    }],
+  }],
 }, {
   timestamps: true,
 });
