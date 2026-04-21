@@ -39,12 +39,22 @@ export default function ProductDetailPage() {
   const [pinchOrigin, setPinchOrigin] = useState('center center');
   const [highlightsOpen, setHighlightsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
+  const descRef = useRef(null);
+  const [descClamped, setDescClamped] = useState(false);
   const pinchStartDist = useRef(null);
 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
   const addToCart = useCartStore((s) => s.addItem);
   const { isInWishlist, addItem: addToWishlist, removeItem: removeFromWishlist } = useWishlistStore();
+
+  // Detect if description text is clamped (exceeds 4 lines)
+  useEffect(() => {
+    if (descRef.current) {
+      setDescClamped(descRef.current.scrollHeight > descRef.current.clientHeight);
+    }
+  }, [product]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -388,7 +398,22 @@ export default function ProductDetailPage() {
           {!(product.comparePrice && discount > 0) && <div className="mb-6" />}
 
           {/* Description */}
-          <p className="text-gray-600 leading-relaxed mb-6">{product.description}</p>
+          <div className="mb-6">
+            <p
+              ref={descRef}
+              className={`text-gray-600 dark:text-gray-400 leading-relaxed transition-all duration-300 ${!descExpanded ? 'line-clamp-4' : ''}`}
+            >
+              {product.description}
+            </p>
+            {descClamped && (
+              <button
+                onClick={() => setDescExpanded(!descExpanded)}
+                className="text-sm text-brand-green font-medium mt-1 hover:underline"
+              >
+                {descExpanded ? 'Show Less' : 'Show More'}
+              </button>
+            )}
+          </div>
 
           {/* Material */}
           {product.fabric && (

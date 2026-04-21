@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon } from 'react-icons/fi';
+import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon, FiLogOut } from 'react-icons/fi';
 import { useAuthStore, useCartStore, useWishlistStore, useThemeStore } from '@/lib/store';
 import { couponsAPI } from '@/lib/api';
 
@@ -30,7 +30,7 @@ export default function Header() {
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
 
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, logout } = useAuthStore();
   const cartCount = useCartStore((s) => s.getCount());
   const wishlistCount = useWishlistStore((s) => s.items.length);
   const { isDark, toggle: toggleTheme } = useThemeStore();
@@ -239,6 +239,13 @@ export default function Header() {
                         >
                           <FiShoppingBag size={16} /> My Orders
                         </Link>
+                        <hr className="my-1 border-gray-100 dark:border-gray-700" />
+                        <button
+                          onClick={() => { logout(); setProfileOpen(false); router.push('/'); }}
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-gray-700 transition-colors w-full text-left"
+                        >
+                          <FiLogOut size={16} /> Logout
+                        </button>
                       </>
                     ) : (
                       <Link

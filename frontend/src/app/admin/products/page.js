@@ -10,6 +10,70 @@ const JEWELRY_SIZES = ['Free Size', '2.2', '2.4', '2.6', '2.8', '2.10'];
 const RING_SIZES = ['5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18'];
 const ALL_SIZES = ['Free Size', ...JEWELRY_SIZES.slice(1), ...RING_SIZES];
 
+// Predefined keys for Product Highlights
+const DEFAULT_HIGHLIGHT_KEYS = ['Base Material', 'Color', 'Plating', 'Occasion'];
+
+// Predefined specification groups and their keys
+const DEFAULT_SPEC_GROUPS = [
+  {
+    group: 'General',
+    keys: ['Base Material', 'Type', 'Color', 'Ideal For', 'Plating', 'Net Quantity', 'Earring Type', 'Kamarband', 'Maang Tikka', 'Necklace & Chain Type', 'Necklace Clasp Type', 'Payal', 'Pendant Shape', 'Trend'],
+  },
+  {
+    group: 'Product Details',
+    keys: ['Sales Package', 'Collection', 'Occasion', 'Finish', 'Weight', 'Other Features', 'Earring Clasp Type', 'Earring Length'],
+  },
+];
+
+const buildDefaultHighlights = () => DEFAULT_HIGHLIGHT_KEYS.map(key => ({ key, value: '' }));
+
+const buildDefaultSpecs = () => DEFAULT_SPEC_GROUPS.map(g => ({
+  group: g.group,
+  fields: g.keys.map(key => ({ key, value: '' })),
+}));
+
+// Merge existing product highlights with predefined defaults
+const mergeHighlights = (existing) => {
+  const merged = DEFAULT_HIGHLIGHT_KEYS.map(key => {
+    const found = existing.find(h => h.key === key);
+    return { key, value: found?.value || '' };
+  });
+  // Add any custom keys from the product that aren't in defaults
+  existing.forEach(h => {
+    if (!DEFAULT_HIGHLIGHT_KEYS.includes(h.key)) {
+      merged.push({ key: h.key, value: h.value });
+    }
+  });
+  return merged;
+};
+
+// Merge existing product specifications with predefined defaults
+const mergeSpecifications = (existing) => {
+  const merged = DEFAULT_SPEC_GROUPS.map(dg => {
+    const existingGroup = existing.find(g => g.group === dg.group);
+    const fields = dg.keys.map(key => {
+      const found = existingGroup?.fields.find(f => f.key === key);
+      return { key, value: found?.value || '' };
+    });
+    // Add custom fields from this group that aren't in defaults
+    if (existingGroup) {
+      existingGroup.fields.forEach(f => {
+        if (!dg.keys.includes(f.key)) {
+          fields.push({ key: f.key, value: f.value });
+        }
+      });
+    }
+    return { group: dg.group, fields };
+  });
+  // Add any custom groups from the product that aren't in defaults
+  existing.forEach(g => {
+    if (!DEFAULT_SPEC_GROUPS.find(dg => dg.group === g.group)) {
+      merged.push({ group: g.group, fields: g.fields.map(f => ({ key: f.key, value: f.value })) });
+    }
+  });
+  return merged;
+};
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,8 +97,8 @@ export default function AdminProductsPage() {
     returnDays: '7',
     returnPolicy: 'Easy return policy. Product must be unused with original tags. Recording an unboxing video while opening the package is mandatory for return claims.',
     shippingCharge: '0',
-    highlights: [],
-    specifications: [{ group: 'General', fields: [] }],
+    highlights: buildDefaultHighlights(),
+    specifications: buildDefaultSpecs(),
   });
   const [images, setImages] = useState([]);
   const [dragIndex, setDragIndex] = useState(null);
@@ -123,8 +187,8 @@ export default function AdminProductsPage() {
       returnDays: '7',
       returnPolicy: 'Easy return policy. Product must be unused with original tags. Recording an unboxing video while opening the package is mandatory for return claims.',
       shippingCharge: '0',
-      highlights: [],
-      specifications: [{ group: 'General', fields: [] }],
+      highlights: buildDefaultHighlights(),
+      specifications: buildDefaultSpecs(),
     });
     setImages([]);
     setExistingImages([]);
@@ -156,8 +220,8 @@ export default function AdminProductsPage() {
       returnDays: product.returnDays || '7',
       returnPolicy: product.returnPolicy || 'Easy return policy. Product must be unused with original tags. Recording an unboxing video while opening the package is mandatory for return claims.',
       shippingCharge: product.shippingCharge || '0',
-      highlights: product.highlights?.length ? product.highlights.map(h => ({ key: h.key, value: h.value })) : [],
-      specifications: product.specifications?.length ? product.specifications.map(g => ({ group: g.group, fields: g.fields.map(f => ({ key: f.key, value: f.value })) })) : [{ group: 'General', fields: [] }],
+      highlights: mergeHighlights(product.highlights || []),
+      specifications: mergeSpecifications(product.specifications || []),
     });
     setEditingProduct(product);
     setExistingImages(product.images ? [...product.images] : []);
@@ -554,28 +618,52 @@ export default function AdminProductsPage() {
               <div className="space-y-3 p-4 bg-gray-50 rounded-xl">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-gray-700">Product Highlights</p>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, highlights: [...form.highlights, { key: '', value: '' }] })}
-                    className="text-xs text-brand-green font-medium flex items-center gap-1 hover:underline"
-                  >
-                    <FiPlus size={12} /> Add Highlight
-                  </button>
-                </div>
-                <p className="text-xs text-gray-400">Key-value pairs shown as product highlights (e.g. Base Material → Brass, Copper)</p>
-                {form.highlights.map((h, i) => (
-                  <div key={i} className="flex gap-2 items-start">
-                    <input
-                      type="text"
-                      value={h.key}
-                      onChange={(e) => {
-                        const updated = [...form.highlights];
-                        updated[i] = { ...updated[i], key: e.target.value };
-                        setForm({ ...form, highlights: updated });
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const existingKeys = form.highlights.map(h => h.key);
+                        const missing = DEFAULT_HIGHLIGHT_KEYS.filter(k => !existingKeys.includes(k));
+                        if (missing.length > 0) {
+                          setForm({ ...form, highlights: [...form.highlights, ...missing.map(key => ({ key, value: '' }))] });
+                          toast.success(`Restored ${missing.length} default key(s)`);
+                        } else {
+                          toast.success('All default keys present');
+                        }
                       }}
-                      className="input-field text-sm py-2 flex-1"
-                      placeholder="Key (e.g. Base Material)"
-                    />
+                      className="text-xs text-gray-500 font-medium hover:underline"
+                    >
+                      Reset Defaults
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, highlights: [...form.highlights, { key: '', value: '' }] })}
+                      className="text-xs text-brand-green font-medium flex items-center gap-1 hover:underline"
+                    >
+                      <FiPlus size={12} /> Add Custom
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400">Predefined keys are shown by default. Fill values, remove unused keys, or add custom ones.</p>
+                {form.highlights.map((h, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <div className="flex-1 relative">
+                      {DEFAULT_HIGHLIGHT_KEYS.includes(h.key) ? (
+                        <span className="block text-sm py-2 px-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-700 dark:text-gray-300 font-medium">{h.key}</span>
+                      ) : (
+                        <input
+                          type="text"
+                          value={h.key}
+                          onChange={(e) => {
+                            const updated = [...form.highlights];
+                            updated[i] = { ...updated[i], key: e.target.value };
+                            setForm({ ...form, highlights: updated });
+                          }}
+                          className="input-field text-sm py-2"
+                          placeholder="Custom key name"
+                        />
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={h.value}
@@ -585,72 +673,97 @@ export default function AdminProductsPage() {
                         setForm({ ...form, highlights: updated });
                       }}
                       className="input-field text-sm py-2 flex-1"
-                      placeholder="Value (e.g. Brass, Copper)"
+                      placeholder="Enter value"
                     />
                     <button
                       type="button"
                       onClick={() => setForm({ ...form, highlights: form.highlights.filter((_, idx) => idx !== i) })}
                       className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg flex-shrink-0"
+                      title="Remove this highlight"
                     >
                       <FiX size={14} />
                     </button>
                   </div>
                 ))}
-                {form.highlights.length === 0 && (
-                  <p className="text-xs text-gray-400 italic">No highlights added yet.</p>
-                )}
               </div>
 
               {/* All Details / Specifications */}
               <div className="space-y-3 p-4 bg-gray-50 rounded-xl">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-gray-700">All Details (Specifications)</p>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, specifications: [...form.specifications, { group: '', fields: [] }] })}
-                    className="text-xs text-brand-green font-medium flex items-center gap-1 hover:underline"
-                  >
-                    <FiPlus size={12} /> Add Group
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForm({ ...form, specifications: mergeSpecifications(form.specifications) });
+                        toast.success('Default groups & keys restored');
+                      }}
+                      className="text-xs text-gray-500 font-medium hover:underline"
+                    >
+                      Reset Defaults
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, specifications: [...form.specifications, { group: '', fields: [{ key: '', value: '' }] }] })}
+                      className="text-xs text-brand-green font-medium flex items-center gap-1 hover:underline"
+                    >
+                      <FiPlus size={12} /> Add Group
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-400">Grouped specification tables (like Flipkart). Each group has a title and key-value fields.</p>
-                {form.specifications.map((group, gi) => (
+                <p className="text-xs text-gray-400">Predefined groups and keys shown by default. Fill values, remove unused, or add custom fields.</p>
+                {form.specifications.map((group, gi) => {
+                  const defaultGroup = DEFAULT_SPEC_GROUPS.find(dg => dg.group === group.group);
+                  return (
                   <div key={gi} className="border border-gray-200 rounded-lg p-3 bg-white space-y-2">
                     <div className="flex gap-2 items-center">
-                      <input
-                        type="text"
-                        value={group.group}
-                        onChange={(e) => {
-                          const updated = [...form.specifications];
-                          updated[gi] = { ...updated[gi], group: e.target.value };
-                          setForm({ ...form, specifications: updated });
-                        }}
-                        className="input-field text-sm py-1.5 font-medium flex-1"
-                        placeholder="Group name (e.g. General, Product Details)"
-                      />
+                      {defaultGroup ? (
+                        <span className="text-sm py-1.5 px-3 bg-gray-100 rounded-lg text-gray-700 font-semibold flex-1">{group.group}</span>
+                      ) : (
+                        <input
+                          type="text"
+                          value={group.group}
+                          onChange={(e) => {
+                            const updated = [...form.specifications];
+                            updated[gi] = { ...updated[gi], group: e.target.value };
+                            setForm({ ...form, specifications: updated });
+                          }}
+                          className="input-field text-sm py-1.5 font-medium flex-1"
+                          placeholder="Group name (e.g. Dimensions)"
+                        />
+                      )}
                       <button
                         type="button"
                         onClick={() => setForm({ ...form, specifications: form.specifications.filter((_, idx) => idx !== gi) })}
                         className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg flex-shrink-0"
+                        title="Remove this group"
                       >
                         <FiX size={14} />
                       </button>
                     </div>
-                    {group.fields.map((f, fi) => (
-                      <div key={fi} className="flex gap-2 items-start ml-3">
-                        <input
-                          type="text"
-                          value={f.key}
-                          onChange={(e) => {
-                            const updated = [...form.specifications];
-                            const fields = [...updated[gi].fields];
-                            fields[fi] = { ...fields[fi], key: e.target.value };
-                            updated[gi] = { ...updated[gi], fields };
-                            setForm({ ...form, specifications: updated });
-                          }}
-                          className="input-field text-xs py-1.5 flex-1"
-                          placeholder="Key (e.g. Brand)"
-                        />
+                    {group.fields.map((f, fi) => {
+                      const isDefault = defaultGroup?.keys.includes(f.key);
+                      return (
+                      <div key={fi} className="flex gap-2 items-center ml-3">
+                        <div className="flex-1">
+                          {isDefault ? (
+                            <span className="block text-xs py-1.5 px-2 bg-gray-50 rounded text-gray-600 font-medium">{f.key}</span>
+                          ) : (
+                            <input
+                              type="text"
+                              value={f.key}
+                              onChange={(e) => {
+                                const updated = [...form.specifications];
+                                const fields = [...updated[gi].fields];
+                                fields[fi] = { ...fields[fi], key: e.target.value };
+                                updated[gi] = { ...updated[gi], fields };
+                                setForm({ ...form, specifications: updated });
+                              }}
+                              className="input-field text-xs py-1.5"
+                              placeholder="Custom key name"
+                            />
+                          )}
+                        </div>
                         <input
                           type="text"
                           value={f.value}
@@ -662,7 +775,7 @@ export default function AdminProductsPage() {
                             setForm({ ...form, specifications: updated });
                           }}
                           className="input-field text-xs py-1.5 flex-1"
-                          placeholder="Value (e.g. NAKMAN JEWELLERY)"
+                          placeholder="Enter value"
                         />
                         <button
                           type="button"
@@ -672,11 +785,13 @@ export default function AdminProductsPage() {
                             setForm({ ...form, specifications: updated });
                           }}
                           className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg flex-shrink-0"
+                          title="Remove this field"
                         >
                           <FiX size={12} />
                         </button>
                       </div>
-                    ))}
+                      );
+                    })}
                     <button
                       type="button"
                       onClick={() => {
@@ -686,10 +801,11 @@ export default function AdminProductsPage() {
                       }}
                       className="text-xs text-brand-green font-medium flex items-center gap-1 hover:underline ml-3"
                     >
-                      <FiPlus size={10} /> Add Field
+                      <FiPlus size={10} /> Add Custom Field
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Return Policy & Shipping */}
