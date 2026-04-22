@@ -9,7 +9,7 @@ const User = require('../models/User');
     found = new User({
       name: 'Content Admin',
       email: 'contentadmin@rupalsha.com',
-      role: 'contentadmin',
+      role: 'subadmin',
     });
     console.log('Creating content admin user...');
   } else {
@@ -17,6 +17,6 @@ const User = require('../models/User');
   }
   found.password = 'SubAdmin@123';
   await found.save();
-  console.log('✅ contentadmin@rupalsha.com ready (role: contentadmin, password: SubAdmin@123)');
+  console.log('✅ contentadmin@rupalsha.com ready (role: subadmin, password: SubAdmin@123)');
   process.exit(0);
 })();
