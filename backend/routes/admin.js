@@ -9,6 +9,7 @@ const Review = require('../models/Review');
 const Coupon = require('../models/Coupon');
 const Contact = require('../models/Contact');
 const Banner = require('../models/Banner');
+const ActivityLog = require('../models/ActivityLog');
 const upload = require('../utils/upload');
 const cloudinary = require('../config/cloudinary');
 const { sendOrderStatusUpdate } = require('../utils/email');
@@ -361,7 +362,7 @@ router.delete('/orders/:id', async (req, res, next) => {
 router.get('/users', async (req, res, next) => {
   try {
     const { page = 1, limit = 20, search } = req.query;
-    const filter = { role: 'user' };
+    const filter = { role: { $in: ['user', 'subadmin'] } };
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -378,6 +379,22 @@ router.get('/users', async (req, res, next) => {
     ]);
 
     res.json({ users, page: pageNum, totalPages: Math.ceil(total / limitNum), total });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/admin/users/:id/role
+router.put('/users/:id/role', async (req, res, next) => {
+  try {
+    const { role } = req.body;
+    if (!['user', 'subadmin'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.role === 'admin') return res.status(400).json({ error: 'Cannot change admin role' });
+    user.role = role;
+    await user.save();
+    res.json({ user: { id: user._id, name: user.name, role: user.role } });
   } catch (error) {
     next(error);
   }
@@ -673,5 +690,26 @@ function getDescendantIds(allCategories, parentId) {
   }
   return ids;
 }
+
+// ===== ACTIVITY LOG =====
+// GET /api/admin/activity-log
+router.get('/activity-log', async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+    if (req.query.section) filter.section = req.query.section;
+    if (req.query.action) filter.action = req.query.action;
+
+    const [logs, total] = await Promise.all([
+      ActivityLog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      ActivityLog.countDocuments(filter),
+    ]);
+
+    res.json({ logs, total, page, pages: Math.ceil(total / limit) });
+  } catch (err) { next(err); }
+});
 
 module.exports = router;

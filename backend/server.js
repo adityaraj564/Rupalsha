@@ -100,6 +100,10 @@ app.use('/api/contact', require('./routes/contact'));
 app.use('/api/coupons', require('./routes/coupons'));
 app.use('/api/about', require('./routes/about'));
 app.use('/api/banners', require('./routes/banners'));
+app.use('/api/blogs', require('./routes/blogs'));
+app.use('/api/faqs', require('./routes/faqs'));
+app.use('/api/pages', require('./routes/pages'));
+app.use('/api/content-admin', require('./routes/content-admin'));
 app.use('/api/admin', require('./routes/admin'));
 
 // Health check

@@ -40,10 +40,23 @@ const adminAuth = async (req, res, next) => {
   }
 };
 
+const subAdminAuth = async (req, res, next) => {
+  try {
+    await auth(req, res, () => {
+      if (req.user.role !== 'admin' && req.user.role !== 'subadmin') {
+        return res.status(403).json({ error: 'Admin or Content Admin access required' });
+      }
+      next();
+    });
+  } catch (error) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+};
+
 const generateToken = (userId) => {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || '7d',
   });
 };
 
-module.exports = { auth, adminAuth, generateToken };
+module.exports = { auth, adminAuth, subAdminAuth, generateToken };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FiSearch, FiShield, FiSlash, FiTrash2, FiAlertTriangle, FiX } from 'react-icons/fi';
+import { FiSearch, FiShield, FiSlash, FiTrash2, FiAlertTriangle, FiX, FiUserCheck } from 'react-icons/fi';
 import { adminAPI } from '@/lib/api';
 import { AdminTableSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
@@ -50,6 +50,17 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleToggleRole = async (userId, currentRole) => {
+    const newRole = currentRole === 'subadmin' ? 'user' : 'subadmin';
+    try {
+      await adminAPI.updateUserRole(userId, newRole);
+      setUsers(users.map(u => u._id === userId ? { ...u, role: newRole } : u));
+      toast.success(newRole === 'subadmin' ? 'Made Content Admin' : 'Reverted to User');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   if (loading) return <AdminTableSkeleton />;
 
   return (
@@ -76,6 +87,7 @@ export default function AdminUsersPage() {
                 <th className="p-4 font-medium">Name</th>
                 <th className="p-4 font-medium">Email</th>
                 <th className="p-4 font-medium">Phone</th>
+                <th className="p-4 font-medium">Role</th>
                 <th className="p-4 font-medium">Joined</th>
                 <th className="p-4 font-medium">Status</th>
                 <th className="p-4 font-medium">Actions</th>
@@ -87,6 +99,15 @@ export default function AdminUsersPage() {
                   <td className="p-4 font-medium">{user.name}</td>
                   <td className="p-4 text-gray-600">{user.email}</td>
                   <td className="p-4 text-gray-600">{user.phone || '—'}</td>
+                  <td className="p-4">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      user.role === 'subadmin'
+                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                    }`}>
+                      {user.role === 'subadmin' ? 'Content Admin' : 'User'}
+                    </span>
+                  </td>
                   <td className="p-4 text-gray-500">
                     {new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </td>
@@ -99,6 +120,18 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleRole(user._id, user.role)}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          user.role === 'subadmin'
+                            ? 'bg-purple-50 text-purple-600 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400'
+                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-400'
+                        }`}
+                        title={user.role === 'subadmin' ? 'Remove Content Admin' : 'Make Content Admin'}
+                      >
+                        <FiUserCheck size={12} />
+                        {user.role === 'subadmin' ? 'Remove CA' : 'Make CA'}
+                      </button>
                       <button
                         onClick={() => handleToggleBlock(user._id)}
                         className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${

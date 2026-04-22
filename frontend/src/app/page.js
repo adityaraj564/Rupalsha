@@ -5,8 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FiArrowRight, FiTruck, FiRefreshCw, FiShield, FiHeart, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import ProductCard from '@/components/ProductCard';
+import AdBanner from '@/components/AdBanner';
 import { HomeSectionSkeleton } from '@/components/Skeleton';
-import { productsAPI, bannersAPI, categoriesAPI } from '@/lib/api';
+import { productsAPI, bannersAPI, categoriesAPI, pagesAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
 const DEFAULT_CATEGORY_IMAGES = {
@@ -40,6 +41,7 @@ export default function HomePage() {
   const [banners, setBanners] = useState([]);
   const [categories, setCategories] = useState([]);
   const [currentBanner, setCurrentBanner] = useState(0);
+  const [specialOffer, setSpecialOffer] = useState(null);
   const bannerInterval = useRef(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -65,6 +67,10 @@ export default function HomePage() {
           color: GRADIENT_COLORS[i % GRADIENT_COLORS.length],
         })));
       }
+    }).catch(() => {});
+
+    pagesAPI.get('special-offer').then((data) => {
+      if (data?.page) setSpecialOffer(data.page);
     }).catch(() => {});
   }, []);
 
@@ -99,7 +105,7 @@ export default function HomePage() {
   }, [isAuthenticated]);
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in hexagon-bg">
       {/* Auto-Slide Banner Carousel */}
       {banners.length > 0 && (
         <section className="relative w-full overflow-hidden bg-gray-100 dark:bg-gray-950">
@@ -232,6 +238,11 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Ad — After Features */}
+      <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-4">
+        <AdBanner adSlot={process.env.NEXT_PUBLIC_AD_SLOT_1} format="horizontal" />
+      </div>
+
       {/* Shop by Category */}
       {categories.length > 0 && (
       <section className="py-16 md:py-24 mx-auto px-4 sm:px-6 lg:px-[50px]">
@@ -290,28 +301,33 @@ export default function HomePage() {
         <HomeSectionSkeleton />
       )}
 
+      {/* Ad — After New Arrivals */}
+      <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-4">
+        <AdBanner adSlot={process.env.NEXT_PUBLIC_AD_SLOT_2} format="horizontal" />
+      </div>
+
       {/* Banner */}
       <section className="py-16 md:py-24">
         <div className="mx-auto px-4 sm:px-6 lg:px-[50px]">
           <div className="relative rounded-3xl overflow-hidden bg-brand-green min-h-[400px] flex items-center">
             <div className="absolute inset-0 opacity-10">
               <Image
-                src="https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=1200"
+                src={specialOffer?.offerImage || 'https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=1200'}
                 alt="Pattern"
                 fill
                 className="object-cover"
               />
             </div>
             <div className="relative px-8 md:px-16 py-16 max-w-xl">
-              <p className="text-brand-gold text-sm font-medium tracking-widest uppercase mb-4">Special Offer</p>
+              <p className="text-brand-gold text-sm font-medium tracking-widest uppercase mb-4">{specialOffer?.title || 'Special Offer'}</p>
               <h2 className="font-serif text-4xl md:text-5xl text-white font-bold leading-tight mb-4">
-                Get 10% Off Your First Order
+                {specialOffer?.offerHeading || 'Get 10% Off Your First Order'}
               </h2>
               <p className="text-gray-300 mb-8">
-                Use code <span className="font-semibold text-brand-gold">RUP10</span> at checkout.
-                Valid on all products.
+                Use code <span className="font-semibold text-brand-gold">{specialOffer?.offerCode || 'RUP10'}</span> {specialOffer?.offerDescription || 'at checkout'}.
+                {' '}{specialOffer?.content || 'Valid on all products.'}
               </p>
-              <Link href="/products" className="btn-gold inline-flex items-center gap-2">
+              <Link href={specialOffer?.offerLink || '/products'} className="btn-gold inline-flex items-center gap-2">
                 Shop Now <FiArrowRight />
               </Link>
             </div>

@@ -27,29 +27,34 @@ function ResetPasswordForm() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
+    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 shopping-icons-bg">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="font-serif text-3xl font-bold text-brand-charcoal">Reset Password</h1>
-          <p className="text-gray-500 mt-2">Enter your new password</p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="input-field"
-              placeholder="Min 6 characters"
-              required
-              minLength={6}
-            />
+        <div className="rounded-2xl overflow-hidden shadow-2xl shadow-brand-green/10">
+          <div className="bg-brand-green px-8 py-8 text-center">
+            <h1 className="font-serif text-3xl font-bold text-white">Reset Password</h1>
+            <p className="text-gray-300 mt-1.5 text-sm">Enter your new password</p>
           </div>
-          <button type="submit" className="btn-primary w-full" disabled={loading}>
-            {loading ? 'Resetting...' : 'Reset Password'}
-          </button>
-        </form>
+
+          <div className="bg-white dark:bg-gray-900 px-8 md:px-10 py-8 md:py-10">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input-field"
+                  placeholder="Min 6 characters"
+                  required
+                  minLength={6}
+                />
+              </div>
+              <button type="submit" className="btn-primary w-full" disabled={loading}>
+                {loading ? 'Resetting...' : 'Reset Password'}
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -113,19 +113,9 @@ function ProductsContent() {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal">
-                {search ? `Results for "${search}"` : 'Shop All'}
-              </h1>
-              {search && (
-                <button
-                  onClick={() => router.push('/products')}
-                  className="flex items-center gap-1 px-3 py-1 text-sm text-gray-500 hover:text-brand-green border border-gray-300 rounded-full transition-colors"
-                >
-                  <FiX size={14} /> Clear search
-                </button>
-              )}
-            </div>
+            <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-gold">
+              {searchParams.get('trending') ? 'Trending' : searchParams.get('featured') ? 'New Arrivals' : 'Shop All'}
+            </h1>
             <p className="text-gray-500 mt-2">{total} product{total !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex items-center gap-3">

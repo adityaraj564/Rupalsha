@@ -26,51 +26,67 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center px-4">
-        <div className="text-center max-w-md">
-          <h1 className="font-serif text-3xl font-bold mb-4">Check Your Email</h1>
-          <p className="text-gray-500 mb-6">
-            If an account exists with that email, we&apos;ve sent a password reset link.
-          </p>
-          <Link href="/auth/login" className="btn-secondary inline-block">
-            Back to Login
-          </Link>
+      <div className="min-h-[80vh] flex items-center justify-center px-4 shopping-icons-bg">
+        <div className="w-full max-w-md">
+          <div className="rounded-2xl overflow-hidden shadow-2xl shadow-brand-green/10">
+            <div className="bg-brand-green px-8 py-8 text-center">
+              <h1 className="font-serif text-3xl font-bold text-white">Check Your Email</h1>
+            </div>
+            <div className="bg-white dark:bg-gray-900 px-8 md:px-10 py-8 md:py-10 text-center">
+              <p className="text-gray-500 dark:text-gray-400 mb-6">
+                If an account exists with that email, we&apos;ve sent a password reset link.
+              </p>
+              <Link href="/auth/login" className="btn-secondary inline-block">
+                Back to Login
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
+    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 shopping-icons-bg">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="font-serif text-3xl font-bold text-brand-charcoal">Forgot Password</h1>
-          <p className="text-gray-500 mt-2">Enter your email to receive a reset link</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="input-field"
-              placeholder="your@email.com"
-              required
-            />
+        <div className="rounded-2xl overflow-hidden shadow-2xl shadow-brand-green/10">
+          <div className="bg-brand-green px-8 py-8 text-center">
+            <h1 className="font-serif text-3xl font-bold text-white">Forgot Password</h1>
+            <p className="text-gray-300 mt-1.5 text-sm">Enter your email to receive a reset link</p>
           </div>
 
-          <button type="submit" className="btn-primary w-full" disabled={loading}>
-            {loading ? 'Sending...' : 'Send Reset Link'}
-          </button>
-        </form>
+          <div className="bg-white dark:bg-gray-900 px-8 md:px-10 py-8 md:py-10">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input-field"
+                  placeholder="your@email.com"
+                  required
+                />
+              </div>
 
-        <p className="text-center mt-6">
-          <Link href="/auth/login" className="text-brand-green hover:underline text-sm">
-            Back to Login
-          </Link>
-        </p>
+              <button type="submit" className="btn-primary w-full" disabled={loading}>
+                {loading ? 'Sending...' : 'Send Reset Link'}
+              </button>
+            </form>
+
+            <div className="flex items-center gap-4 my-6">
+              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+              <span className="text-xs text-gray-400 uppercase tracking-wider">or</span>
+              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+            </div>
+
+            <p className="text-center text-sm">
+              <Link href="/auth/login" className="text-brand-green dark:text-brand-gold font-semibold hover:underline">
+                Back to Login
+              </Link>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

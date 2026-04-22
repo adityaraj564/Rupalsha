@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: '/products?featured=true', label: 'New Arrival' },
   { href: '/products?trending=true', label: 'Trending' },
   { href: '/products', label: 'Shop All' },
+  { href: '/blog', label: 'Blog' },
   { href: '/about', label: 'About Us' },
 ];
 
@@ -25,10 +26,15 @@ export default function Header() {
   const [currentCoupon, setCurrentCoupon] = useState(0);
   const [slideAnim, setSlideAnim] = useState(false);
   const searchRef = useRef(null);
+  const searchBarRef = useRef(null);
+  const searchBtnRef = useRef(null);
   const profileRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
+
+  const [showThemeTip, setShowThemeTip] = useState(false);
+  const [searchHistory, setSearchHistory] = useState([]);
 
   const { isAuthenticated, user, logout } = useAuthStore();
   const cartCount = useCartStore((s) => s.getCount());
@@ -46,13 +52,46 @@ export default function Header() {
     setProfileOpen(false);
   }, [pathname]);
 
+  // Redirect content admin to their panel — allow help, about, blog for checking changes
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'subadmin') return;
+    const allowed = ['/content-admin', '/auth/', '/help', '/about', '/blog'];
+    if (allowed.some((p) => pathname.startsWith(p))) return;
+    router.push('/content-admin');
+  }, [isAuthenticated, user, pathname, router]);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+      if (searchOpen && searchBarRef.current && !searchBarRef.current.contains(e.target) && searchBtnRef.current && !searchBtnRef.current.contains(e.target)) {
+        setSearchOpen(false);
+        setSearchQuery('');
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [searchOpen]);
+
+  // Close search on scroll
+  useEffect(() => {
+    if (!searchOpen) return;
+    const handleScroll = () => {
+      setSearchOpen(false);
+      setSearchQuery('');
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [searchOpen]);
+
+  // Show night mode tooltip for first-time visitors (only in light mode)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const seen = localStorage.getItem('rupalsha_theme_tip');
+    if (!seen && !isDark) {
+      const timer = setTimeout(() => setShowThemeTip(true), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [isDark]);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +122,7 @@ export default function Header() {
     const timer = setTimeout(() => {
       if (trimmed.length >= 2) {
         router.push(`/products?search=${encodeURIComponent(trimmed)}`);
+        addToSearchHistory(trimmed);
       } else if (trimmed.length === 0) {
         // When search is fully cleared, show all products
         router.push('/products');
@@ -90,6 +130,37 @@ export default function Header() {
     }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery, searchOpen, router]);
+
+  // Load search history from localStorage
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('rupalsha_search_history') || '[]');
+      if (Array.isArray(saved)) setSearchHistory(saved);
+    } catch {}
+  }, []);
+
+  const addToSearchHistory = (term) => {
+    setSearchHistory((prev) => {
+      // Remove duplicate if exists, add to end, cap at 10 (FIFO)
+      const filtered = prev.filter((s) => s.toLowerCase() !== term.toLowerCase());
+      const updated = [...filtered, term].slice(-10);
+      localStorage.setItem('rupalsha_search_history', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const removeFromSearchHistory = (term) => {
+    setSearchHistory((prev) => {
+      const updated = prev.filter((s) => s !== term);
+      localStorage.setItem('rupalsha_search_history', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const clearSearchHistory = () => {
+    setSearchHistory([]);
+    localStorage.removeItem('rupalsha_search_history');
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -101,8 +172,50 @@ export default function Header() {
     setSearchQuery('');
   };
 
-  const isAdmin = pathname.startsWith('/admin');
+  const isAdmin = pathname.startsWith('/admin') || pathname.startsWith('/content-admin');
+  const isContentAdminBrowsing = user?.role === 'subadmin' && isAuthenticated && !isAdmin;
+
   if (isAdmin) return null;
+
+  // Minimal header for content admin browsing help/about/blog pages
+  if (isContentAdminBrowsing) {
+    return (
+      <header className="sticky top-0 z-50 bg-brand-cream dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
+        <div className="w-full px-4 sm:px-6 lg:px-[50px]">
+          <div className="flex items-center justify-between h-16 md:h-20">
+            <Link href="/content-admin" className="flex-shrink-0 flex items-center gap-2">
+              <Image src="/rupalshaLogo.png" alt="Rupalsha Logo" width={70} height={70} className="rounded-full translate-y-1" priority />
+              <h1 className="hidden md:block font-serif text-2xl md:text-3xl font-bold tracking-wide -ml-1 text-brand-green dark:text-[#F8F0E8] [text-shadow:1px_1px_2px_rgba(200,169,81,0.4)]">RUPALSHA</h1>
+            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/content-admin" className="text-sm font-medium text-brand-gold hover:text-brand-green transition-colors flex items-center gap-1">
+                ← Back to Content Admin
+              </Link>
+              <div className="relative" ref={profileRef}>
+                <button onClick={() => setProfileOpen(!profileOpen)} className="p-2 hover:text-brand-green transition-colors" aria-label="Profile">
+                  <FiUser size={20} />
+                </button>
+                {profileOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
+                    <Link href="/content-admin" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-brand-gold font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <FiUser size={16} /> Content Admin Panel
+                    </Link>
+                    <hr className="my-1 border-gray-100 dark:border-gray-700" />
+                    <button onClick={() => { toggleTheme(); setProfileOpen(false); }} className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full text-left">
+                      {isDark ? <FiSun size={16} /> : <FiMoon size={16} />} {isDark ? 'Light Mode' : 'Night Mode'}
+                    </button>
+                    <button onClick={() => { logout(); setProfileOpen(false); router.push('/auth/login'); }} className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-gray-700 transition-colors w-full text-left">
+                      <FiLogOut size={16} /> Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   const formatCoupon = (c) => {
     const off = c.discountType === 'percentage' ? `${c.discountValue}% off` : `₹${c.discountValue} off`;
@@ -153,10 +266,10 @@ export default function Header() {
                 alt="Rupalsha Logo"
                 width={70}
                 height={70}
-                className="rounded-full"
+                className="rounded-full translate-y-1"
                 priority
               />
-              <h1 className="hidden md:block font-serif text-2xl md:text-3xl font-bold text-brand-green dark:text-[#F8F0E8] tracking-wide">
+              <h1 className="hidden md:block font-serif text-2xl md:text-3xl font-bold tracking-wide -ml-1 text-brand-green dark:text-[#F8F0E8] [text-shadow:1px_1px_2px_rgba(200,169,81,0.4)]">
                 RUPALSHA
               </h1>
             </Link>
@@ -179,6 +292,7 @@ export default function Header() {
             {/* Actions */}
             <div className="flex items-center space-x-3 md:space-x-4">
               <button
+                ref={searchBtnRef}
                 onClick={() => setSearchOpen(!searchOpen)}
                 className="p-2 hover:text-brand-green transition-colors"
                 aria-label="Search"
@@ -215,16 +329,57 @@ export default function Header() {
               {/* Profile Dropdown */}
               <div className="relative" ref={profileRef}>
                 <button
-                  onClick={() => setProfileOpen(!profileOpen)}
+                  onClick={() => { setProfileOpen(!profileOpen); if (showThemeTip) { setShowThemeTip(false); localStorage.setItem('rupalsha_theme_tip', '1'); } }}
                   className="p-2 hover:text-brand-green transition-colors"
                   aria-label="Profile"
                 >
                   <FiUser size={20} />
                 </button>
+
+                {/* Night mode tooltip for first-time users */}
+                {showThemeTip && (
+                  <div className="absolute right-0 mt-2 w-56 z-50 animate-fade-in">
+                    <div className="relative bg-brand-green text-white text-sm rounded-xl px-4 py-3 shadow-lg">
+                      <div className="absolute -top-2 right-4 w-4 h-4 bg-brand-green rotate-45 rounded-sm" />
+                      <div className="relative flex items-start gap-2">
+                        <FiMoon className="mt-0.5 flex-shrink-0 text-brand-gold" size={16} />
+                        <div>
+                          <p className="font-medium">Try Night Mode!</p>
+                          <p className="text-gray-300 text-xs mt-0.5">Tap your profile icon to switch to dark theme.</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setShowThemeTip(false); localStorage.setItem('rupalsha_theme_tip', '1'); }}
+                        className="absolute top-1.5 right-2 text-gray-300 hover:text-white"
+                        aria-label="Dismiss"
+                      >
+                        <FiX size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {profileOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
                     {isAuthenticated ? (
                       <>
+                        {user?.role === 'admin' && (
+                          <Link
+                            href="/admin"
+                            onClick={() => setProfileOpen(false)}
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm text-brand-green dark:text-brand-gold font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <FiUser size={16} /> Admin Panel
+                          </Link>
+                        )}
+                        {user?.role === 'subadmin' && (
+                          <Link
+                            href="/content-admin"
+                            onClick={() => setProfileOpen(false)}
+                            className="flex items-center gap-2 px-4 py-2.5 text-sm text-brand-gold font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <FiUser size={16} /> Content Admin Panel
+                          </Link>
+                        )}
                         <Link
                           href="/profile"
                           onClick={() => setProfileOpen(false)}
@@ -273,7 +428,7 @@ export default function Header() {
 
         {/* Search Bar */}
         {searchOpen && (
-          <div className="border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 animate-slide-down">
+          <div ref={searchBarRef} className="border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 animate-slide-down">
             <div className="w-full px-4 sm:px-6 lg:px-[50px] py-4">
               <form onSubmit={handleSearch} className="flex items-center gap-3">
                 <FiSearch className="text-gray-400" size={20} />
@@ -296,14 +451,44 @@ export default function Header() {
                     <FiX size={16} />
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={handleCloseSearch}
-                  className="text-gray-400 hover:text-gray-600 text-sm"
-                >
-                  Close
-                </button>
               </form>
+
+              {/* Search History */}
+              {searchHistory.length > 0 && !searchQuery && (
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Recent Searches</p>
+                    <button
+                      onClick={clearSearchHistory}
+                      className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {[...searchHistory].reverse().map((term) => (
+                      <div
+                        key={term}
+                        className="group flex items-center gap-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full pl-3 pr-1.5 py-1.5 hover:border-brand-gold/50 transition-colors"
+                      >
+                        <button
+                          onClick={() => { setSearchQuery(term); }}
+                          className="text-sm text-gray-600 dark:text-gray-300 hover:text-brand-charcoal dark:hover:text-white"
+                        >
+                          {term}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeFromSearchHistory(term); }}
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-red-500 transition-colors"
+                          aria-label={`Remove ${term}`}
+                        >
+                          <FiX size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

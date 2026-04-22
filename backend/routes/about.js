@@ -1,8 +1,9 @@
 const express = require('express');
 const About = require('../models/About');
-const { adminAuth } = require('../middleware/auth');
+const { subAdminAuth } = require('../middleware/auth');
 const upload = require('../utils/upload');
 const cloudinary = require('../config/cloudinary');
+const { logActivity } = require('../utils/activityLog');
 
 const router = express.Router();
 
@@ -32,7 +33,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // PUT /api/about - Admin: update about info
-router.put('/', adminAuth, async (req, res, next) => {
+router.put('/', subAdminAuth, async (req, res, next) => {
   try {
     const { companyName, tagline, story, mission, vision, foundedYear } = req.body;
     let about = await About.findOne();
@@ -47,6 +48,7 @@ router.put('/', adminAuth, async (req, res, next) => {
     if (foundedYear !== undefined) about.foundedYear = Number(foundedYear);
 
     await about.save();
+    logActivity({ action: 'update', section: 'about', description: 'Updated about page info', user: req.user });
     res.json({ about });
   } catch (error) {
     next(error);
@@ -54,7 +56,7 @@ router.put('/', adminAuth, async (req, res, next) => {
 });
 
 // PUT /api/about/cover - Admin: upload cover image
-router.put('/cover', adminAuth, upload.single('image'), async (req, res, next) => {
+router.put('/cover', subAdminAuth, upload.single('image'), async (req, res, next) => {
   try {
     let about = await About.findOne();
     if (!about) about = new About();
@@ -69,6 +71,7 @@ router.put('/cover', adminAuth, upload.single('image'), async (req, res, next) =
       public_id: req.file.filename,
     };
     await about.save();
+    logActivity({ action: 'update', section: 'about', description: 'Updated about page cover image', user: req.user });
     res.json({ about });
   } catch (error) {
     next(error);
@@ -76,7 +79,7 @@ router.put('/cover', adminAuth, upload.single('image'), async (req, res, next) =
 });
 
 // PUT /api/about/team/:index - Admin: update team member
-router.put('/team/:index', adminAuth, async (req, res, next) => {
+router.put('/team/:index', subAdminAuth, async (req, res, next) => {
   try {
     const { name, role, title, bio } = req.body;
     const index = Number(req.params.index);
@@ -93,6 +96,7 @@ router.put('/team/:index', adminAuth, async (req, res, next) => {
     if (bio !== undefined) about.team[index].bio = bio;
 
     await about.save();
+    logActivity({ action: 'update', section: 'about', description: `Updated team member: ${about.team[index].name}`, user: req.user });
     res.json({ about });
   } catch (error) {
     next(error);
@@ -100,7 +104,7 @@ router.put('/team/:index', adminAuth, async (req, res, next) => {
 });
 
 // PUT /api/about/team/:index/image - Admin: upload team member image
-router.put('/team/:index/image', adminAuth, upload.single('image'), async (req, res, next) => {
+router.put('/team/:index/image', subAdminAuth, upload.single('image'), async (req, res, next) => {
   try {
     const index = Number(req.params.index);
     let about = await About.findOne();
@@ -120,6 +124,7 @@ router.put('/team/:index/image', adminAuth, upload.single('image'), async (req, 
       public_id: req.file.filename,
     };
     await about.save();
+    logActivity({ action: 'update', section: 'about', description: `Updated team member image: ${about.team[index].name}`, user: req.user });
     res.json({ about });
   } catch (error) {
     next(error);
@@ -127,7 +132,7 @@ router.put('/team/:index/image', adminAuth, upload.single('image'), async (req, 
 });
 
 // POST /api/about/team - Admin: add team member
-router.post('/team', adminAuth, async (req, res, next) => {
+router.post('/team', subAdminAuth, async (req, res, next) => {
   try {
     const { name, role, title, bio } = req.body;
     let about = await About.findOne();
@@ -135,6 +140,7 @@ router.post('/team', adminAuth, async (req, res, next) => {
 
     about.team.push({ name, role, title, bio });
     await about.save();
+    logActivity({ action: 'create', section: 'about', description: `Added team member: ${name}`, user: req.user });
     res.json({ about });
   } catch (error) {
     next(error);
@@ -142,7 +148,7 @@ router.post('/team', adminAuth, async (req, res, next) => {
 });
 
 // DELETE /api/about/team/:index - Admin: remove team member
-router.delete('/team/:index', adminAuth, async (req, res, next) => {
+router.delete('/team/:index', subAdminAuth, async (req, res, next) => {
   try {
     const index = Number(req.params.index);
     let about = await About.findOne();
@@ -157,8 +163,10 @@ router.delete('/team/:index', adminAuth, async (req, res, next) => {
       await cloudinary.uploader.destroy(about.team[index].image.public_id);
     }
 
+    const removedName = about.team[index].name;
     about.team.splice(index, 1);
     await about.save();
+    logActivity({ action: 'delete', section: 'about', description: `Removed team member: ${removedName}`, user: req.user });
     res.json({ about });
   } catch (error) {
     next(error);
