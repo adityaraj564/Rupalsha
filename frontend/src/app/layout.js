@@ -3,7 +3,9 @@ import { Toaster } from 'react-hot-toast';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AuthInit from '@/components/AuthInit';
-import AutoAds from '@/components/AutoAds';
+
+const ADSENSE_CLIENT_ID =
+  process.env.NEXT_PUBLIC_ADSENSE_ID || 'ca-pub-5385129928466192';
 
 export const metadata = {
   title: 'Rupalsha — Where Comfort Meets Style',
@@ -33,6 +35,15 @@ export default function RootLayout({ children }) {
           href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap"
           rel="stylesheet"
         />
+        {/* Google AdSense — server-rendered so the AdSense crawler can verify the site.
+            Auto Ads behavior (including page-level exclusions for /auth, /checkout, /admin, etc.)
+            is controlled from the AdSense dashboard. We do NOT modify AdSense code. */}
+        <meta name="google-adsense-account" content={ADSENSE_CLIENT_ID} />
+        <script
+          async
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
+          crossOrigin="anonymous"
+        />
       </head>
       <body className="min-h-screen flex flex-col bg-brand-cream dark:bg-gray-950 text-brand-charcoal dark:text-gray-100 transition-colors duration-300">
         <AuthInit />
@@ -49,7 +60,6 @@ export default function RootLayout({ children }) {
             },
           }}
         />
-        <AutoAds />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
