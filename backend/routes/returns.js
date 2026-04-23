@@ -6,6 +6,11 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const { auth, adminAuth } = require('../middleware/auth');
 const returnUpload = require('../utils/returnUpload');
+const {
+  sendReturnRequestReceived,
+  sendReturnStatusUpdate,
+  sendReturnAdminAlert,
+} = require('../utils/email');
 
 const MAX_IMAGES = 4;
 const MAX_VIDEO_SECONDS = 30;
@@ -118,6 +123,10 @@ router.post(
       // Reflect on order (keeps old column working)
       order.returnReason = reason;
       await order.save();
+
+      // Notifications (fire-and-forget; errors logged inside helpers)
+      sendReturnRequestReceived(rr, req.user.email, order.orderNumber);
+      sendReturnAdminAlert(rr, req.user.name, req.user.email, order.orderNumber);
 
       res.status(201).json({ return: rr });
     } catch (err) {
@@ -237,6 +246,18 @@ router.patch('/:id/status', adminAuth, async (req, res, next) => {
         order.status = 'returned';
         await order.save();
       }
+    }
+
+    // Notify customer on every status change (fire-and-forget)
+    try {
+      const populated = await ReturnRequest.findById(rr._id)
+        .populate('user', 'email name')
+        .populate('order', 'orderNumber');
+      if (populated?.user?.email && populated?.order?.orderNumber) {
+        sendReturnStatusUpdate(populated, populated.user.email, populated.order.orderNumber);
+      }
+    } catch (e) {
+      console.error('Return status email error:', e.message);
     }
 
     res.json({ return: rr });

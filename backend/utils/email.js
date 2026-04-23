@@ -256,6 +256,139 @@ const sendContactNotificationToAdmin = async (name, email, subject, message) => 
   }
 };
 
+// ===== RETURN EMAILS (SMTP/nodemailer) =====
+// These use the working SMTP transporter (SMTP_HOST/USER/PASS env vars).
+
+const REASON_LABELS = {
+  wrong_item: 'Wrong item received',
+  damaged: 'Item damaged / defective',
+  missing_parts: 'Item missing parts / incomplete',
+  size_issue: "Doesn't fit / size issue",
+  different_from_description: 'Item different from description',
+};
+
+const sendSmtp = async ({ to, subject, html }) => {
+  try {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
+    const transporter = createTransporter();
+    await transporter.sendMail({ from: FROM(), to, subject, html });
+  } catch (err) {
+    console.error('SMTP send error:', err.message);
+  }
+};
+
+const sendReturnRequestReceived = async (returnRequest, userEmail, orderNumber) => {
+  const reasonLabel = REASON_LABELS[returnRequest.reason] || returnRequest.reason;
+  await sendSmtp({
+    to: userEmail,
+    subject: `↩️ Return request received — ${orderNumber}`,
+    html: emailWrapper(`
+      <div style="text-align: center; padding: 20px 0;">
+        <span style="font-size: 48px;">↩️</span>
+        <h2 style="color: #1F3A2F; margin-top: 12px;">Return Request Received</h2>
+      </div>
+      <p style="color: #2B2B2B;">We've received your return request for order <strong>${orderNumber}</strong>.</p>
+      <table style="width: 100%; color: #2B2B2B; font-size: 14px; margin-top: 12px;">
+        <tr><td style="padding: 6px 0;"><strong>Return #:</strong></td><td>${returnRequest.returnNumber}</td></tr>
+        <tr><td style="padding: 6px 0;"><strong>Reason:</strong></td><td>${reasonLabel}</td></tr>
+      </table>
+      <p style="color: #2B2B2B; margin-top: 16px;">Our team is reviewing your request and will contact you soon. You can track the return status from <a href="${process.env.FRONTEND_URL}/orders" style="color:#1F3A2F">My Orders</a>.</p>
+    `),
+  });
+};
+
+const sendReturnStatusUpdate = async (returnRequest, userEmail, orderNumber) => {
+  const statusCopy = {
+    approved: {
+      emoji: '✅',
+      title: 'Return Approved',
+      body: "Your return has been approved. We're scheduling the pickup — you'll get details here and in My Orders shortly.",
+    },
+    pickup_scheduled: {
+      emoji: '📦',
+      title: 'Pickup Scheduled',
+      body: `Your return pickup has been scheduled${
+        returnRequest.pickupDate
+          ? ` for <strong>${new Date(returnRequest.pickupDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>`
+          : ''
+      }${returnRequest.courierName ? ` via <strong>${returnRequest.courierName}</strong>` : ''}${
+        returnRequest.trackingNumber ? ` (Tracking: <strong>${returnRequest.trackingNumber}</strong>)` : ''
+      }.`,
+    },
+    picked_up: {
+      emoji: '🚚',
+      title: 'Package Picked Up',
+      body: `The courier has picked up your package.${
+        returnRequest.trackingNumber ? ` Tracking: <strong>${returnRequest.trackingNumber}</strong>.` : ''
+      } It's on its way to us.`,
+    },
+    received: {
+      emoji: '🏬',
+      title: 'Return Received',
+      body: "We've received your returned item and are processing your refund.",
+    },
+    refunded: {
+      emoji: '💰',
+      title: 'Refund Processed',
+      body: `A refund of <strong>₹${returnRequest.refundAmount || '—'}</strong> has been processed. It should reflect in your account within 5–7 business days.`,
+    },
+    rejected: {
+      emoji: '❌',
+      title: 'Return Not Approved',
+      body: `Your return request could not be approved.${
+        returnRequest.rejectionReason ? ` Reason: <em>${returnRequest.rejectionReason}</em>.` : ''
+      } If you have questions, reply to this email.`,
+    },
+  };
+
+  const info = statusCopy[returnRequest.status];
+  if (!info) return;
+
+  await sendSmtp({
+    to: userEmail,
+    subject: `${info.emoji} ${info.title} — Return ${returnRequest.returnNumber}`,
+    html: emailWrapper(`
+      <div style="text-align: center; padding: 20px 0;">
+        <span style="font-size: 48px;">${info.emoji}</span>
+        <h2 style="color: #1F3A2F; margin-top: 12px;">${info.title}</h2>
+      </div>
+      <p style="color: #2B2B2B; text-align: center; font-size: 16px;">${info.body}</p>
+      <table style="width: 100%; color: #2B2B2B; font-size: 14px; margin-top: 20px;">
+        <tr><td style="padding: 6px 0;"><strong>Return #:</strong></td><td>${returnRequest.returnNumber}</td></tr>
+        <tr><td style="padding: 6px 0;"><strong>Order #:</strong></td><td>${orderNumber}</td></tr>
+      </table>
+      <div style="text-align: center; margin-top: 24px;">
+        <a href="${process.env.FRONTEND_URL}/orders" style="display: inline-block; background: #1F3A2F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">View in My Orders</a>
+      </div>
+    `),
+  });
+};
+
+const sendReturnAdminAlert = async (returnRequest, customerName, customerEmail, orderNumber) => {
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
+  if (!adminEmail) return;
+  const reasonLabel = REASON_LABELS[returnRequest.reason] || returnRequest.reason;
+  await sendSmtp({
+    to: adminEmail,
+    subject: `🔔 New return request — ${returnRequest.returnNumber}`,
+    html: emailWrapper(`
+      <h2 style="color: #1F3A2F;">New Return Request</h2>
+      <table style="width: 100%; color: #2B2B2B; font-size: 14px;">
+        <tr><td style="padding: 6px 0;"><strong>Return #:</strong></td><td>${returnRequest.returnNumber}</td></tr>
+        <tr><td style="padding: 6px 0;"><strong>Order #:</strong></td><td>${orderNumber}</td></tr>
+        <tr><td style="padding: 6px 0;"><strong>Customer:</strong></td><td>${customerName} &lt;${customerEmail}&gt;</td></tr>
+        <tr><td style="padding: 6px 0;"><strong>Reason:</strong></td><td>${reasonLabel}</td></tr>
+        <tr><td style="padding: 6px 0;"><strong>Images:</strong></td><td>${returnRequest.images?.length || 0}</td></tr>
+        <tr><td style="padding: 6px 0;"><strong>Video:</strong></td><td>${returnRequest.video?.url ? 'Yes' : 'No'}</td></tr>
+      </table>
+      ${returnRequest.description ? `<p style="margin-top: 12px;"><strong>Customer note:</strong> ${returnRequest.description}</p>` : ''}
+      <div style="text-align: center; margin-top: 24px;">
+        <a href="${process.env.FRONTEND_URL}/admin/returns" style="display: inline-block; background: #1F3A2F; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Review in Admin</a>
+      </div>
+    `),
+  });
+};
+
 module.exports = {
   sendOrderConfirmation,
   sendOrderStatusUpdate,
@@ -266,4 +399,7 @@ module.exports = {
   sendPasswordChangeConfirmation,
   sendContactConfirmation,
   sendContactNotificationToAdmin,
+  sendReturnRequestReceived,
+  sendReturnStatusUpdate,
+  sendReturnAdminAlert,
 };
