@@ -6,6 +6,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const { auth, adminAuth } = require('../middleware/auth');
 const returnUpload = require('../utils/returnUpload');
+const { applyWalletTransaction } = require('../utils/wallet');
 const {
   sendReturnRequestReceived,
   sendReturnStatusUpdate,
@@ -31,6 +32,10 @@ router.post(
         return res.status(400).json({ error: 'Invalid reason' });
       }
 
+      // Refund method: COD orders always get wallet refund. Online orders default to wallet
+      // but can pick 'original' for bank/card reversal (5–7 days).
+      let refundMethod = req.body.refundMethod === 'original' ? 'original' : 'wallet';
+
       const order = await Order.findById(orderId);
       if (!order) return res.status(404).json({ error: 'Order not found' });
       if (String(order.user) !== String(req.user._id)) {
@@ -38,6 +43,9 @@ router.post(
       }
       if (order.status !== 'delivered') {
         return res.status(400).json({ error: 'Return can only be raised on delivered orders' });
+      }
+      if (order.paymentMethod === 'cod') {
+        refundMethod = 'wallet'; // enforce
       }
 
       // Return window check
@@ -92,6 +100,7 @@ router.post(
         reason,
         description,
         images: uploadedImages,
+        refundMethod,
       });
 
       // Reflect on order (keeps old column working)
@@ -219,6 +228,27 @@ router.patch('/:id/status', adminAuth, async (req, res, next) => {
       if (order && order.status !== 'returned') {
         order.status = 'returned';
         await order.save();
+      }
+
+      // Auto-credit the Rupalsha Wallet when refund method is 'wallet'.
+      // For 'original' method, admin is expected to process the bank/card reversal
+      // manually via Razorpay dashboard — we just record the status here.
+      if (rr.refundMethod === 'wallet' && rr.refundAmount > 0) {
+        try {
+          await applyWalletTransaction({
+            userId: rr.user,
+            type: 'credit',
+            source: 'refund',
+            amount: rr.refundAmount,
+            description: `Refund for return ${rr.returnNumber}`,
+            returnRequest: rr._id,
+            order: rr.order,
+            performedBy: req.user._id,
+            status: 'completed',
+          });
+        } catch (e) {
+          console.error('Wallet refund credit failed:', e.message);
+        }
       }
     }
 

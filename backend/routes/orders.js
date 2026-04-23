@@ -4,8 +4,10 @@ const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const Coupon = require('../models/Coupon');
+const Wallet = require('../models/Wallet');
 const { auth } = require('../middleware/auth');
 const { sendOrderConfirmation, sendOrderCancellation, sendReturnConfirmation } = require('../utils/email');
+const { applyWalletTransaction } = require('../utils/wallet');
 
 const router = express.Router();
 
@@ -14,10 +16,12 @@ const FREE_SHIPPING_THRESHOLD = 999;
 // POST /api/orders - Create order
 router.post('/', auth, [
   body('shippingAddress').isObject(),
-  body('paymentMethod').isIn(['razorpay', 'cod']),
+  body('paymentMethod').isIn(['razorpay', 'cod', 'wallet']),
 ], async (req, res, next) => {
   try {
     const { shippingAddress, paymentMethod, couponCode } = req.body;
+    const useWallet = Boolean(req.body.useWallet);        // apply wallet as partial payment
+    const walletAmountRequested = Math.max(0, Math.round(Number(req.body.walletAmount) || 0));
 
     const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
     if (!cart || cart.items.length === 0) {
@@ -80,19 +84,66 @@ router.post('/', auth, [
 
     const totalAmount = itemsTotal + shippingCharge - discount;
 
+    // Determine how much to pull from wallet.
+    // If paymentMethod === 'wallet'  => pay the entire total from wallet (else reject).
+    // Else if useWallet              => use min(balance, requested OR total) as partial, rest via razorpay/cod.
+    let walletAmount = 0;
+    if (paymentMethod === 'wallet' || useWallet) {
+      const wallet = await Wallet.findOrCreate(req.user._id);
+      if (paymentMethod === 'wallet') {
+        if (wallet.balance < totalAmount) {
+          return res.status(400).json({ error: `Wallet balance (₹${wallet.balance}) is less than total (₹${totalAmount}).` });
+        }
+        walletAmount = totalAmount;
+      } else {
+        const requested = walletAmountRequested > 0 ? walletAmountRequested : wallet.balance;
+        walletAmount = Math.min(wallet.balance, requested, totalAmount);
+      }
+    }
+
+    const remainingToPay = totalAmount - walletAmount;
+    // Sanity: can't use useWallet + cod/razorpay with zero remaining unless paymentMethod is 'wallet'
+    if (paymentMethod !== 'wallet' && remainingToPay === 0) {
+      // Effectively a full-wallet payment even though user chose cod/razorpay
+      // Treat it as paymentMethod=wallet for consistency.
+    }
+
+    const effectivePaymentMethod = remainingToPay === 0 ? 'wallet' : paymentMethod === 'wallet' ? 'wallet' : paymentMethod;
+
     const order = await Order.create({
       user: req.user._id,
       items: orderItems,
       shippingAddress,
-      paymentMethod,
+      paymentMethod: effectivePaymentMethod,
       itemsTotal,
       shippingCharge,
       discount,
+      walletAmount,
       couponCode: couponCode?.toUpperCase(),
       totalAmount,
-      isPaid: paymentMethod === 'cod' ? false : false,
-      status: paymentMethod === 'cod' ? 'confirmed' : 'pending',
+      // Fully wallet-paid orders are immediately paid & confirmed.
+      isPaid: effectivePaymentMethod === 'wallet' ? true : false,
+      paidAt: effectivePaymentMethod === 'wallet' ? new Date() : undefined,
+      status: effectivePaymentMethod === 'cod' || effectivePaymentMethod === 'wallet' ? 'confirmed' : 'pending',
     });
+
+    // Debit wallet (if any amount used) — happens after order is created so we can link it.
+    if (walletAmount > 0) {
+      try {
+        await applyWalletTransaction({
+          userId: req.user._id,
+          type: 'debit',
+          source: 'order_payment',
+          amount: walletAmount,
+          description: `Payment for order ${order.orderNumber}`,
+          order: order._id,
+        });
+      } catch (err) {
+        // Rollback the order if wallet debit fails.
+        await Order.deleteOne({ _id: order._id });
+        return res.status(400).json({ error: err.message || 'Wallet debit failed' });
+      }
+    }
 
     // Reduce stock
     for (const item of orderItems) {

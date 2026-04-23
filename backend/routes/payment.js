@@ -69,8 +69,13 @@ router.post('/create-order', auth, async (req, res, next) => {
     }
 
     const razorpay = getRazorpayInstance();
+    // Charge only the remainder if wallet was partially applied
+    const payable = Math.max(0, (order.totalAmount || 0) - (order.walletAmount || 0));
+    if (payable <= 0) {
+      return res.status(400).json({ error: 'Nothing to pay — order is already covered by wallet.' });
+    }
     const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(order.totalAmount * 100), // amount in paise
+      amount: Math.round(payable * 100), // amount in paise
       currency: 'INR',
       receipt: order.orderNumber,
     });

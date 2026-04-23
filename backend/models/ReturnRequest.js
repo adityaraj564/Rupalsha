@@ -61,6 +61,14 @@ const returnRequestSchema = new mongoose.Schema({
   refundAmount: Number,
   refundedAt: Date,
 
+  // Refund method chosen by customer.
+  // COD orders are forced to 'wallet' on the backend.
+  refundMethod: {
+    type: String,
+    enum: ['wallet', 'original'],
+    default: 'wallet',
+  },
+
   rejectionReason: String,
 }, { timestamps: true });
 

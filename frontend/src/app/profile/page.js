@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiUser, FiPackage, FiHeart, FiMapPin, FiLock, FiLogOut, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiUser, FiPackage, FiHeart, FiMapPin, FiLock, FiLogOut, FiEdit2, FiTrash2, FiCreditCard } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -151,10 +151,14 @@ export default function ProfilePage() {
       <h1 className="font-serif text-3xl font-bold text-brand-charcoal mb-8">My Account</h1>
 
       {/* Quick Links */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         <Link href="/orders" className="card p-4 text-center hover:shadow-md transition-shadow">
           <FiPackage className="mx-auto mb-2 text-brand-green dark:text-[#F8F0E8]" size={24} />
           <span className="text-sm font-medium">My Orders</span>
+        </Link>
+        <Link href="/wallet" className="card p-4 text-center hover:shadow-md transition-shadow">
+          <FiCreditCard className="mx-auto mb-2 text-brand-green dark:text-[#F8F0E8]" size={24} />
+          <span className="text-sm font-medium">Wallet</span>
         </Link>
         <Link href="/wishlist" className="card p-4 text-center hover:shadow-md transition-shadow">
           <FiHeart className="mx-auto mb-2 text-brand-green dark:text-[#F8F0E8]" size={24} />

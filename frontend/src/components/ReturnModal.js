@@ -16,9 +16,11 @@ const REASONS = [
 const MAX_IMAGES = 4;
 
 export default function ReturnModal({ order, onClose, onSuccess }) {
+  const isCod = order?.paymentMethod === 'cod';
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
   const [images, setImages] = useState([]);           // File[]
+  const [refundMethod, setRefundMethod] = useState('wallet');
   const [submitting, setSubmitting] = useState(false);
   const imageInputRef = useRef(null);
 
@@ -59,6 +61,7 @@ export default function ReturnModal({ order, onClose, onSuccess }) {
         price: it.price,
       }));
       fd.append('items', JSON.stringify(items));
+      fd.append('refundMethod', isCod ? 'wallet' : refundMethod);
       images.forEach((img) => fd.append('images', img));
 
       const res = await returnsAPI.create(fd);
@@ -152,6 +155,48 @@ export default function ReturnModal({ order, onClose, onSuccess }) {
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Refund method */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Refund method *</label>
+            {isCod ? (
+              <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/40 text-sm">
+                Your refund will be credited to your <strong>Rupalsha Wallet</strong> instantly once approved.
+                COD orders cannot be refunded to a bank account.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition ${refundMethod === 'wallet' ? 'border-brand-green bg-green-50/50 dark:bg-green-900/20' : 'dark:border-gray-700'}`}>
+                  <input
+                    type="radio"
+                    name="refundMethod"
+                    value="wallet"
+                    checked={refundMethod === 'wallet'}
+                    onChange={(e) => setRefundMethod(e.target.value)}
+                    className="accent-brand-green mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-sm">Rupalsha Wallet <span className="text-xs text-green-700 dark:text-green-400 ml-1">(Instant)</span></p>
+                    <p className="text-xs text-gray-500">Get refund credited instantly. Use balance on your next order.</p>
+                  </div>
+                </label>
+                <label className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition ${refundMethod === 'original' ? 'border-brand-green bg-green-50/50 dark:bg-green-900/20' : 'dark:border-gray-700'}`}>
+                  <input
+                    type="radio"
+                    name="refundMethod"
+                    value="original"
+                    checked={refundMethod === 'original'}
+                    onChange={(e) => setRefundMethod(e.target.value)}
+                    className="accent-brand-green mt-1"
+                  />
+                  <div>
+                    <p className="font-medium text-sm">Original payment source</p>
+                    <p className="text-xs text-gray-500">Refund will be processed to your original payment account in 5–7 business days.</p>
+                  </div>
+                </label>
+              </div>
+            )}
           </div>
 
           <p className="text-xs text-gray-500 dark:text-gray-400">

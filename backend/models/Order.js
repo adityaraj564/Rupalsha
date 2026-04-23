@@ -35,7 +35,7 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['razorpay', 'cod'],
+    enum: ['razorpay', 'cod', 'wallet'],
     required: true,
   },
   paymentResult: {
@@ -47,6 +47,8 @@ const orderSchema = new mongoose.Schema({
   itemsTotal: { type: Number, required: true },
   shippingCharge: { type: Number, default: 0 },
   discount: { type: Number, default: 0 },
+  // Amount paid from wallet (partial or full). Razorpay/COD covers the remainder.
+  walletAmount: { type: Number, default: 0, min: 0 },
   couponCode: String,
   totalAmount: { type: Number, required: true },
   isPaid: { type: Boolean, default: false },

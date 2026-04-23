@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers, FiClipboard, FiSun, FiMoon, FiImage, FiFileText, FiActivity, FiRotateCcw } from 'react-icons/fi';
+import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers, FiClipboard, FiSun, FiMoon, FiImage, FiFileText, FiActivity, FiRotateCcw, FiCreditCard } from 'react-icons/fi';
 import { useAuthStore, useThemeStore } from '@/lib/store';
 import { AdminDashboardSkeleton } from '@/components/Skeleton';
 
@@ -15,6 +15,7 @@ const ADMIN_NAV = [
   { href: '/admin/orders', label: 'Orders', icon: FiShoppingCart },
   { href: '/admin/returns', label: 'Returns', icon: FiRotateCcw },
   { href: '/admin/users', label: 'Users', icon: FiUsers },
+  { href: '/admin/wallets', label: 'Wallets', icon: FiCreditCard },
   { href: '/admin/reviews', label: 'Reviews', icon: FiStar },
   { href: '/admin/coupons', label: 'Coupons', icon: FiTag },
   { href: '/admin/banners', label: 'Banners', icon: FiImage },

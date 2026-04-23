@@ -181,6 +181,20 @@ export const returnsAPI = {
   updateStatus: (id, data) => request(`/returns/${id}/status`, { method: 'PATCH', body: data }),
 };
 
+// Wallet
+export const walletAPI = {
+  get: () => request('/wallet'),
+  transactions: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/wallet/transactions?${query}`);
+  },
+  rechargeCreate: (amount) => request('/wallet/recharge/create', { method: 'POST', body: { amount } }),
+  rechargeVerify: (data) => request('/wallet/recharge/verify', { method: 'POST', body: data }),
+  // Admin
+  adminGetUser: (userId) => request(`/wallet/admin/user/${userId}`),
+  adminAdjust: (data) => request('/wallet/admin/adjust', { method: 'POST', body: data }),
+};
+
 // Reviews
 export const reviewsAPI = {
   getByProduct: (productId, params) => {

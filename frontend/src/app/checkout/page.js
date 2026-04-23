@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiMapPin, FiPlus, FiCreditCard, FiTruck, FiMinus, FiTrash2, FiTag } from 'react-icons/fi';
 import { useAuthStore, useCartStore } from '@/lib/store';
-import { ordersAPI, couponsAPI, paymentAPI, authAPI } from '@/lib/api';
+import { ordersAPI, couponsAPI, paymentAPI, authAPI, walletAPI } from '@/lib/api';
 import { CartSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
@@ -22,6 +22,8 @@ export default function CheckoutPage() {
   const [couponApplied, setCouponApplied] = useState('');
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [processing, setProcessing] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [useWallet, setUseWallet] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [newAddress, setNewAddress] = useState({
     fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
@@ -55,6 +57,7 @@ export default function CheckoutPage() {
     authAPI.getMe().then(({ user: fresh }) => {
       updateUser(fresh);
     }).catch(() => {});
+    walletAPI.get().then(({ balance }) => setWalletBalance(balance || 0)).catch(() => {});
   }, [isAuthenticated, isLoading]);
 
   useEffect(() => {
@@ -76,6 +79,9 @@ export default function CheckoutPage() {
   const maxProductShipping = Math.max(...items.map(item => item.product?.shippingCharge || 0), 0);
   const shipping = subtotal >= 999 ? 0 : maxProductShipping;
   const total = subtotal + shipping - discount;
+  const walletApplied = useWallet ? Math.min(walletBalance, total) : 0;
+  const amountPayable = total - walletApplied;
+  const walletCoversAll = walletApplied >= total && total > 0;
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -123,13 +129,22 @@ export default function CheckoutPage() {
 
     setProcessing(true);
     try {
+      const effectivePaymentMethod = walletCoversAll ? 'wallet' : paymentMethod;
       const { order } = await ordersAPI.create({
         shippingAddress: selectedAddress,
-        paymentMethod,
+        paymentMethod: effectivePaymentMethod,
         couponCode: couponApplied || undefined,
+        useWallet: useWallet && !walletCoversAll,
+        walletAmount: useWallet && !walletCoversAll ? walletApplied : undefined,
       });
 
-      if (paymentMethod === 'cod') {
+      if (effectivePaymentMethod === 'wallet' || order.isPaid) {
+        toast.success('Order placed successfully!');
+        router.push(`/orders/${order._id}?success=true`);
+        return;
+      }
+
+      if (effectivePaymentMethod === 'cod') {
         toast.success('Order placed successfully!');
         router.push(`/orders/${order._id}?success=true`);
         return;
@@ -319,44 +334,74 @@ export default function CheckoutPage() {
             <h2 className="font-serif text-xl font-semibold mb-4 flex items-center gap-2">
               <FiCreditCard className="text-brand-green dark:text-[#F8F0E8]" /> Payment Method
             </h2>
-            <div className="space-y-3">
-              <label
-                className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${
-                  paymentMethod === 'razorpay' ? 'border-brand-green bg-green-50/50 dark:bg-green-900/30' : 'border-gray-200 dark:border-gray-600'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="payment"
-                  value="razorpay"
-                  checked={paymentMethod === 'razorpay'}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="accent-brand-green"
-                />
-                <div>
-                  <p className="font-medium">Pay Online</p>
-                  <p className="text-sm text-gray-500">UPI, Cards, Net Banking via Razorpay</p>
+
+            {/* Wallet toggle */}
+            {walletBalance > 0 && (
+              <label className="flex items-center justify-between gap-3 p-4 mb-3 border rounded-xl cursor-pointer bg-green-50/40 dark:bg-green-900/20 border-green-600/40">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={useWallet}
+                    onChange={(e) => setUseWallet(e.target.checked)}
+                    className="accent-brand-green w-4 h-4"
+                  />
+                  <div>
+                    <p className="font-medium">Use Rupalsha Wallet</p>
+                    <p className="text-sm text-gray-500">
+                      Balance: ₹{walletBalance.toLocaleString('en-IN')}
+                      {useWallet && walletApplied > 0 && ` • Applying ₹${walletApplied.toLocaleString('en-IN')}`}
+                    </p>
+                  </div>
                 </div>
               </label>
-              <label
-                className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${
-                  paymentMethod === 'cod' ? 'border-brand-green bg-green-50/50 dark:bg-green-900/30' : 'border-gray-200 dark:border-gray-600'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="payment"
-                  value="cod"
-                  checked={paymentMethod === 'cod'}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="accent-brand-green"
-                />
-                <div>
-                  <p className="font-medium">Cash on Delivery</p>
-                  <p className="text-sm text-gray-500">Pay when you receive your order</p>
-                </div>
-              </label>
-            </div>
+            )}
+
+            {walletCoversAll ? (
+              <div className="p-4 border rounded-xl bg-brand-green/5 border-brand-green/30">
+                <p className="text-sm">
+                  Your wallet covers the full amount. No additional payment needed.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <label
+                  className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${
+                    paymentMethod === 'razorpay' ? 'border-brand-green bg-green-50/50 dark:bg-green-900/30' : 'border-gray-200 dark:border-gray-600'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="razorpay"
+                    checked={paymentMethod === 'razorpay'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="accent-brand-green"
+                  />
+                  <div>
+                    <p className="font-medium">Pay Online</p>
+                    <p className="text-sm text-gray-500">UPI, Cards, Net Banking via Razorpay</p>
+                  </div>
+                </label>
+                <label
+                  className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${
+                    paymentMethod === 'cod' ? 'border-brand-green bg-green-50/50 dark:bg-green-900/30' : 'border-gray-200 dark:border-gray-600'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="cod"
+                    checked={paymentMethod === 'cod'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="accent-brand-green"
+                  />
+                  <div>
+                    <p className="font-medium">Cash on Delivery</p>
+                    <p className="text-sm text-gray-500">Pay when you receive your order</p>
+                  </div>
+                </label>
+              </div>
+            )}
           </div>
         </div>
 
@@ -479,6 +524,18 @@ export default function CheckoutPage() {
                 <span>Total</span>
                 <span>₹{total.toLocaleString()}</span>
               </div>
+              {walletApplied > 0 && (
+                <>
+                  <div className="flex justify-between text-green-700 dark:text-green-400">
+                    <span>Wallet applied</span>
+                    <span>-₹{walletApplied.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <span>Payable now</span>
+                    <span>₹{amountPayable.toLocaleString()}</span>
+                  </div>
+                </>
+              )}
             </div>
 
             <button
@@ -486,7 +543,13 @@ export default function CheckoutPage() {
               disabled={processing || !selectedAddress}
               className="btn-primary w-full mt-6"
             >
-              {processing ? 'Processing...' : paymentMethod === 'cod' ? 'Place Order (COD)' : 'Pay & Place Order'}
+              {processing
+                ? 'Processing...'
+                : walletCoversAll
+                ? 'Pay from Wallet & Place Order'
+                : paymentMethod === 'cod'
+                ? 'Place Order (COD)'
+                : 'Pay & Place Order'}
             </button>
           </div>
         </div>
