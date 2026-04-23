@@ -11,6 +11,30 @@ const router = express.Router();
 
 const MIN_RECHARGE = 100;
 const MAX_RECHARGE = 50000;
+const PENDING_EXPIRY_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+/**
+ * Mark any pending recharge transactions older than PENDING_EXPIRY_MS as failed.
+ * Runs lazily on user reads and periodically via the sweeper (server.js).
+ */
+const expireStalePendingRecharges = async (userId) => {
+  const cutoff = new Date(Date.now() - PENDING_EXPIRY_MS);
+  const filter = {
+    status: 'pending',
+    source: 'recharge',
+    createdAt: { $lt: cutoff },
+  };
+  if (userId) filter.user = userId;
+  await WalletTransaction.updateMany(filter, {
+    $set: {
+      status: 'failed',
+      description: 'Recharge expired (no payment confirmation within 2 hours)',
+    },
+  });
+};
+
+// Expose sweeper for server.js to schedule globally
+router.expireStalePendingRecharges = expireStalePendingRecharges;
 
 const getRazorpayInstance = () => {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -29,6 +53,7 @@ const getRazorpayInstance = () => {
 // GET /api/wallet — current balance + recent transactions
 router.get('/', auth, async (req, res, next) => {
   try {
+    await expireStalePendingRecharges(req.user._id);
     const wallet = await Wallet.findOrCreate(req.user._id);
     const transactions = await WalletTransaction.find({ user: req.user._id })
       .sort({ createdAt: -1 })
@@ -42,6 +67,7 @@ router.get('/', auth, async (req, res, next) => {
 // GET /api/wallet/transactions — paginated transaction history
 router.get('/transactions', auth, async (req, res, next) => {
   try {
+    await expireStalePendingRecharges(req.user._id);
     const { page = 1, limit = 20 } = req.query;
     const pageNum = Math.max(1, Number(page));
     const limitNum = Math.min(100, Number(limit));
@@ -122,6 +148,16 @@ router.post('/recharge/verify', auth, async (req, res, next) => {
 
     if (!pending) {
       return res.status(404).json({ error: 'Recharge transaction not found or already processed' });
+    }
+
+    // Reject if the pending recharge has exceeded the 2-hour window.
+    if (Date.now() - new Date(pending.createdAt).getTime() > PENDING_EXPIRY_MS) {
+      pending.status = 'failed';
+      pending.description = 'Recharge expired (no payment confirmation within 2 hours)';
+      await pending.save();
+      return res.status(400).json({
+        error: 'This recharge has expired. Please start a new recharge. If money was deducted, contact support.',
+      });
     }
 
     // Credit the wallet with a new completed transaction linking to the razorpay details

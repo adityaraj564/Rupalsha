@@ -93,7 +93,8 @@ app.use('/api/categories', require('./routes/categories'));
 app.use('/api/cart', require('./routes/cart'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/returns', require('./routes/returns'));
-app.use('/api/wallet', require('./routes/wallet'));
+const walletRoutes = require('./routes/wallet');
+app.use('/api/wallet', walletRoutes);
 app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/wishlist', require('./routes/wishlist'));
 app.use('/api/users', require('./routes/users'));
@@ -123,5 +124,14 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
 });
+
+// Sweep stale pending wallet recharges every 10 minutes (expires any > 2h old).
+setInterval(() => {
+  if (walletRoutes && typeof walletRoutes.expireStalePendingRecharges === 'function') {
+    walletRoutes.expireStalePendingRecharges().catch((err) => {
+      console.error('[wallet sweep] failed:', err.message);
+    });
+  }
+}, 10 * 60 * 1000);
 
 module.exports = app;
