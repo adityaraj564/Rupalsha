@@ -134,14 +134,18 @@ export default function WalletPage() {
       </div>
 
       {/* Balance */}
-      <div className="bg-gradient-to-br from-brand-green to-green-800 text-white rounded-2xl p-6 mb-6 shadow-lg">
-        <p className="text-sm text-white/80">Current balance</p>
-        <p className="font-serif text-4xl font-bold mt-1">
-          {loading ? '—' : `₹${balance.toLocaleString('en-IN')}`}
-        </p>
-        <p className="text-xs text-white/70 mt-2">
-          Use your balance at checkout for instant payments.
-        </p>
+      <div className="relative overflow-hidden bg-gradient-to-br from-brand-green via-emerald-700 to-green-900 dark:from-purple-700 dark:via-fuchsia-700 dark:to-indigo-900 text-white rounded-2xl p-6 mb-6 shadow-lg dark:shadow-purple-900/40">
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="absolute -bottom-12 -left-8 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative">
+          <p className="text-sm text-white/80">Current balance</p>
+          <p className="font-serif text-4xl font-bold mt-1">
+            {loading ? '—' : `₹${balance.toLocaleString('en-IN')}`}
+          </p>
+          <p className="text-xs text-white/70 mt-2">
+            Use your balance at checkout for instant payments.
+          </p>
+        </div>
       </div>
 
       {/* Recharge */}
@@ -149,16 +153,23 @@ export default function WalletPage() {
         <h2 className="font-serif text-lg font-semibold mb-3">Add money</h2>
         <form onSubmit={onRecharge} className="space-y-3">
           <div className="flex flex-wrap gap-2">
-            {QUICK_AMOUNTS.map((a) => (
-              <button
-                key={a}
-                type="button"
-                onClick={() => setRechargeAmount(String(a))}
-                className="px-4 py-2 border rounded-lg text-sm hover:border-brand-green hover:text-brand-green dark:border-gray-700"
-              >
-                ₹{a}
-              </button>
-            ))}
+            {QUICK_AMOUNTS.map((a) => {
+              const active = rechargeAmount === String(a);
+              return (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => setRechargeAmount(String(a))}
+                  className={`px-4 py-2 border rounded-lg text-sm transition-colors ${
+                    active
+                      ? 'border-brand-green bg-brand-green/10 text-brand-green dark:border-fuchsia-500 dark:bg-fuchsia-500/20 dark:text-fuchsia-300'
+                      : 'hover:border-brand-green hover:text-brand-green dark:border-gray-700 dark:hover:border-fuchsia-500 dark:hover:text-fuchsia-300'
+                  }`}
+                >
+                  ₹{a}
+                </button>
+              );
+            })}
           </div>
           <div className="flex items-center gap-3">
             <div className="flex-1">
@@ -175,7 +186,7 @@ export default function WalletPage() {
             <button
               type="submit"
               disabled={processing || !rechargeAmount}
-              className="px-5 py-2.5 bg-brand-green text-white rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-60 inline-flex items-center gap-2"
+              className="px-5 py-2.5 bg-brand-green text-white rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-60 inline-flex items-center gap-2 dark:bg-gradient-to-r dark:from-fuchsia-600 dark:to-purple-700 dark:hover:from-fuchsia-500 dark:hover:to-purple-600 dark:shadow-lg dark:shadow-fuchsia-900/30"
             >
               <FiPlus size={16} />
               {processing ? 'Processing...' : 'Recharge'}
@@ -204,8 +215,8 @@ export default function WalletPage() {
                   <div
                     className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
                       isCredit
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        ? 'bg-green-100 text-green-700 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-1 dark:ring-emerald-500/30'
+                        : 'bg-red-100 text-red-700 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-1 dark:ring-rose-500/30'
                     }`}
                   >
                     <Icon size={16} />
@@ -228,7 +239,7 @@ export default function WalletPage() {
                   </div>
                   <div
                     className={`text-sm font-semibold ${
-                      isCredit ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
+                      isCredit ? 'text-green-700 dark:text-emerald-300' : 'text-red-700 dark:text-rose-300'
                     }`}
                   >
                     {isCredit ? '+' : '−'}₹{tx.amount.toLocaleString('en-IN')}
