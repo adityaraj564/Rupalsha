@@ -28,12 +28,14 @@ export default function AdBanner({ adSlot, format = 'auto', className = '' }) {
 
   if (!adSlot) return null;
 
+  const client = process.env.NEXT_PUBLIC_ADSENSE_ID || 'ca-pub-5385129928466192';
+
   return (
     <div className={`ad-banner overflow-hidden text-center ${className}`}>
       <ins
         className="adsbygoogle"
         style={{ display: 'block' }}
-        data-ad-client={process.env.NEXT_PUBLIC_ADSENSE_ID}
+        data-ad-client={client}
         data-ad-slot={adSlot}
         data-ad-format={format}
         data-full-width-responsive="true"
