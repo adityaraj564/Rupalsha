@@ -225,6 +225,38 @@ export default function ProductDetailPage() {
     ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
     : 0;
 
+  // Google/Merchant/SEO structured data for this product.
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://rupalsha.com').replace(/\/$/, '');
+  const productHasStock = (product.sizes || []).some((s) => s.stock > 0);
+  const jsonLd = {
+    '@context': 'https://schema.org/',
+    '@type': 'Product',
+    name: product.name,
+    description: String(product.description || '').replace(/<[^>]+>/g, ' ').slice(0, 4900),
+    image: (product.images || []).map((i) => i.url).filter(Boolean),
+    sku: product.productCode || product._id,
+    brand: { '@type': 'Brand', name: 'Rupalsha' },
+    offers: {
+      '@type': 'Offer',
+      url: `${siteUrl}/product/${product.slug}`,
+      priceCurrency: 'INR',
+      price: Number(product.price).toFixed(2),
+      availability: productHasStock
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      itemCondition: 'https://schema.org/NewCondition',
+    },
+    ...(product.numReviews > 0 && product.averageRating > 0
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: Number(product.averageRating).toFixed(1),
+            reviewCount: product.numReviews,
+          },
+        }
+      : {}),
+  };
+
   const getStockForSize = (sizeName) => {
     const s = product.sizes.find((sz) => sz.size === sizeName);
     return s ? s.stock : 0;
@@ -235,6 +267,11 @@ export default function ProductDetailPage() {
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12 animate-fade-in" style={{ overflowClipMargin: 'content-box', overflowX: 'clip' }}>
+      {/* Product structured data for Google Search & Merchant Center */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 mb-8 overflow-hidden">
         <Link href="/" className="hover:text-brand-green">Home</Link>
