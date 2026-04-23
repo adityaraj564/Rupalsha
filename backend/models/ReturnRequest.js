@@ -16,6 +16,7 @@ const RETURN_STATUSES = [
   'received',      // returned item received at warehouse
   'refunded',
   'rejected',
+  'closed',        // cancelled by customer or admin
 ];
 
 const returnItemSchema = new mongoose.Schema({

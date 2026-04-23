@@ -173,6 +173,7 @@ export const returnsAPI = {
   getMine: () => request('/returns/my'),
   getByOrder: (orderId) => request(`/returns/by-order/${orderId}`),
   getById: (id) => request(`/returns/${id}`),
+  cancel: (id) => request(`/returns/${id}/cancel`, { method: 'POST' }),
   // Admin
   listAll: (params = {}) => {
     const query = new URLSearchParams(params).toString();

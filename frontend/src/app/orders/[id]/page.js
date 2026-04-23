@@ -169,26 +169,42 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Return request tracker (if any) */}
-      {returnRequest && <ReturnTracker returnRequest={returnRequest} />}
+      {returnRequest && (
+        <ReturnTracker
+          returnRequest={returnRequest}
+          onCancel={async () => {
+            if (!confirm('Cancel this return request? This cannot be undone.')) return;
+            try {
+              const { return: updated } = await returnsAPI.cancel(returnRequest._id);
+              setReturnRequest(updated);
+              toast.success('Return cancelled');
+            } catch (err) {
+              toast.error(err.message || 'Failed to cancel return');
+            }
+          }}
+        />
+      )}
 
       {/* Status Tracker */}
       {!['cancelled', 'returned', 'failed'].includes(order.status) && (
         <div className="card p-6 mb-6">
-          <div className="flex items-center justify-between relative">
-            <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200" />
-            <div className="absolute top-4 left-0 h-0.5 bg-brand-green transition-all" style={{ width: `${(currentStep / (STATUS_STEPS.length - 1)) * 100}%` }} />
-            {STATUS_STEPS.map((step, i) => (
-              <div key={step} className="relative flex flex-col items-center z-10">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                  i <= currentStep ? 'bg-brand-green text-white' : 'bg-gray-200 text-gray-400'
-                }`}>
-                  {i <= currentStep ? '✓' : i + 1}
+          <div className="overflow-x-auto -mx-2 px-2 scrollbar-hide">
+            <div className="flex items-center justify-between relative min-w-[420px]">
+              <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200" />
+              <div className="absolute top-4 left-0 h-0.5 bg-brand-green transition-all" style={{ width: `${(currentStep / (STATUS_STEPS.length - 1)) * 100}%` }} />
+              {STATUS_STEPS.map((step, i) => (
+                <div key={step} className="relative flex flex-col items-center z-10 flex-1">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
+                    i <= currentStep ? 'bg-brand-green text-white' : 'bg-gray-200 text-gray-400'
+                  }`}>
+                    {i <= currentStep ? '✓' : i + 1}
+                  </div>
+                  <span className={`text-xs mt-2 capitalize text-center leading-tight px-1 ${i <= currentStep ? 'text-brand-green dark:text-[#F8F0E8] font-medium' : 'text-gray-400'}`}>
+                    {step}
+                  </span>
                 </div>
-                <span className={`text-xs mt-2 capitalize hidden md:block ${i <= currentStep ? 'text-brand-green font-medium' : 'text-gray-400'}`}>
-                  {step}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}

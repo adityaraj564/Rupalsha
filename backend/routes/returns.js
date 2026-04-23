@@ -145,7 +145,7 @@ router.get('/by-order/:orderId', auth, async (req, res, next) => {
 router.get('/:id', auth, async (req, res, next) => {
   try {
     const rr = await ReturnRequest.findById(req.params.id)
-      .populate('order', 'orderNumber totalAmount shippingAddress items')
+      .populate('order', 'orderNumber totalAmount shippingAddress items paymentMethod isPaid walletAmount')
       .populate('user', 'name email phone');
     if (!rr) return res.status(404).json({ error: 'Return not found' });
     if (req.user.role !== 'admin' && String(rr.user?._id || rr.user) !== String(req.user._id)) {
@@ -170,7 +170,7 @@ router.get('/', adminAuth, async (req, res, next) => {
 
     const [returns, total] = await Promise.all([
       ReturnRequest.find(filter)
-        .populate('order', 'orderNumber totalAmount createdAt')
+        .populate('order', 'orderNumber totalAmount createdAt paymentMethod walletAmount')
         .populate('user', 'name email phone')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -195,6 +195,7 @@ router.patch('/:id/status', adminAuth, async (req, res, next) => {
       adminNote,
       rejectionReason,
       refundAmount,
+      refundMethod,
     } = req.body;
 
     if (!status || !RETURN_STATUSES.includes(status)) {
@@ -211,6 +212,9 @@ router.patch('/:id/status', adminAuth, async (req, res, next) => {
     if (adminNote !== undefined) rr.adminNote = adminNote;
     if (rejectionReason !== undefined) rr.rejectionReason = rejectionReason;
     if (refundAmount !== undefined) rr.refundAmount = Number(refundAmount) || 0;
+    if (refundMethod && ['wallet', 'original'].includes(refundMethod)) {
+      rr.refundMethod = refundMethod;
+    }
     if (status === 'refunded') rr.refundedAt = new Date();
 
     rr.statusHistory.push({
@@ -265,6 +269,47 @@ router.patch('/:id/status', adminAuth, async (req, res, next) => {
     }
 
     res.json({ return: rr });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/returns/:id/cancel — user cancels their own return
+// Allowed only while status is 'requested' or 'approved' (i.e. before pickup scheduled)
+router.post('/:id/cancel', auth, async (req, res, next) => {
+  try {
+    const rr = await ReturnRequest.findById(req.params.id);
+    if (!rr) return res.status(404).json({ error: 'Return not found' });
+    if (String(rr.user) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Not your return' });
+    }
+
+    const cancellable = ['pending', 'approved'];
+    if (!cancellable.includes(rr.status)) {
+      return res.status(400).json({
+        error: 'This return can no longer be cancelled. Pickup has already been scheduled.',
+      });
+    }
+
+    rr.status = 'closed';
+    rr.statusHistory.push({
+      status: 'closed',
+      at: new Date(),
+      note: 'Cancelled by customer',
+      by: req.user._id,
+    });
+    await rr.save();
+
+    // Revert the order status if it was flipped to 'returned' (shouldn't happen for these stages,
+    // but guard anyway).
+    const Order = require('../models/Order');
+    const order = await Order.findById(rr.order);
+    if (order && order.status === 'returned') {
+      order.status = 'delivered';
+      await order.save();
+    }
+
+    res.json({ return: rr, message: 'Return request cancelled' });
   } catch (err) {
     next(err);
   }

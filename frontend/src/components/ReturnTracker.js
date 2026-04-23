@@ -1,6 +1,6 @@
 'use client';
 
-import { FiCheck, FiClock, FiPackage, FiTruck, FiHome, FiDollarSign, FiX } from 'react-icons/fi';
+import { FiCheck, FiClock, FiPackage, FiTruck, FiHome, FiX } from 'react-icons/fi';
 
 // Timeline steps shown for a return request.
 const STEPS = [
@@ -9,7 +9,7 @@ const STEPS = [
   { key: 'pickup_scheduled', label: 'Pickup Scheduled', icon: FiPackage },
   { key: 'picked_up', label: 'Picked Up', icon: FiTruck },
   { key: 'received', label: 'Received', icon: FiHome },
-  { key: 'refunded', label: 'Refunded', icon: FiDollarSign },
+  { key: 'refunded', label: 'Refunded', icon: ({ size }) => <span style={{ fontSize: size + 2, fontWeight: 700, lineHeight: 1 }}>₹</span> },
 ];
 
 const REASON_LABELS = {
@@ -20,11 +20,13 @@ const REASON_LABELS = {
   different_from_description: 'Item different from description',
 };
 
-export default function ReturnTracker({ returnRequest }) {
+export default function ReturnTracker({ returnRequest, onCancel }) {
   if (!returnRequest) return null;
 
   const { status } = returnRequest;
   const isRejected = status === 'rejected';
+  const isClosed = status === 'closed';
+  const canCancel = ['pending', 'approved'].includes(status);
 
   const currentIdx = STEPS.findIndex((s) => s.key === status);
 
@@ -42,6 +44,19 @@ export default function ReturnTracker({ returnRequest }) {
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">
             <FiX size={14} /> Rejected
           </span>
+        )}
+        {isClosed && (
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-medium">
+            <FiX size={14} /> Cancelled
+          </span>
+        )}
+        {canCancel && onCancel && (
+          <button
+            onClick={onCancel}
+            className="text-xs font-medium text-red-600 hover:text-red-700 border border-red-200 dark:border-red-900 hover:border-red-300 rounded-full px-3 py-1 transition"
+          >
+            Cancel request
+          </button>
         )}
       </div>
 
@@ -115,38 +130,46 @@ export default function ReturnTracker({ returnRequest }) {
         </div>
       )}
 
+      {isClosed && (
+        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 mb-5 text-sm text-gray-700 dark:text-gray-300">
+          This return request was cancelled.
+        </div>
+      )}
+
       {/* Timeline */}
-      {!isRejected && (
-        <div className="relative flex justify-between items-start">
-          <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700" />
-          <div
-            className="absolute top-4 left-0 h-0.5 bg-brand-green transition-all"
-            style={{ width: `${Math.max(0, currentIdx) / (STEPS.length - 1) * 100}%` }}
-          />
-          {STEPS.map((step, i) => {
-            const done = i <= currentIdx;
-            const Icon = step.icon;
-            return (
-              <div key={step.key} className="relative z-10 flex flex-col items-center flex-1">
-                <div
-                  className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition ${
-                    done
-                      ? 'bg-brand-green border-brand-green text-white'
-                      : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-400'
-                  }`}
-                >
-                  <Icon size={14} />
+      {!isRejected && !isClosed && (
+        <div className="overflow-x-auto -mx-2 px-2 scrollbar-hide">
+          <div className="relative flex justify-between items-start min-w-[540px]">
+            <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700" />
+            <div
+              className="absolute top-4 left-0 h-0.5 bg-brand-green transition-all"
+              style={{ width: `${Math.max(0, currentIdx) / (STEPS.length - 1) * 100}%` }}
+            />
+            {STEPS.map((step, i) => {
+              const done = i <= currentIdx;
+              const Icon = step.icon;
+              return (
+                <div key={step.key} className="relative z-10 flex flex-col items-center flex-1">
+                  <div
+                    className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition ${
+                      done
+                        ? 'bg-brand-green border-brand-green text-white'
+                        : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-400'
+                    }`}
+                  >
+                    <Icon size={14} />
+                  </div>
+                  <span
+                    className={`text-[11px] md:text-xs mt-2 text-center px-1 leading-tight ${
+                      done ? 'text-brand-green dark:text-[#F8F0E8] font-medium' : 'text-gray-400'
+                    }`}
+                  >
+                    {step.label}
+                  </span>
                 </div>
-                <span
-                  className={`text-[11px] md:text-xs mt-2 text-center px-1 ${
-                    done ? 'text-brand-green font-medium' : 'text-gray-400'
-                  }`}
-                >
-                  {step.label}
-                </span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

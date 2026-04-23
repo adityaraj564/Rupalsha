@@ -336,8 +336,8 @@ export default function CheckoutPage() {
             </h2>
 
             {/* Wallet toggle */}
-            {walletBalance > 0 && (
-              <label className="flex items-center justify-between gap-3 p-4 mb-3 border rounded-xl cursor-pointer bg-green-50/40 dark:bg-green-900/20 border-green-600/40">
+            {walletBalance > 0 ? (
+              <label className="flex items-center justify-between gap-3 p-4 mb-3 border rounded-xl cursor-pointer bg-green-50/40 dark:bg-gradient-to-br dark:from-purple-900/30 dark:via-fuchsia-900/20 dark:to-indigo-900/30 border-green-600/40 dark:border-fuchsia-500/30">
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
@@ -347,13 +347,26 @@ export default function CheckoutPage() {
                   />
                   <div>
                     <p className="font-medium">Use Rupalsha Wallet</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 dark:text-fuchsia-200/70">
                       Balance: ₹{walletBalance.toLocaleString('en-IN')}
                       {useWallet && walletApplied > 0 && ` • Applying ₹${walletApplied.toLocaleString('en-IN')}`}
                     </p>
                   </div>
                 </div>
               </label>
+            ) : (
+              <div className="flex items-center justify-between gap-3 p-4 mb-3 border rounded-xl bg-gray-50 dark:bg-gray-800/60 dark:border-gray-700">
+                <div>
+                  <p className="font-medium text-sm">Rupalsha Wallet</p>
+                  <p className="text-xs text-gray-500">Your wallet balance is ₹0. Recharge to use it for payments.</p>
+                </div>
+                <a
+                  href="/wallet"
+                  className="text-xs font-medium text-brand-green dark:text-fuchsia-300 hover:underline whitespace-nowrap"
+                >
+                  Recharge →
+                </a>
+              </div>
             )}
 
             {walletCoversAll ? (

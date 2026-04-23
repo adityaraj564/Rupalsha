@@ -144,6 +144,7 @@ function ReturnDetailModal({ returnId, onClose, onUpdated }) {
   const [adminNote, setAdminNote] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [refundAmount, setRefundAmount] = useState('');
+  const [refundMethod, setRefundMethod] = useState('wallet');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -156,6 +157,7 @@ function ReturnDetailModal({ returnId, onClose, onUpdated }) {
       setAdminNote(rr.adminNote || '');
       setRejectionReason(rr.rejectionReason || '');
       setRefundAmount(rr.refundAmount || '');
+      setRefundMethod(rr.refundMethod || 'wallet');
     });
   }, [returnId]);
 
@@ -170,6 +172,7 @@ function ReturnDetailModal({ returnId, onClose, onUpdated }) {
         adminNote,
         rejectionReason: status === 'rejected' ? rejectionReason : '',
         refundAmount: refundAmount ? Number(refundAmount) : undefined,
+        refundMethod,
       });
       toast.success('Return updated');
       onUpdated?.();
@@ -198,6 +201,38 @@ function ReturnDetailModal({ returnId, onClose, onUpdated }) {
         </div>
 
         <div className="p-6 space-y-5">
+          {/* Order payment summary */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/60 text-sm">
+            <div>
+              <p className="text-xs text-gray-500">Order total</p>
+              <p className="font-semibold">₹{(data.order?.totalAmount || 0).toLocaleString('en-IN')}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Paid via</p>
+              <p className="font-semibold capitalize">
+                {data.order?.paymentMethod === 'cod'
+                  ? 'Cash on Delivery'
+                  : data.order?.paymentMethod === 'wallet'
+                  ? 'Rupalsha Wallet'
+                  : data.order?.paymentMethod === 'razorpay'
+                  ? 'Online (Razorpay)'
+                  : data.order?.paymentMethod || '—'}
+              </p>
+            </div>
+            {data.order?.walletAmount > 0 && (
+              <div>
+                <p className="text-xs text-gray-500">Wallet used</p>
+                <p className="font-semibold">₹{data.order.walletAmount.toLocaleString('en-IN')}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-gray-500">Refund to</p>
+              <p className="font-semibold">
+                {data.refundMethod === 'wallet' ? 'Rupalsha Wallet' : 'Original source'}
+              </p>
+            </div>
+          </div>
+
           <div>
             <p className="text-sm"><span className="font-medium">Reason:</span> {REASON_LABELS[data.reason] || data.reason}</p>
             {data.description && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{data.description}</p>}
@@ -281,15 +316,32 @@ function ReturnDetailModal({ returnId, onClose, onUpdated }) {
               </div>
             )}
             {status === 'refunded' && (
-              <div>
-                <label className="block text-xs font-medium mb-1">Refund amount (₹)</label>
-                <input
-                  type="number"
-                  value={refundAmount}
-                  onChange={(e) => setRefundAmount(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 dark:border-gray-700 text-sm"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Refund amount (₹)</label>
+                  <input
+                    type="number"
+                    value={refundAmount}
+                    onChange={(e) => setRefundAmount(e.target.value)}
+                    className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 dark:border-gray-700 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Refund method</label>
+                  <select
+                    value={refundMethod}
+                    onChange={(e) => setRefundMethod(e.target.value)}
+                    disabled={data.order?.paymentMethod === 'cod'}
+                    className="w-full border rounded-lg px-3 py-2 bg-white dark:bg-gray-800 dark:border-gray-700 text-sm disabled:opacity-70"
+                  >
+                    <option value="wallet">Rupalsha Wallet (instant)</option>
+                    <option value="original">Original source (manual)</option>
+                  </select>
+                  {data.order?.paymentMethod === 'cod' && (
+                    <p className="text-[11px] text-gray-500 mt-1">COD orders must be refunded to Wallet.</p>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>

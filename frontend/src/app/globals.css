@@ -209,6 +209,7 @@ div.warning strong {
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -222,6 +223,17 @@ div.warning strong {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #C8A951;
+}
+
+/* Utility: visually hide scrollbar (kept scrollable) */
+.scrollbar-hide {
+  -ms-overflow-style: none;   /* IE and Edge */
+  scrollbar-width: none;      /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;              /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
 }
 
 /* Swiper custom styles */

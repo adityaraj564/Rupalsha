@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon, FiLogOut } from 'react-icons/fi';
+import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon, FiLogOut, FiCreditCard } from 'react-icons/fi';
 import { useAuthStore, useCartStore, useWishlistStore, useThemeStore } from '@/lib/store';
 import { couponsAPI } from '@/lib/api';
 
@@ -393,6 +393,13 @@ export default function Header() {
                           className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                         >
                           <FiShoppingBag size={16} /> My Orders
+                        </Link>
+                        <Link
+                          href="/wallet"
+                          onClick={() => setProfileOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <FiCreditCard size={16} /> Wallet
                         </Link>
                         <hr className="my-1 border-gray-100 dark:border-gray-700" />
                         <button
