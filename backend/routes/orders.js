@@ -110,39 +110,71 @@ router.post('/', auth, [
 
     const effectivePaymentMethod = remainingToPay === 0 ? 'wallet' : paymentMethod === 'wallet' ? 'wallet' : paymentMethod;
 
-    const order = await Order.create({
-      user: req.user._id,
-      items: orderItems,
-      shippingAddress,
-      paymentMethod: effectivePaymentMethod,
-      itemsTotal,
-      shippingCharge,
-      discount,
-      walletAmount,
-      couponCode: couponCode?.toUpperCase(),
-      totalAmount,
-      // Fully wallet-paid orders are immediately paid & confirmed.
-      isPaid: effectivePaymentMethod === 'wallet' ? true : false,
-      paidAt: effectivePaymentMethod === 'wallet' ? new Date() : undefined,
-      status: effectivePaymentMethod === 'cod' || effectivePaymentMethod === 'wallet' ? 'confirmed' : 'pending',
-    });
-
-    // Debit wallet (if any amount used) — happens after order is created so we can link it.
+    // Debit wallet FIRST (atomically) before creating the order.
+    // This guarantees the user can't place multiple orders exceeding their balance
+    // via concurrent requests — the conditional $inc in applyWalletTransaction
+    // fails if the balance is insufficient.
+    let walletTxId = null;
     if (walletAmount > 0) {
       try {
-        await applyWalletTransaction({
+        const { transaction } = await applyWalletTransaction({
           userId: req.user._id,
           type: 'debit',
           source: 'order_payment',
           amount: walletAmount,
-          description: `Payment for order ${order.orderNumber}`,
-          order: order._id,
+          description: `Payment for order (pending creation)`,
         });
+        walletTxId = transaction._id;
       } catch (err) {
-        // Rollback the order if wallet debit fails.
-        await Order.deleteOne({ _id: order._id });
-        return res.status(400).json({ error: err.message || 'Wallet debit failed' });
+        return res.status(err.statusCode || 400).json({
+          error: err.message || 'Wallet debit failed. Please check your balance.',
+        });
       }
+    }
+
+    let order;
+    try {
+      order = await Order.create({
+        user: req.user._id,
+        items: orderItems,
+        shippingAddress,
+        paymentMethod: effectivePaymentMethod,
+        itemsTotal,
+        shippingCharge,
+        discount,
+        walletAmount,
+        couponCode: couponCode?.toUpperCase(),
+        totalAmount,
+        // Fully wallet-paid orders are immediately paid & confirmed.
+        isPaid: effectivePaymentMethod === 'wallet' ? true : false,
+        paidAt: effectivePaymentMethod === 'wallet' ? new Date() : undefined,
+        status: effectivePaymentMethod === 'cod' || effectivePaymentMethod === 'wallet' ? 'confirmed' : 'pending',
+      });
+    } catch (err) {
+      // Order creation failed — refund the wallet to restore balance.
+      if (walletAmount > 0) {
+        try {
+          await applyWalletTransaction({
+            userId: req.user._id,
+            type: 'credit',
+            source: 'order_refund',
+            amount: walletAmount,
+            description: 'Auto-refund: order creation failed',
+          });
+        } catch {}
+      }
+      throw err;
+    }
+
+    // Link the wallet debit transaction to the newly-created order.
+    if (walletTxId) {
+      try {
+        const WalletTransaction = require('../models/WalletTransaction');
+        await WalletTransaction.updateOne(
+          { _id: walletTxId },
+          { $set: { order: order._id, description: `Payment for order ${order.orderNumber}` } }
+        );
+      } catch {}
     }
 
     // Reduce stock

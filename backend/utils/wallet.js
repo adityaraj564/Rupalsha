@@ -44,17 +44,29 @@ async function applyWalletTransaction({
   let newBalance = wallet.balance;
   if (status === 'completed') {
     if (type === 'credit') {
-      newBalance = wallet.balance + amt;
+      // Atomic increment
+      const updated = await Wallet.findOneAndUpdate(
+        { _id: wallet._id },
+        { $inc: { balance: amt } },
+        { new: true }
+      );
+      newBalance = updated.balance;
+      wallet.balance = newBalance;
     } else {
-      if (wallet.balance < amt) {
+      // Atomic conditional debit — succeeds only if balance >= amt
+      const updated = await Wallet.findOneAndUpdate(
+        { _id: wallet._id, balance: { $gte: amt } },
+        { $inc: { balance: -amt } },
+        { new: true }
+      );
+      if (!updated) {
         const err = new Error('Insufficient wallet balance');
         err.statusCode = 400;
         throw err;
       }
-      newBalance = wallet.balance - amt;
+      newBalance = updated.balance;
+      wallet.balance = newBalance;
     }
-    wallet.balance = newBalance;
-    await wallet.save();
   }
 
   const tx = await WalletTransaction.create({
