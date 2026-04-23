@@ -1,0 +1,265 @@
+'use client';
+
+import { useState, useRef } from 'react';
+import { FiX, FiUpload, FiVideo, FiImage, FiTrash2 } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { returnsAPI } from '@/lib/api';
+
+const REASONS = [
+  { value: 'wrong_item', label: 'Wrong item received' },
+  { value: 'damaged', label: 'Item damaged / defective' },
+  { value: 'missing_parts', label: 'Item missing parts / incomplete' },
+  { value: 'size_issue', label: "Doesn't fit / size issue" },
+  { value: 'different_from_description', label: 'Item different from description' },
+];
+
+const MAX_IMAGES = 4;
+const MAX_VIDEO_SECONDS = 30;
+const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
+
+export default function ReturnModal({ order, onClose, onSuccess }) {
+  const [reason, setReason] = useState('');
+  const [description, setDescription] = useState('');
+  const [images, setImages] = useState([]);           // File[]
+  const [video, setVideo] = useState(null);           // File
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const imageInputRef = useRef(null);
+  const videoInputRef = useRef(null);
+
+  const onPickImages = (e) => {
+    const files = Array.from(e.target.files || []);
+    const remaining = MAX_IMAGES - images.length;
+    if (files.length > remaining) {
+      toast.error(`You can upload up to ${MAX_IMAGES} images`);
+    }
+    const accepted = files.slice(0, remaining).filter((f) => f.type.startsWith('image/'));
+    setImages((prev) => [...prev, ...accepted]);
+    e.target.value = '';
+  };
+
+  const onPickVideo = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('video/')) {
+      toast.error('Please select a video file');
+      return;
+    }
+    if (file.size > MAX_VIDEO_BYTES) {
+      toast.error('Video too large (max 60MB)');
+      return;
+    }
+    // Check duration client-side
+    const url = URL.createObjectURL(file);
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.src = url;
+    v.onloadedmetadata = () => {
+      const duration = v.duration;
+      URL.revokeObjectURL(url);
+      if (duration > MAX_VIDEO_SECONDS + 0.5) {
+        toast.error(`Video must be ${MAX_VIDEO_SECONDS} seconds or less`);
+        return;
+      }
+      setVideo(file);
+      setVideoDuration(Math.round(duration));
+    };
+    v.onerror = () => {
+      URL.revokeObjectURL(url);
+      toast.error('Could not read this video');
+    };
+  };
+
+  const removeImage = (idx) => {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const removeVideo = () => {
+    setVideo(null);
+    setVideoDuration(0);
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!reason) return toast.error('Please select a reason');
+    if (images.length === 0) {
+      return toast.error('Please upload at least one image as evidence');
+    }
+
+    setSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append('orderId', order._id);
+      fd.append('reason', reason);
+      if (description.trim()) fd.append('description', description.trim());
+      const items = order.items.map((it) => ({
+        product: it.product?._id || it.product,
+        name: it.name,
+        image: it.image,
+        size: it.size,
+        quantity: it.quantity,
+        price: it.price,
+      }));
+      fd.append('items', JSON.stringify(items));
+      images.forEach((img) => fd.append('images', img));
+      if (video) fd.append('video', video);
+
+      const res = await returnsAPI.create(fd);
+      toast.success('Return request submitted. Our team will review it shortly.');
+      onSuccess?.(res.return);
+      onClose?.();
+    } catch (err) {
+      toast.error(err.message || 'Failed to submit return');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <form
+        onSubmit={submit}
+        className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-2xl my-8 shadow-xl"
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-800">
+          <h2 className="font-serif text-xl font-semibold">Return / Refund Request</h2>
+          <button type="button" onClick={onClose} className="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
+            <FiX size={22} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div>
+            <label className="block text-sm font-medium mb-2">Reason for return *</label>
+            <select
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              required
+              className="w-full border rounded-lg px-3 py-2.5 bg-white dark:bg-gray-800 dark:border-gray-700"
+            >
+              <option value="">Select a reason</option>
+              {REASONS.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Description (optional)</label>
+            <textarea
+              rows={3}
+              maxLength={1000}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Tell us more about the issue..."
+              className="w-full border rounded-lg px-3 py-2.5 bg-white dark:bg-gray-800 dark:border-gray-700"
+            />
+          </div>
+
+          {/* Images */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Upload photos (max {MAX_IMAGES}) *
+            </label>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={onPickImages}
+              className="hidden"
+            />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {images.map((img, i) => (
+                <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border dark:border-gray-700">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={URL.createObjectURL(img)} alt={`evidence ${i + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"
+                    aria-label="Remove image"
+                  >
+                    <FiTrash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              {images.length < MAX_IMAGES && (
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  className="aspect-square rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center text-gray-500 hover:border-brand-green hover:text-brand-green transition"
+                >
+                  <FiImage size={22} />
+                  <span className="text-xs mt-1">Add photo</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Video */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Upload a short video (optional, max {MAX_VIDEO_SECONDS}s)
+            </label>
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              onChange={onPickVideo}
+              className="hidden"
+            />
+            {video ? (
+              <div className="relative rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 p-3 flex items-center gap-3">
+                <FiVideo size={22} className="text-brand-green" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm truncate">{video.name}</p>
+                  <p className="text-xs text-gray-500">{videoDuration}s</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeVideo}
+                  className="bg-red-600 text-white rounded-full p-2 hover:bg-red-700"
+                  aria-label="Remove video"
+                >
+                  <FiTrash2 size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => videoInputRef.current?.click()}
+                className="w-full rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 p-4 flex items-center justify-center gap-2 text-gray-500 hover:border-brand-green hover:text-brand-green transition"
+              >
+                <FiUpload size={18} />
+                <span className="text-sm">Upload video ({MAX_VIDEO_SECONDS}s max)</span>
+              </button>
+            )}
+          </div>
+
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Tip: Upload clear photos of the issue (and an unboxing video if possible). This helps us approve your return faster.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t dark:border-gray-800">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-5 py-2 bg-brand-green text-white rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-60 transition"
+          >
+            {submitting ? 'Submitting...' : 'Submit return request'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}

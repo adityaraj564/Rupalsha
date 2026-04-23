@@ -167,6 +167,20 @@ export const ordersAPI = {
   returnOrder: (id, reason) => request(`/orders/${id}/return`, { method: 'PUT', body: { reason } }),
 };
 
+// Returns (return requests with evidence)
+export const returnsAPI = {
+  create: (formData) => request('/returns', { method: 'POST', body: formData }),
+  getMine: () => request('/returns/my'),
+  getByOrder: (orderId) => request(`/returns/by-order/${orderId}`),
+  getById: (id) => request(`/returns/${id}`),
+  // Admin
+  listAll: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return request(`/returns?${query}`);
+  },
+  updateStatus: (id, data) => request(`/returns/${id}/status`, { method: 'PATCH', body: data }),
+};
+
 // Reviews
 export const reviewsAPI = {
   getByProduct: (productId, params) => {

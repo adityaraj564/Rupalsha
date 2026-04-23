@@ -5,9 +5,11 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { FiCheckCircle, FiPackage, FiTruck, FiMapPin, FiAlertCircle, FiClock, FiShoppingBag } from 'react-icons/fi';
-import { ordersAPI, paymentAPI } from '@/lib/api';
+import { ordersAPI, paymentAPI, returnsAPI } from '@/lib/api';
 import { useAuthStore, useCartStore } from '@/lib/store';
 import { OrdersSkeleton } from '@/components/Skeleton';
+import ReturnModal from '@/components/ReturnModal';
+import ReturnTracker from '@/components/ReturnTracker';
 import toast from 'react-hot-toast';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
@@ -21,6 +23,8 @@ export default function OrderDetailPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [showCancel, setShowCancel] = useState(false);
   const [retryingPayment, setRetryingPayment] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnRequest, setReturnRequest] = useState(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
   const user = useAuthStore((s) => s.user);
@@ -38,6 +42,11 @@ export default function OrderDetailPage() {
       .then((data) => setOrder(data.order))
       .catch(() => { toast.error('Order not found'); router.push('/orders'); })
       .finally(() => setLoading(false));
+
+    // Load any existing return request for this order
+    returnsAPI.getByOrder(id)
+      .then((data) => setReturnRequest(data.return))
+      .catch(() => {});
   }, [id, isAuthenticated, router]);
 
   const handleCancel = async () => {
@@ -55,16 +64,8 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleReturn = async () => {
-    const reason = prompt('Reason for return:');
-    if (!reason) return;
-    try {
-      const { order: updated } = await ordersAPI.returnOrder(id, reason);
-      setOrder(updated);
-      toast.success('Return request submitted');
-    } catch (err) {
-      toast.error(err.message);
-    }
+  const handleReturn = () => {
+    setShowReturnModal(true);
   };
 
   const handleRetryPayment = async () => {
@@ -166,6 +167,9 @@ export default function OrderDetailPage() {
           ← All Orders
         </Link>
       </div>
+
+      {/* Return request tracker (if any) */}
+      {returnRequest && <ReturnTracker returnRequest={returnRequest} />}
 
       {/* Status Tracker */}
       {!['cancelled', 'returned', 'failed'].includes(order.status) && (
@@ -312,7 +316,7 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {order.status === 'delivered' && order.items.every(item => item.product?.isReturnable !== false) && (
+          {order.status === 'delivered' && !returnRequest && order.items.every(item => item.product?.isReturnable !== false) && (
             <div className="space-y-2">
               <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg text-sm">
                 <p className="font-semibold text-orange-700 dark:text-orange-300">⚠️ Unboxing Video Required</p>
@@ -329,6 +333,14 @@ export default function OrderDetailPage() {
           )}
         </div>
       </div>
+
+      {showReturnModal && (
+        <ReturnModal
+          order={order}
+          onClose={() => setShowReturnModal(false)}
+          onSuccess={(rr) => setReturnRequest(rr)}
+        />
+      )}
     </div>
   );
 }
