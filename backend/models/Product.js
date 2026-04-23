@@ -114,7 +114,7 @@ const productSchema = new mongoose.Schema({
   },
   returnPolicy: {
     type: String,
-    default: 'Easy return policy. Product must be unused with original tags. Recording an unboxing video while opening the package is mandatory for return claims.',
+    default: 'Easy return policy. Product must be unused with original tags. Please upload clear photos of the issue when raising a return request.',
   },
   highlights: [{
     key: { type: String, trim: true },

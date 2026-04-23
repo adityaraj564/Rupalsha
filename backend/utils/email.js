@@ -379,7 +379,6 @@ const sendReturnAdminAlert = async (returnRequest, customerName, customerEmail, 
         <tr><td style="padding: 6px 0;"><strong>Customer:</strong></td><td>${customerName} &lt;${customerEmail}&gt;</td></tr>
         <tr><td style="padding: 6px 0;"><strong>Reason:</strong></td><td>${reasonLabel}</td></tr>
         <tr><td style="padding: 6px 0;"><strong>Images:</strong></td><td>${returnRequest.images?.length || 0}</td></tr>
-        <tr><td style="padding: 6px 0;"><strong>Video:</strong></td><td>${returnRequest.video?.url ? 'Yes' : 'No'}</td></tr>
       </table>
       ${returnRequest.description ? `<p style="margin-top: 12px;"><strong>Customer note:</strong> ${returnRequest.description}</p>` : ''}
       <div style="text-align: center; margin-top: 24px;">

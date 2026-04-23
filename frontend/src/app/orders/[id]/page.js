@@ -318,10 +318,6 @@ export default function OrderDetailPage() {
 
           {order.status === 'delivered' && !returnRequest && order.items.every(item => item.product?.isReturnable !== false) && (
             <div className="space-y-2">
-              <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg text-sm">
-                <p className="font-semibold text-orange-700 dark:text-orange-300">⚠️ Unboxing Video Required</p>
-                <p className="text-orange-600 dark:text-orange-400 mt-1">An unboxing video recorded while opening the package is mandatory for return claims. Returns without video proof will not be accepted.</p>
-              </div>
               <button onClick={handleReturn} className="w-full px-4 py-2.5 border-2 border-orange-400 text-orange-500 dark:border-orange-400 dark:text-orange-400 rounded-xl text-sm font-medium hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors">
                 Request Return
               </button>

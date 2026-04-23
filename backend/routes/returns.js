@@ -13,17 +13,13 @@ const {
 } = require('../utils/email');
 
 const MAX_IMAGES = 4;
-const MAX_VIDEO_SECONDS = 30;
 
 // POST /api/returns — user creates a return request
-// multipart/form-data: images[] (max 4), video (optional, ≤30s), orderId, items (JSON), reason, description
+// multipart/form-data: images[] (max 4), orderId, items (JSON), reason, description
 router.post(
   '/',
   auth,
-  returnUpload.fields([
-    { name: 'images', maxCount: MAX_IMAGES },
-    { name: 'video', maxCount: 1 },
-  ]),
+  returnUpload.array('images', MAX_IMAGES),
   async (req, res, next) => {
     try {
       const { orderId, reason, description, items } = req.body;
@@ -81,33 +77,12 @@ router.post(
       }
 
       // Build images array from uploaded files
-      const uploadedImages = (req.files?.images || []).map((f) => ({
+      const uploadedImages = (req.files || []).map((f) => ({
         url: f.path,
         public_id: f.filename,
       }));
       if (uploadedImages.length > MAX_IMAGES) {
         return res.status(400).json({ error: `Maximum ${MAX_IMAGES} images allowed` });
-      }
-
-      // Video (optional)
-      let video;
-      const videoFile = req.files?.video?.[0];
-      if (videoFile) {
-        // multer-storage-cloudinary attaches duration when resource_type is video
-        const duration = Number(videoFile.duration || videoFile.metadata?.duration || 0);
-        if (duration && duration > MAX_VIDEO_SECONDS + 1) {
-          // Best-effort cleanup
-          try {
-            const cloudinary = require('../config/cloudinary');
-            await cloudinary.uploader.destroy(videoFile.filename, { resource_type: 'video' });
-          } catch {}
-          return res.status(400).json({ error: `Video must be ${MAX_VIDEO_SECONDS} seconds or less` });
-        }
-        video = {
-          url: videoFile.path,
-          public_id: videoFile.filename,
-          duration,
-        };
       }
 
       const rr = await ReturnRequest.create({
@@ -117,7 +92,6 @@ router.post(
         reason,
         description,
         images: uploadedImages,
-        video,
       });
 
       // Reflect on order (keeps old column working)

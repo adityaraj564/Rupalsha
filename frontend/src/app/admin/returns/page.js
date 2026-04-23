@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { FiCheck, FiX, FiVideo, FiExternalLink } from 'react-icons/fi';
+import { FiCheck, FiX, FiExternalLink } from 'react-icons/fi';
 import { returnsAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -219,18 +219,6 @@ function ReturnDetailModal({ returnId, onClose, onUpdated }) {
                   <img src={img.url} alt="evidence" className="w-full h-full object-cover" />
                 </a>
               ))}
-              {data.video?.url && (
-                <a
-                  href={data.video.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="aspect-square rounded-lg border dark:border-gray-700 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  <FiVideo size={28} className="text-brand-green" />
-                  <span className="text-xs mt-2">Video ({data.video.duration || 0}s)</span>
-                  <FiExternalLink size={12} className="mt-1 text-gray-400" />
-                </a>
-              )}
             </div>
           </div>
 

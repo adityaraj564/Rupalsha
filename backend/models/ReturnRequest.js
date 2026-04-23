@@ -49,11 +49,6 @@ const returnRequestSchema = new mongoose.Schema({
     url: { type: String, required: true },
     public_id: String,
   }],
-  video: {
-    url: String,
-    public_id: String,
-    duration: Number, // seconds
-  },
 
   status: { type: String, enum: RETURN_STATUSES, default: 'pending', index: true },
   statusHistory: [timelineEntrySchema],

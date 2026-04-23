@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { FiX, FiUpload, FiVideo, FiImage, FiTrash2 } from 'react-icons/fi';
+import { FiX, FiImage, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { returnsAPI } from '@/lib/api';
 
@@ -14,18 +14,13 @@ const REASONS = [
 ];
 
 const MAX_IMAGES = 4;
-const MAX_VIDEO_SECONDS = 30;
-const MAX_VIDEO_BYTES = 60 * 1024 * 1024;
 
 export default function ReturnModal({ order, onClose, onSuccess }) {
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
   const [images, setImages] = useState([]);           // File[]
-  const [video, setVideo] = useState(null);           // File
-  const [videoDuration, setVideoDuration] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const imageInputRef = useRef(null);
-  const videoInputRef = useRef(null);
 
   const onPickImages = (e) => {
     const files = Array.from(e.target.files || []);
@@ -38,46 +33,8 @@ export default function ReturnModal({ order, onClose, onSuccess }) {
     e.target.value = '';
   };
 
-  const onPickVideo = (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    if (!file.type.startsWith('video/')) {
-      toast.error('Please select a video file');
-      return;
-    }
-    if (file.size > MAX_VIDEO_BYTES) {
-      toast.error('Video too large (max 60MB)');
-      return;
-    }
-    // Check duration client-side
-    const url = URL.createObjectURL(file);
-    const v = document.createElement('video');
-    v.preload = 'metadata';
-    v.src = url;
-    v.onloadedmetadata = () => {
-      const duration = v.duration;
-      URL.revokeObjectURL(url);
-      if (duration > MAX_VIDEO_SECONDS + 0.5) {
-        toast.error(`Video must be ${MAX_VIDEO_SECONDS} seconds or less`);
-        return;
-      }
-      setVideo(file);
-      setVideoDuration(Math.round(duration));
-    };
-    v.onerror = () => {
-      URL.revokeObjectURL(url);
-      toast.error('Could not read this video');
-    };
-  };
-
   const removeImage = (idx) => {
     setImages((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const removeVideo = () => {
-    setVideo(null);
-    setVideoDuration(0);
   };
 
   const submit = async (e) => {
@@ -103,7 +60,6 @@ export default function ReturnModal({ order, onClose, onSuccess }) {
       }));
       fd.append('items', JSON.stringify(items));
       images.forEach((img) => fd.append('images', img));
-      if (video) fd.append('video', video);
 
       const res = await returnsAPI.create(fd);
       toast.success('Return request submitted. Our team will review it shortly.');
@@ -198,48 +154,8 @@ export default function ReturnModal({ order, onClose, onSuccess }) {
             </div>
           </div>
 
-          {/* Video */}
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Upload a short video (optional, max {MAX_VIDEO_SECONDS}s)
-            </label>
-            <input
-              ref={videoInputRef}
-              type="file"
-              accept="video/*"
-              onChange={onPickVideo}
-              className="hidden"
-            />
-            {video ? (
-              <div className="relative rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 p-3 flex items-center gap-3">
-                <FiVideo size={22} className="text-brand-green" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm truncate">{video.name}</p>
-                  <p className="text-xs text-gray-500">{videoDuration}s</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={removeVideo}
-                  className="bg-red-600 text-white rounded-full p-2 hover:bg-red-700"
-                  aria-label="Remove video"
-                >
-                  <FiTrash2 size={14} />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => videoInputRef.current?.click()}
-                className="w-full rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 p-4 flex items-center justify-center gap-2 text-gray-500 hover:border-brand-green hover:text-brand-green transition"
-              >
-                <FiUpload size={18} />
-                <span className="text-sm">Upload video ({MAX_VIDEO_SECONDS}s max)</span>
-              </button>
-            )}
-          </div>
-
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Tip: Upload clear photos of the issue (and an unboxing video if possible). This helps us approve your return faster.
+            Tip: Upload clear photos of the issue. This helps us approve your return faster.
           </p>
         </div>
 
