@@ -163,7 +163,8 @@ export const ordersAPI = {
     return request(`/orders?${query}`);
   },
   getById: (id) => request(`/orders/${id}`),
-  cancel: (id, reason) => request(`/orders/${id}/cancel`, { method: 'PUT', body: { reason } }),
+  cancel: (id, reason, acknowledgeFee = false) =>
+    request(`/orders/${id}/cancel`, { method: 'PUT', body: { reason, acknowledgeFee } }),
   returnOrder: (id, reason) => request(`/orders/${id}/return`, { method: 'PUT', body: { reason } }),
 };
 
@@ -348,6 +349,14 @@ export const adminAPI = {
     const query = new URLSearchParams(params).toString();
     return request(`/admin/activity-log?${query}`);
   },
+  // Site Settings
+  getSettings: () => request('/settings'),
+  updateSettings: (data) => request('/settings', { method: 'PUT', body: data }),
+};
+
+// Site Settings (public)
+export const settingsAPI = {
+  get: () => request('/settings'),
 };
 
 // Banners (public)

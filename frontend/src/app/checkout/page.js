@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiMapPin, FiPlus, FiCreditCard, FiTruck, FiMinus, FiTrash2, FiTag } from 'react-icons/fi';
 import { useAuthStore, useCartStore } from '@/lib/store';
-import { ordersAPI, couponsAPI, paymentAPI, authAPI, walletAPI } from '@/lib/api';
+import { ordersAPI, couponsAPI, paymentAPI, authAPI, walletAPI, settingsAPI } from '@/lib/api';
 import { CartSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
@@ -16,7 +16,8 @@ export default function CheckoutPage() {
   const { items, clearCart, updateItem, removeItem } = useCartStore();
   const updateUser = useAuthStore((s) => s.updateUser);
   const [selectedAddress, setSelectedAddress] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [paymentMethod, setPaymentMethod] = useState('razorpay');
+  const [codEnabled, setCodEnabled] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [couponApplied, setCouponApplied] = useState('');
@@ -57,6 +58,9 @@ export default function CheckoutPage() {
     authAPI.getMe().then(({ user: fresh }) => {
       updateUser(fresh);
     }).catch(() => {});
+    settingsAPI.get()
+      .then((data) => setCodEnabled(!!data.codEnabled))
+      .catch(() => {});
     walletAPI.get().then(({ balance }) => setWalletBalance(balance || 0)).catch(() => {});
   }, [isAuthenticated, isLoading]);
 
@@ -396,8 +400,10 @@ export default function CheckoutPage() {
                   </div>
                 </label>
                 <label
-                  className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-colors ${
-                    paymentMethod === 'cod' ? 'border-brand-green bg-green-50/50 dark:bg-green-900/30' : 'border-gray-200 dark:border-gray-600'
+                  className={`flex items-center gap-3 p-4 border rounded-xl transition-colors ${
+                    !codEnabled
+                      ? 'opacity-60 cursor-not-allowed border-gray-200 dark:border-gray-700'
+                      : `cursor-pointer ${paymentMethod === 'cod' ? 'border-brand-green bg-green-50/50 dark:bg-green-900/30' : 'border-gray-200 dark:border-gray-600'}`
                   }`}
                 >
                   <input
@@ -406,11 +412,14 @@ export default function CheckoutPage() {
                     value="cod"
                     checked={paymentMethod === 'cod'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
+                    disabled={!codEnabled}
                     className="accent-brand-green"
                   />
                   <div>
                     <p className="font-medium">Cash on Delivery</p>
-                    <p className="text-sm text-gray-500">Pay when you receive your order</p>
+                    <p className="text-sm text-gray-500">
+                      {codEnabled ? 'Pay when you receive your order' : 'Currently unavailable'}
+                    </p>
                   </div>
                 </label>
               </div>

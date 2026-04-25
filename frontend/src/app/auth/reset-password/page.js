@@ -10,10 +10,15 @@ function ResetPasswordForm() {
   const token = searchParams.get('token');
   const router = useRouter();
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
     setLoading(true);
     try {
       await authAPI.resetPassword({ token, password });
@@ -48,6 +53,21 @@ function ResetPasswordForm() {
                   required
                   minLength={6}
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="input-field"
+                  placeholder="Re-enter new password"
+                  required
+                  minLength={6}
+                />
+                {confirmPassword && password !== confirmPassword && (
+                  <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+                )}
               </div>
               <button type="submit" className="btn-primary w-full" disabled={loading}>
                 {loading ? 'Resetting...' : 'Reset Password'}

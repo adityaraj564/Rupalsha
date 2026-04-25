@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { FiCheckCircle, FiPackage, FiTruck, FiMapPin, FiAlertCircle, FiClock, FiShoppingBag } from 'react-icons/fi';
-import { ordersAPI, paymentAPI, returnsAPI } from '@/lib/api';
+import { ordersAPI, paymentAPI, returnsAPI, settingsAPI } from '@/lib/api';
 import { useAuthStore, useCartStore } from '@/lib/store';
 import { OrdersSkeleton } from '@/components/Skeleton';
 import ReturnModal from '@/components/ReturnModal';
@@ -22,6 +22,8 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [cancelReason, setCancelReason] = useState('');
   const [showCancel, setShowCancel] = useState(false);
+  const [showShippedCancelModal, setShowShippedCancelModal] = useState(false);
+  const [siteSettings, setSiteSettings] = useState(null);
   const [retryingPayment, setRetryingPayment] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnRequest, setReturnRequest] = useState(null);
@@ -45,7 +47,10 @@ export default function OrderDetailPage() {
 
     // Load any existing return request for this order
     returnsAPI.getByOrder(id)
-      .then((data) => setReturnRequest(data.return))
+
+    // Load site settings (cancellation fee config)
+    settingsAPI.get()
+      .then((data) => setSiteSettings(data))
       .catch(() => {});
   }, [id, isAuthenticated, router]);
 
@@ -55,9 +60,11 @@ export default function OrderDetailPage() {
       return;
     }
     try {
-      const { order: updated } = await ordersAPI.cancel(id, cancelReason);
+      const acknowledgeFee = order.status === 'shipped';
+      const { order: updated } = await ordersAPI.cancel(id, cancelReason, acknowledgeFee);
       setOrder(updated);
       setShowCancel(false);
+      setShowShippedCancelModal(false);
       toast.success('Order cancelled');
     } catch (err) {
       toast.error(err.message);
@@ -231,6 +238,12 @@ export default function OrderDetailPage() {
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl p-4 mb-6">
           <p className="text-red-800 dark:text-red-300 font-medium">Order Cancelled</p>
           {order.cancelReason && <p className="text-red-600 dark:text-red-400 text-sm mt-1">Reason: {order.cancelReason}</p>}
+          {order.cancellationFee > 0 && (
+            <p className="text-red-600 dark:text-red-400 text-sm mt-1">
+              Cancellation fee deducted: ₹{order.cancellationFee.toLocaleString()}
+              {order.isPaid && ` · Refund of ₹${Math.max(0, order.totalAmount - order.cancellationFee).toLocaleString()} credited to wallet`}
+            </p>
+          )}
         </div>
       )}
 
@@ -308,29 +321,45 @@ export default function OrderDetailPage() {
           </div>
 
           {/* Actions */}
-          {['pending', 'confirmed', 'processing'].includes(order.status) && (
-            <div>
-              {!showCancel ? (
-                <button onClick={() => setShowCancel(true)} className="w-full px-4 py-2.5 border-2 border-red-400 text-red-500 dark:border-red-400 dark:text-red-400 rounded-xl text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                  Cancel Order
-                </button>
-              ) : (
-                <div className="space-y-3">
-                  <textarea
-                    value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    placeholder="Reason for cancellation"
-                    className="input-field text-sm"
-                    rows={2}
-                  />
-                  <div className="flex gap-2">
-                    <button onClick={handleCancel} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm">Confirm Cancel</button>
-                    <button onClick={() => setShowCancel(false)} className="text-sm text-gray-500">Nevermind</button>
+          {(() => {
+            const cancelFeeEnabled = !!siteSettings?.cancellationFeeEnabled;
+            const canCancel =
+              ['pending', 'confirmed', 'processing'].includes(order.status) ||
+              (order.status === 'shipped' && cancelFeeEnabled);
+            if (!canCancel) return null;
+            return (
+              <div>
+                {!showCancel ? (
+                  <button
+                    onClick={() => {
+                      if (order.status === 'shipped') {
+                        setShowShippedCancelModal(true);
+                      } else {
+                        setShowCancel(true);
+                      }
+                    }}
+                    className="w-full px-4 py-2.5 border-2 border-red-400 text-red-500 dark:border-red-400 dark:text-red-400 rounded-xl text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    Cancel Order
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <textarea
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      placeholder="Reason for cancellation"
+                      className="input-field text-sm"
+                      rows={2}
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={handleCancel} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm">Confirm Cancel</button>
+                      <button onClick={() => setShowCancel(false)} className="text-sm text-gray-500">Nevermind</button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })()}
 
           {order.status === 'delivered' && !returnRequest && order.items.every(item => item.product?.isReturnable !== false) && (
             <div className="space-y-2">
@@ -353,6 +382,69 @@ export default function OrderDetailPage() {
           onSuccess={(rr) => setReturnRequest(rr)}
         />
       )}
+
+      {showShippedCancelModal && (() => {
+        const pct = siteSettings?.cancellationFeePercent ?? 50;
+        const cap = siteSettings?.cancellationFeeCap ?? 100;
+        const fee = Math.round(Math.min((order.totalAmount * pct) / 100, cap));
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-md w-full p-6">
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900/30 mb-3">
+                  <FiAlertCircle className="text-orange-600 dark:text-orange-400" size={24} />
+                </div>
+                <h3 className="font-serif text-xl font-bold text-brand-charcoal dark:text-white">
+                  Cancellation Fee Applies
+                </h3>
+              </div>
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-xl p-4 mb-4">
+                <p className="text-sm text-orange-800 dark:text-orange-200">
+                  This order has already been shipped. {pct}% of the order amount up to ₹{cap}/- will be deducted as a Cancellation fee.
+                </p>
+                <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-700 text-sm space-y-1">
+                  <div className="flex justify-between text-gray-600 dark:text-gray-300">
+                    <span>Order total</span>
+                    <span>₹{order.totalAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-red-600 dark:text-red-400 font-medium">
+                    <span>Cancellation fee</span>
+                    <span>− ₹{fee.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-brand-charcoal dark:text-white pt-1 border-t border-orange-200 dark:border-orange-700">
+                    <span>Refund amount{order.isPaid ? ' (to wallet)' : ''}</span>
+                    <span>₹{Math.max(0, order.totalAmount - fee).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-center text-sm font-medium text-brand-charcoal dark:text-white mb-4">
+                Do you still want to cancel the order?
+              </p>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Reason for cancellation"
+                className="input-field text-sm mb-4"
+                rows={2}
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowShippedCancelModal(false); setCancelReason(''); }}
+                  className="flex-1 px-4 py-2.5 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  No, keep order
+                </button>
+                <button
+                  onClick={handleCancel}
+                  className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition-colors"
+                >
+                  Yes, cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -5,6 +5,7 @@ const Cart = require('../models/Cart');
 const Product = require('../models/Product');
 const Coupon = require('../models/Coupon');
 const Wallet = require('../models/Wallet');
+const SiteSettings = require('../models/SiteSettings');
 const { auth } = require('../middleware/auth');
 const { sendOrderConfirmation, sendOrderCancellation, sendReturnConfirmation } = require('../utils/email');
 const { applyWalletTransaction } = require('../utils/wallet');
@@ -22,6 +23,14 @@ router.post('/', auth, [
     const { shippingAddress, paymentMethod, couponCode } = req.body;
     const useWallet = Boolean(req.body.useWallet);        // apply wallet as partial payment
     const walletAmountRequested = Math.max(0, Math.round(Number(req.body.walletAmount) || 0));
+
+    // Block COD if it's disabled in site settings
+    if (paymentMethod === 'cod') {
+      const settings = await SiteSettings.getSingleton();
+      if (!settings.codEnabled) {
+        return res.status(400).json({ error: 'Cash on Delivery is currently unavailable' });
+      }
+    }
 
     const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
     if (!cart || cart.items.length === 0) {
@@ -234,18 +243,69 @@ router.get('/:id', auth, async (req, res, next) => {
 // PUT /api/orders/:id/cancel
 router.put('/:id/cancel', auth, [
   body('reason').trim().notEmpty(),
+  body('acknowledgeFee').optional().isBoolean(),
 ], async (req, res, next) => {
   try {
     const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    if (!['pending', 'confirmed', 'processing'].includes(order.status)) {
+    const cancellableStatuses = ['pending', 'confirmed', 'processing', 'shipped'];
+    if (!cancellableStatuses.includes(order.status)) {
       return res.status(400).json({ error: 'Order cannot be cancelled at this stage' });
+    }
+
+    // Compute cancellation fee for shipped orders
+    let cancellationFee = 0;
+    if (order.status === 'shipped') {
+      const settings = await SiteSettings.getSingleton();
+
+      // If the cancellation-fee feature is disabled, shipped orders cannot be cancelled.
+      if (!settings.cancellationFeeEnabled) {
+        return res.status(400).json({
+          error: 'Order cannot be cancelled — it has already been shipped',
+        });
+      }
+
+      const pct = Number(settings.cancellationFeePercent) || 0;
+      const cap = Number(settings.cancellationFeeCap) || 0;
+      cancellationFee = Math.round(Math.min((order.totalAmount * pct) / 100, cap));
+
+      // Require explicit acknowledgement when a fee applies
+      if (cancellationFee > 0 && !req.body.acknowledgeFee) {
+        return res.status(400).json({
+          error: 'Cancellation fee acknowledgement required',
+          cancellationFee,
+          cancellationFeePercent: pct,
+          cancellationFeeCap: cap,
+        });
+      }
     }
 
     order.status = 'cancelled';
     order.cancelReason = req.body.reason;
+    order.cancellationFee = cancellationFee;
     await order.save();
+
+    // Refund to wallet for paid orders (totalAmount - fee)
+    if (order.isPaid) {
+      const refundAmount = Math.max(0, order.totalAmount - cancellationFee);
+      if (refundAmount > 0) {
+        try {
+          await applyWalletTransaction({
+            userId: order.user,
+            type: 'credit',
+            source: 'order_refund',
+            amount: refundAmount,
+            description: cancellationFee > 0
+              ? `Refund for cancelled order ${order.orderNumber} (₹${cancellationFee} cancellation fee deducted)`
+              : `Refund for cancelled order ${order.orderNumber}`,
+            order: order._id,
+          });
+        } catch (err) {
+          console.error('Wallet refund on cancel failed:', err.message);
+        }
+      }
+    }
 
     // Send cancellation email
     sendOrderCancellation(order, req.user.email, req.body.reason);

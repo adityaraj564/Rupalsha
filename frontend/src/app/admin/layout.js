@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers, FiClipboard, FiSun, FiMoon, FiImage, FiFileText, FiActivity, FiRotateCcw, FiCreditCard } from 'react-icons/fi';
+import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers, FiClipboard, FiSun, FiMoon, FiImage, FiFileText, FiActivity, FiRotateCcw, FiCreditCard, FiSettings } from 'react-icons/fi';
 import { useAuthStore, useThemeStore } from '@/lib/store';
 import { AdminDashboardSkeleton } from '@/components/Skeleton';
 
@@ -22,6 +22,7 @@ const ADMIN_NAV = [
   { href: '/admin/blogs', label: 'Blog Posts', icon: FiFileText },
   { href: '/admin/about', label: 'About Page', icon: FiInfo },
   { href: '/admin/activity', label: 'Activity Log', icon: FiActivity },
+  { href: '/admin/settings', label: 'Settings', icon: FiSettings },
 ];
 
 export default function AdminLayout({ children }) {
