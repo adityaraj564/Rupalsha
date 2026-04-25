@@ -30,26 +30,39 @@ function Toggle({ checked, onChange, disabled = false }) {
 export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
+  const initialForm = {
     cancellationFeeEnabled: false,
     cancellationFeePercent: 50,
     cancellationFeeCap: 100,
     codEnabled: false,
-  });
+    unboxingVideoNoticeEnabled: true,
+  };
+  const [form, setForm] = useState(initialForm);
+  const [savedForm, setSavedForm] = useState(initialForm);
 
   useEffect(() => {
     adminAPI.getSettings()
       .then((data) => {
-        setForm({
+        const next = {
           cancellationFeeEnabled: !!data.cancellationFeeEnabled,
           cancellationFeePercent: data.cancellationFeePercent ?? 50,
           cancellationFeeCap: data.cancellationFeeCap ?? 100,
           codEnabled: !!data.codEnabled,
-        });
+          unboxingVideoNoticeEnabled: data.unboxingVideoNoticeEnabled !== false,
+        };
+        setForm(next);
+        setSavedForm(next);
       })
       .catch((err) => toast.error(err.message || 'Failed to load settings'))
       .finally(() => setLoading(false));
   }, []);
+
+  const isDirty =
+    form.cancellationFeeEnabled !== savedForm.cancellationFeeEnabled ||
+    Number(form.cancellationFeePercent) !== Number(savedForm.cancellationFeePercent) ||
+    Number(form.cancellationFeeCap) !== Number(savedForm.cancellationFeeCap) ||
+    form.codEnabled !== savedForm.codEnabled ||
+    form.unboxingVideoNoticeEnabled !== savedForm.unboxingVideoNoticeEnabled;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,7 +83,17 @@ export default function AdminSettingsPage() {
         cancellationFeePercent: pct,
         cancellationFeeCap: cap,
         codEnabled: form.codEnabled,
+        unboxingVideoNoticeEnabled: form.unboxingVideoNoticeEnabled,
       });
+      const saved = {
+        cancellationFeeEnabled: form.cancellationFeeEnabled,
+        cancellationFeePercent: pct,
+        cancellationFeeCap: cap,
+        codEnabled: form.codEnabled,
+        unboxingVideoNoticeEnabled: form.unboxingVideoNoticeEnabled,
+      };
+      setForm(saved);
+      setSavedForm(saved);
       toast.success('Settings saved');
     } catch (err) {
       toast.error(err.message || 'Failed to save settings');
@@ -165,12 +188,31 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
+        {/* Unboxing Video Notice */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="font-semibold text-lg text-brand-charcoal dark:text-white">Unboxing Video Notice</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                When enabled, a red-bordered mandatory unboxing video notice is shown at the bottom of the Returns &amp; Exchange section on the Help page.
+              </p>
+            </div>
+            <Toggle
+              checked={form.unboxingVideoNoticeEnabled}
+              onChange={(v) => setForm({ ...form, unboxingVideoNoticeEnabled: v })}
+            />
+          </div>
+          <p className={`text-xs mt-3 font-medium ${form.unboxingVideoNoticeEnabled ? 'text-green-600' : 'text-gray-500'}`}>
+            Currently: {form.unboxingVideoNoticeEnabled ? 'Visible to customers' : 'Hidden'}
+          </p>
+        </div>
+
         <button
           type="submit"
-          disabled={saving}
-          className="btn-primary text-sm py-2.5 flex items-center gap-2 disabled:opacity-50"
+          disabled={saving || !isDirty}
+          className="btn-primary text-sm py-2.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <FiSave size={16} /> {saving ? 'Saving...' : 'Save Settings'}
+          <FiSave size={16} /> {saving ? 'Saving...' : isDirty ? 'Save Settings' : 'Saved'}
         </button>
       </form>
     </div>

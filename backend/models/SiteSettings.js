@@ -11,6 +11,10 @@ const siteSettingsSchema = new mongoose.Schema({
 
   // Cash on Delivery toggle. When false, customers cannot select COD at checkout.
   codEnabled: { type: Boolean, default: false },
+
+  // Unboxing video notice on the Returns & Exchange section of the Help page.
+  // When true, a red-bordered mandatory notice is shown to customers.
+  unboxingVideoNoticeEnabled: { type: Boolean, default: true },
 }, { timestamps: true });
 
 siteSettingsSchema.statics.getSingleton = async function () {

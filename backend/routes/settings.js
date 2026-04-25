@@ -14,6 +14,7 @@ router.get('/', async (req, res, next) => {
       cancellationFeePercent: settings.cancellationFeePercent,
       cancellationFeeCap: settings.cancellationFeeCap,
       codEnabled: settings.codEnabled,
+      unboxingVideoNoticeEnabled: settings.unboxingVideoNoticeEnabled !== false,
     });
   } catch (err) {
     next(err);
@@ -29,6 +30,7 @@ router.put(
     body('cancellationFeePercent').optional().isFloat({ min: 0, max: 100 }),
     body('cancellationFeeCap').optional().isFloat({ min: 0 }),
     body('codEnabled').optional().isBoolean(),
+    body('unboxingVideoNoticeEnabled').optional().isBoolean(),
   ],
   async (req, res, next) => {
     try {
@@ -48,6 +50,9 @@ router.put(
       if (req.body.codEnabled !== undefined) {
         settings.codEnabled = Boolean(req.body.codEnabled);
       }
+      if (req.body.unboxingVideoNoticeEnabled !== undefined) {
+        settings.unboxingVideoNoticeEnabled = Boolean(req.body.unboxingVideoNoticeEnabled);
+      }
       await settings.save();
 
       res.json({
@@ -55,6 +60,7 @@ router.put(
         cancellationFeePercent: settings.cancellationFeePercent,
         cancellationFeeCap: settings.cancellationFeeCap,
         codEnabled: settings.codEnabled,
+        unboxingVideoNoticeEnabled: settings.unboxingVideoNoticeEnabled !== false,
       });
     } catch (err) {
       next(err);

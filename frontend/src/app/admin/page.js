@@ -52,10 +52,12 @@ export default function AdminDashboard() {
               <div key={status} className="flex items-center justify-between">
                 <span className="text-sm text-gray-600 capitalize">{status}</span>
                 <div className="flex items-center gap-2">
-                  <div className="w-32 bg-gray-100 rounded-full h-2">
+                  <div className="w-32 bg-gray-100 dark:bg-gray-700 rounded-full h-2">
                     <div
-                      className="bg-brand-green h-2 rounded-full"
-                      style={{ width: `${Math.min(100, (count / data.totalOrders) * 100)}%` }}
+                      className="h-2 rounded-full bg-brand-green dark:bg-[#F5F1E9]"
+                      style={{
+                        width: `${Math.min(100, (count / data.totalOrders) * 100)}%`,
+                      }}
                     />
                   </div>
                   <span className="text-sm font-medium w-8 text-right">{count}</span>

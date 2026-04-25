@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { FiChevronDown, FiMail, FiPhone, FiClock } from 'react-icons/fi';
-import { faqsAPI, pagesAPI } from '@/lib/api';
+import { faqsAPI, pagesAPI, settingsAPI } from '@/lib/api';
+import { FiAlertTriangle } from 'react-icons/fi';
 
 export default function HelpPage() {
   const [openFaq, setOpenFaq] = useState(null);
@@ -12,6 +13,7 @@ export default function HelpPage() {
   const [contact, setContact] = useState(null);
   const [privacy, setPrivacy] = useState(null);
   const [terms, setTerms] = useState(null);
+  const [unboxingNoticeOn, setUnboxingNoticeOn] = useState(true);
 
   useEffect(() => {
     faqsAPI.getAll().then((d) => setFaqs(d.faqs || [])).catch(() => {});
@@ -20,6 +22,9 @@ export default function HelpPage() {
     pagesAPI.get('contact').then((d) => setContact(d.page)).catch(() => {});
     pagesAPI.get('privacy').then((d) => setPrivacy(d.page)).catch(() => {});
     pagesAPI.get('terms').then((d) => setTerms(d.page)).catch(() => {});
+    settingsAPI.get()
+      .then((s) => setUnboxingNoticeOn(s?.unboxingVideoNoticeEnabled !== false))
+      .catch(() => {});
   }, []);
 
   return (
@@ -67,6 +72,21 @@ export default function HelpPage() {
         <section id="returns" className="mb-16">
           <h2 className="font-serif text-2xl font-semibold mb-4 dark:text-white">{returns.title}</h2>
           <div className="card p-6 text-sm text-gray-600 dark:text-gray-400 prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: returns.content }} />
+          {unboxingNoticeOn && (
+            <div className="mt-4 rounded-xl border-2 border-red-500 bg-red-50 dark:bg-red-950/30 p-5">
+              <div className="flex items-start gap-3">
+                <FiAlertTriangle className="flex-shrink-0 text-red-600 dark:text-red-400 mt-0.5" size={20} />
+                <div className="text-sm">
+                  <p className="font-semibold text-red-700 dark:text-red-300 mb-1">
+                    ⚠️ Mandatory: Unboxing Video Required
+                  </p>
+                  <p className="text-red-700/90 dark:text-red-200/90 leading-relaxed">
+                    You must record a video while opening your package. This unboxing video is mandatory for processing any return or exchange request. Claims without an unboxing video will not be accepted.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       )}
 
