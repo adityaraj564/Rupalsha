@@ -202,11 +202,11 @@ export default function OrderDetailPage() {
               {STATUS_STEPS.map((step, i) => (
                 <div key={step} className="relative flex flex-col items-center z-10 flex-1">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                    i <= currentStep ? 'bg-brand-green text-white' : 'bg-gray-200 text-gray-400'
+                    i <= currentStep ? 'bg-brand-green text-white' : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-300'
                   }`}>
                     {i <= currentStep ? '✓' : i + 1}
                   </div>
-                  <span className={`text-xs mt-2 capitalize text-center leading-tight px-1 ${i <= currentStep ? 'text-brand-green dark:text-[#F8F0E8] font-medium' : 'text-gray-400'}`}>
+                  <span className={`text-xs mt-2 capitalize text-center leading-tight px-1 ${i <= currentStep ? 'text-brand-green dark:text-[#F8F0E8] font-medium' : 'text-gray-400 dark:text-gray-400'}`}>
                     {step}
                   </span>
                 </div>
@@ -288,12 +288,12 @@ export default function OrderDetailPage() {
                 {refundSteps.map((step, i) => (
                   <div key={step} className="relative flex flex-col items-center z-10 flex-1">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                      i <= currentRefundStep ? 'bg-brand-green text-white' : 'bg-gray-200 text-gray-400'
+                      i <= currentRefundStep ? 'bg-brand-green text-white' : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-300'
                     }`}>
                       {i <= currentRefundStep ? '✓' : i + 1}
                     </div>
                     <span className={`text-xs mt-2 capitalize text-center leading-tight px-1 ${
-                      i <= currentRefundStep ? 'text-brand-green dark:text-[#F8F0E8] font-medium' : 'text-gray-400'
+                      i <= currentRefundStep ? 'text-brand-green dark:text-[#F8F0E8] font-medium' : 'text-gray-400 dark:text-gray-400'
                     }`}>
                       {step}
                     </span>
