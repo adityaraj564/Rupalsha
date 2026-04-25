@@ -156,9 +156,9 @@ export default function ProfilePage() {
           <FiPackage className="mx-auto mb-2 text-brand-green dark:text-[#F8F0E8]" size={24} />
           <span className="text-sm font-medium">My Orders</span>
         </Link>
-        <Link href="/wallet" className="card p-4 text-center hover:shadow-md transition-shadow relative overflow-hidden dark:bg-gradient-to-br dark:from-purple-900/40 dark:via-fuchsia-900/30 dark:to-indigo-900/40 dark:border-fuchsia-500/20">
-          <FiCreditCard className="mx-auto mb-2 text-brand-green dark:text-fuchsia-300" size={24} />
-          <span className="text-sm font-medium dark:text-fuchsia-100">Wallet</span>
+        <Link href="/wallet" className="card p-4 text-center hover:shadow-md transition-shadow relative overflow-hidden dark:bg-gradient-to-br dark:from-yellow-400 dark:via-amber-400 dark:to-yellow-500 dark:border-amber-600/40">
+          <FiCreditCard className="mx-auto mb-2 text-brand-green dark:text-gray-900" size={24} />
+          <span className="text-sm font-medium dark:text-gray-900">Wallet</span>
         </Link>
         <Link href="/wishlist" className="card p-4 text-center hover:shadow-md transition-shadow">
           <FiHeart className="mx-auto mb-2 text-brand-green dark:text-[#F8F0E8]" size={24} />

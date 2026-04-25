@@ -341,7 +341,7 @@ export default function CheckoutPage() {
 
             {/* Wallet toggle */}
             {walletBalance > 0 ? (
-              <label className="flex items-center justify-between gap-3 p-4 mb-3 border rounded-xl cursor-pointer bg-green-50/40 dark:bg-gradient-to-br dark:from-purple-900/30 dark:via-fuchsia-900/20 dark:to-indigo-900/30 border-green-600/40 dark:border-fuchsia-500/30">
+              <label className="flex items-center justify-between gap-3 p-4 mb-3 border rounded-xl cursor-pointer bg-green-50/40 dark:bg-gradient-to-br dark:from-yellow-400 dark:via-amber-400 dark:to-yellow-500 border-green-600/40 dark:border-amber-600/40 dark:text-gray-900">
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
@@ -351,7 +351,7 @@ export default function CheckoutPage() {
                   />
                   <div>
                     <p className="font-medium">Use Rupalsha Wallet</p>
-                    <p className="text-sm text-gray-500 dark:text-fuchsia-200/70">
+                    <p className="text-sm text-gray-500 dark:text-gray-900/80">
                       Balance: ₹{walletBalance.toLocaleString('en-IN')}
                       {useWallet && walletApplied > 0 && ` • Applying ₹${walletApplied.toLocaleString('en-IN')}`}
                     </p>
@@ -366,7 +366,7 @@ export default function CheckoutPage() {
                 </div>
                 <a
                   href="/wallet"
-                  className="text-xs font-medium text-brand-green dark:text-fuchsia-300 hover:underline whitespace-nowrap"
+                  className="text-xs font-medium text-brand-green dark:text-yellow-300 hover:underline whitespace-nowrap"
                 >
                   Recharge →
                 </a>

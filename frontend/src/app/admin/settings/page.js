@@ -15,7 +15,7 @@ function Toggle({ checked, onChange, disabled = false }) {
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
-        checked ? 'bg-brand-green' : 'bg-gray-300 dark:bg-gray-600'
+        checked ? 'bg-brand-green dark:bg-[#F6F0E7]' : 'bg-gray-300 dark:bg-gray-600'
       }`}
     >
       <span
@@ -210,7 +210,7 @@ export default function AdminSettingsPage() {
         <button
           type="submit"
           disabled={saving || !isDirty}
-          className="btn-primary text-sm py-2.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-[#F5F1E9] dark:text-brand-charcoal dark:hover:bg-[#F5F1E9]/90"
+          className="btn-primary text-sm py-2.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-[#F6F0E7] dark:text-brand-green dark:hover:bg-[#F6F0E7]/90"
         >
           <FiSave size={16} /> {saving ? 'Saving...' : isDirty ? 'Save Settings' : 'Saved'}
         </button>

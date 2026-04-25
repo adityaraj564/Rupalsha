@@ -134,15 +134,15 @@ export default function WalletPage() {
       </div>
 
       {/* Balance */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-brand-green via-emerald-700 to-green-900 dark:from-purple-700 dark:via-fuchsia-700 dark:to-indigo-900 text-white rounded-2xl p-6 mb-6 shadow-lg dark:shadow-purple-900/40">
-        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -bottom-12 -left-8 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
+      <div className="relative overflow-hidden bg-gradient-to-br from-brand-green via-emerald-700 to-green-900 dark:from-yellow-400 dark:via-amber-400 dark:to-yellow-500 text-white dark:text-gray-900 rounded-2xl p-6 mb-6 shadow-lg dark:shadow-amber-900/40">
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 dark:bg-gray-900/10 blur-2xl" />
+        <div className="absolute -bottom-12 -left-8 w-32 h-32 rounded-full bg-white/10 dark:bg-gray-900/10 blur-2xl" />
         <div className="relative">
-          <p className="text-sm text-white/80">Current balance</p>
+          <p className="text-sm text-white/80 dark:text-gray-900/80">Current balance</p>
           <p className="font-serif text-4xl font-bold mt-1">
             {loading ? '—' : `₹${balance.toLocaleString('en-IN')}`}
           </p>
-          <p className="text-xs text-white/70 mt-2">
+          <p className="text-xs text-white/70 dark:text-gray-900/70 mt-2">
             Use your balance at checkout for instant payments.
           </p>
         </div>
@@ -162,8 +162,8 @@ export default function WalletPage() {
                   onClick={() => setRechargeAmount(String(a))}
                   className={`px-4 py-2 border rounded-lg text-sm transition-colors ${
                     active
-                      ? 'border-brand-green bg-brand-green/10 text-brand-green dark:border-fuchsia-500 dark:bg-fuchsia-500/20 dark:text-fuchsia-300'
-                      : 'hover:border-brand-green hover:text-brand-green dark:border-gray-700 dark:hover:border-fuchsia-500 dark:hover:text-fuchsia-300'
+                      ? 'border-brand-green bg-brand-green/10 text-brand-green dark:border-yellow-400 dark:bg-yellow-400 dark:text-gray-900'
+                      : 'hover:border-brand-green hover:text-brand-green dark:border-gray-700 dark:hover:border-yellow-400 dark:hover:text-yellow-300'
                   }`}
                 >
                   ₹{a}
@@ -186,7 +186,7 @@ export default function WalletPage() {
             <button
               type="submit"
               disabled={processing || !rechargeAmount}
-              className="px-5 py-2.5 bg-brand-green text-white rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-60 inline-flex items-center gap-2 dark:bg-gradient-to-r dark:from-fuchsia-600 dark:to-purple-700 dark:hover:from-fuchsia-500 dark:hover:to-purple-600 dark:shadow-lg dark:shadow-fuchsia-900/30"
+              className="px-5 py-2.5 bg-brand-green text-white rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-60 inline-flex items-center gap-2 dark:bg-gradient-to-r dark:from-yellow-400 dark:to-amber-500 dark:text-gray-900 dark:hover:from-yellow-300 dark:hover:to-amber-400 dark:shadow-lg dark:shadow-amber-900/30"
             >
               <FiPlus size={16} />
               {processing ? 'Processing...' : 'Recharge'}

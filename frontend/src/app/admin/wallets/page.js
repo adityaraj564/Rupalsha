@@ -137,15 +137,15 @@ export default function AdminWalletsPage() {
           ) : walletData ? (
             <div className="space-y-6">
               {/* Balance */}
-              <div className="relative overflow-hidden bg-gradient-to-br from-brand-green via-emerald-700 to-green-900 dark:from-purple-700 dark:via-fuchsia-700 dark:to-indigo-900 text-white rounded-2xl p-6 shadow dark:shadow-purple-900/40">
-                <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
-                <div className="absolute -bottom-12 -left-8 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
+              <div className="relative overflow-hidden bg-gradient-to-br from-brand-green via-emerald-700 to-green-900 dark:from-yellow-400 dark:via-amber-400 dark:to-yellow-500 text-white dark:text-gray-900 rounded-2xl p-6 shadow dark:shadow-amber-900/40">
+                <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 dark:bg-gray-900/10 blur-2xl" />
+                <div className="absolute -bottom-12 -left-8 w-32 h-32 rounded-full bg-white/10 dark:bg-gray-900/10 blur-2xl" />
                 <div className="relative">
-                  <p className="text-xs text-white/80">Wallet balance</p>
+                  <p className="text-xs text-white/80 dark:text-gray-900/80">Wallet balance</p>
                   <p className="font-serif text-3xl font-bold mt-1">
                     ₹{walletData.balance.toLocaleString('en-IN')}
                   </p>
-                  <p className="text-xs text-white/80 mt-2">
+                  <p className="text-xs text-white/80 dark:text-gray-900/80 mt-2">
                     {selectedUser.name} • {selectedUser.email}
                   </p>
                 </div>
