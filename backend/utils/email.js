@@ -40,8 +40,7 @@ const sendOrderConfirmation = async (order, userEmail) => {
       .map(item => `<li style="padding: 4px 0;">${item.name} (${item.size}) × ${item.quantity} — ₹${item.price}</li>`)
       .join('');
 
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await sendSmtp({
       to: userEmail,
       subject: `Order Confirmed - ${order.orderNumber}`,
       html: emailWrapper(`
@@ -78,8 +77,7 @@ const sendOrderStatusUpdate = async (order, userEmail) => {
 
     const info = statusMessages[order.status] || { emoji: '📋', title: 'Order Update', message: `Your order status has been updated to: ${order.status}` };
 
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await sendSmtp({
       to: userEmail,
       subject: `${info.emoji} ${info.title} - ${order.orderNumber}`,
       html: emailWrapper(`
@@ -103,8 +101,7 @@ const sendOrderStatusUpdate = async (order, userEmail) => {
 
 const sendOrderCancellation = async (order, userEmail, reason) => {
   try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await sendSmtp({
       to: userEmail,
       subject: `Order Cancelled - ${order.orderNumber}`,
       html: emailWrapper(`
@@ -125,8 +122,7 @@ const sendOrderCancellation = async (order, userEmail, reason) => {
 
 const sendReturnConfirmation = async (order, userEmail, reason) => {
   try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await sendSmtp({
       to: userEmail,
       subject: `Return Requested - ${order.orderNumber}`,
       html: emailWrapper(`
@@ -149,8 +145,7 @@ const sendReturnConfirmation = async (order, userEmail, reason) => {
 
 const sendWelcomeEmail = async (name, email) => {
   try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await sendSmtp({
       to: email,
       subject: 'Welcome to Rupalsha! 🎉',
       html: emailWrapper(`
@@ -172,8 +167,7 @@ const sendWelcomeEmail = async (name, email) => {
 
 const sendPasswordReset = async (email, resetUrl) => {
   try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await sendSmtp({
       to: email,
       subject: 'Password Reset - Rupalsha',
       html: emailWrapper(`
@@ -195,8 +189,7 @@ const sendPasswordReset = async (email, resetUrl) => {
 
 const sendPasswordChangeConfirmation = async (name, email) => {
   try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await sendSmtp({
       to: email,
       subject: '🔒 Password Changed - Rupalsha',
       html: emailWrapper(`
@@ -217,8 +210,7 @@ const sendPasswordChangeConfirmation = async (name, email) => {
 
 const sendContactConfirmation = async (name, email, subject) => {
   try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await sendSmtp({
       to: email,
       subject: `We received your message - "${subject}"`,
       html: emailWrapper(`
@@ -235,8 +227,7 @@ const sendContactConfirmation = async (name, email, subject) => {
 const sendContactNotificationToAdmin = async (name, email, subject, message) => {
   try {
     const adminEmail = process.env.ADMIN_EMAIL || 'support@rupalsha.com';
-    await resend.emails.send({
-      from: FROM_EMAIL,
+    await sendSmtp({
       to: adminEmail,
       subject: `📩 New Contact: ${subject}`,
       html: emailWrapper(`
