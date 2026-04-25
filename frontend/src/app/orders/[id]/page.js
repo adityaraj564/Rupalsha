@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiCheckCircle, FiPackage, FiTruck, FiMapPin, FiAlertCircle, FiClock, FiShoppingBag } from 'react-icons/fi';
+import { FiCheckCircle, FiPackage, FiTruck, FiMapPin, FiAlertCircle, FiClock, FiShoppingBag, FiDownload } from 'react-icons/fi';
 import { ordersAPI, paymentAPI, returnsAPI, settingsAPI } from '@/lib/api';
 import { useAuthStore, useCartStore } from '@/lib/store';
 import { OrdersSkeleton } from '@/components/Skeleton';
@@ -164,7 +164,7 @@ export default function OrderDetailPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-serif text-2xl md:text-3xl font-bold text-brand-charcoal">
-            Order {order.orderNumber}
+            Order <span className="font-open-sans tracking-wide">{order.orderNumber}</span>
           </h1>
           <p className="text-gray-500 text-sm mt-1">
             Placed on {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -247,6 +247,83 @@ export default function OrderDetailPage() {
         </div>
       )}
 
+      {/* Refund Tracker (cancelled or returned orders) */}
+      {['cancelled', 'returned'].includes(order.status) && order.refund && order.refund.method !== 'none' && (() => {
+        const r = order.refund;
+        const isWallet = r.method === 'wallet';
+        const isRefunded = r.status === 'refunded';
+        const isProcessing = r.status === 'processing' || (!isRefunded && r.status !== 'not_applicable');
+
+        const refundSteps = isWallet
+          ? ['Refund initiated', 'Credited to wallet']
+          : ['Refund initiated', 'Processing', 'Refunded to source'];
+
+        let currentRefundStep = 0;
+        if (isWallet) {
+          currentRefundStep = isRefunded ? 1 : 0;
+        } else {
+          currentRefundStep = isRefunded ? 2 : isProcessing ? 1 : 0;
+        }
+
+        return (
+          <div className="card p-6 mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h2 className="font-serif text-lg font-semibold">Refund Status</h2>
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                isRefunded
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300'
+              }`}>
+                {isRefunded ? 'Refunded' : 'Processing'}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto -mx-2 px-2 scrollbar-hide">
+              <div className="flex items-center justify-between relative min-w-[360px]">
+                <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200" />
+                <div
+                  className="absolute top-4 left-0 h-0.5 bg-brand-green transition-all"
+                  style={{ width: `${(currentRefundStep / (refundSteps.length - 1)) * 100}%` }}
+                />
+                {refundSteps.map((step, i) => (
+                  <div key={step} className="relative flex flex-col items-center z-10 flex-1">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
+                      i <= currentRefundStep ? 'bg-brand-green text-white' : 'bg-gray-200 text-gray-400'
+                    }`}>
+                      {i <= currentRefundStep ? '✓' : i + 1}
+                    </div>
+                    <span className={`text-xs mt-2 capitalize text-center leading-tight px-1 ${
+                      i <= currentRefundStep ? 'text-brand-green dark:text-[#F8F0E8] font-medium' : 'text-gray-400'
+                    }`}>
+                      {step}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 grid sm:grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-300">
+              <p><span className="text-gray-400">Method:</span> {isWallet ? 'Wallet credit' : 'Source account (bank/card)'}</p>
+              {r.amount > 0 && (
+                <p><span className="text-gray-400">Amount:</span> ₹{r.amount.toLocaleString()}</p>
+              )}
+              {r.refundedAt && isRefunded && (
+                <p><span className="text-gray-400">Refunded on:</span> {new Date(r.refundedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              )}
+              {r.reference && (
+                <p><span className="text-gray-400">Reference:</span> <span className="font-mono">{r.reference}</span></p>
+              )}
+            </div>
+            {r.notes && <p className="text-xs text-gray-500 mt-2">{r.notes}</p>}
+            {!isRefunded && !isWallet && (
+              <p className="text-xs text-gray-500 mt-2">
+                Refund typically reflects in your account within 5–7 business days.
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
       {order.status === 'failed' && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl p-4 mb-6 flex items-start gap-3">
           <FiAlertCircle className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" size={20} />
@@ -303,7 +380,32 @@ export default function OrderDetailPage() {
               <hr />
               <div className="flex justify-between font-semibold text-base"><span>Total</span><span>₹{order.totalAmount.toLocaleString()}</span></div>
               <p className="text-gray-500 capitalize">Payment: {order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online'}</p>
-              {order.isPaid && <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">Paid ✓</span>}
+              {(() => {
+                if (!order.isPaid) return null;
+                const refundStatus = order.refund?.status;
+                const refundMethod = order.refund?.method;
+                const isCancelledOrReturned = ['cancelled', 'returned'].includes(order.status);
+
+                if (isCancelledOrReturned && refundStatus === 'refunded') {
+                  return (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                      Refunded {refundMethod === 'wallet' ? '· Wallet' : refundMethod === 'source' ? '· Source' : ''}
+                    </span>
+                  );
+                }
+                if (isCancelledOrReturned && (refundStatus === 'processing' || (refundMethod && refundMethod !== 'none'))) {
+                  return (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300">
+                      Refund Processing
+                    </span>
+                  );
+                }
+                return (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                    Paid ✓
+                  </span>
+                );
+              })()}
             </div>
           </div>
 
@@ -371,6 +473,18 @@ export default function OrderDetailPage() {
 
           {order.status === 'delivered' && order.items.some(item => item.product?.isReturnable === false) && (
             <p className="text-sm text-gray-500">This order contains non-returnable items and cannot be returned.</p>
+          )}
+
+          {/* Invoice download — only when delivered and no return/refund in progress */}
+          {order.status === 'delivered' && !returnRequest && (
+            <Link
+              href={`/orders/${order._id}/invoice`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full px-4 py-2.5 border-2 border-brand-green text-brand-green dark:border-[#F8F0E8] dark:text-[#F8F0E8] rounded-xl text-sm font-medium hover:bg-brand-green/5 dark:hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
+            >
+              <FiDownload size={16} /> Download Invoice
+            </Link>
           )}
         </div>
       </div>

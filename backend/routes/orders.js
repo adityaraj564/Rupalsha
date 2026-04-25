@@ -14,6 +14,45 @@ const router = express.Router();
 
 const FREE_SHIPPING_THRESHOLD = 999;
 
+/**
+ * Lazy backfill of `refund` for old cancelled/returned orders that pre-date
+ * the refund-tracker feature. Mutates and saves the order in-place if needed.
+ * Safe to call on any order — it's a no-op when refund is already set.
+ */
+async function ensureRefundBackfill(order) {
+  if (!order || !['cancelled', 'returned'].includes(order.status)) return order;
+  const r = order.refund || {};
+  // Already populated meaningfully — nothing to do
+  if (r.method && r.method !== 'none') return order;
+  if (r.status === 'processing' || r.status === 'refunded') return order;
+
+  if (order.isPaid) {
+    const amount = Math.max(0, (order.totalAmount || 0) - (order.cancellationFee || 0));
+    order.refund = {
+      method: 'wallet',
+      status: 'refunded',
+      amount,
+      refundedAt: order.updatedAt || new Date(),
+      updatedAt: new Date(),
+      notes: 'Refund credited to wallet',
+    };
+  } else {
+    order.refund = {
+      method: 'none',
+      status: 'not_applicable',
+      amount: 0,
+      updatedAt: new Date(),
+    };
+  }
+
+  try {
+    await order.save();
+  } catch (err) {
+    console.error('Refund backfill save failed:', err.message);
+  }
+  return order;
+}
+
 // POST /api/orders - Create order
 router.post('/', auth, [
   body('shippingAddress').isObject(),
@@ -234,6 +273,7 @@ router.get('/:id', auth, async (req, res, next) => {
     const order = await Order.findOne({ _id: req.params.id, user: req.user._id })
       .populate('items.product', 'slug images isReturnable');
     if (!order) return res.status(404).json({ error: 'Order not found' });
+    await ensureRefundBackfill(order);
     res.json({ order });
   } catch (error) {
     next(error);
@@ -284,26 +324,52 @@ router.put('/:id/cancel', auth, [
     order.status = 'cancelled';
     order.cancelReason = req.body.reason;
     order.cancellationFee = cancellationFee;
+
+    // Refund handling
+    const refundAmount = order.isPaid ? Math.max(0, order.totalAmount - cancellationFee) : 0;
+    if (!order.isPaid || refundAmount === 0) {
+      // Unpaid (e.g. COD not yet paid) — no refund needed
+      order.refund = {
+        method: 'none',
+        status: 'not_applicable',
+        amount: 0,
+        updatedAt: new Date(),
+      };
+    } else {
+      // Paid — credit wallet automatically and mark as refunded
+      order.refund = {
+        method: 'wallet',
+        status: 'refunded',
+        amount: refundAmount,
+        refundedAt: new Date(),
+        updatedAt: new Date(),
+        notes: cancellationFee > 0
+          ? `Refund of ₹${refundAmount} credited to wallet (₹${cancellationFee} cancellation fee deducted)`
+          : `Refund of ₹${refundAmount} credited to wallet`,
+      };
+    }
+
     await order.save();
 
-    // Refund to wallet for paid orders (totalAmount - fee)
-    if (order.isPaid) {
-      const refundAmount = Math.max(0, order.totalAmount - cancellationFee);
-      if (refundAmount > 0) {
-        try {
-          await applyWalletTransaction({
-            userId: order.user,
-            type: 'credit',
-            source: 'order_refund',
-            amount: refundAmount,
-            description: cancellationFee > 0
-              ? `Refund for cancelled order ${order.orderNumber} (₹${cancellationFee} cancellation fee deducted)`
-              : `Refund for cancelled order ${order.orderNumber}`,
-            order: order._id,
-          });
-        } catch (err) {
-          console.error('Wallet refund on cancel failed:', err.message);
-        }
+    // Credit wallet for paid orders
+    if (refundAmount > 0) {
+      try {
+        await applyWalletTransaction({
+          userId: order.user,
+          type: 'credit',
+          source: 'order_refund',
+          amount: refundAmount,
+          description: cancellationFee > 0
+            ? `Refund for cancelled order ${order.orderNumber} (₹${cancellationFee} cancellation fee deducted)`
+            : `Refund for cancelled order ${order.orderNumber}`,
+          order: order._id,
+        });
+      } catch (err) {
+        console.error('Wallet refund on cancel failed:', err.message);
+        // Mark refund as processing so admin can investigate
+        order.refund.status = 'processing';
+        order.refund.notes = 'Automatic wallet refund failed — please review';
+        await order.save();
       }
     }
 

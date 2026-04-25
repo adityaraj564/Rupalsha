@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FiTrash2, FiAlertTriangle, FiX, FiEye, FiMapPin, FiUser, FiPhone, FiMail, FiPackage, FiCreditCard, FiCopy, FiTruck } from 'react-icons/fi';
+import { FiTrash2, FiAlertTriangle, FiX, FiEye, FiMapPin, FiUser, FiPhone, FiMail, FiPackage, FiCreditCard, FiCopy, FiTruck, FiDollarSign } from 'react-icons/fi';
 import { adminAPI } from '@/lib/api';
 import { AdminTableSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
@@ -45,6 +45,17 @@ export default function AdminOrdersPage() {
       await adminAPI.updateOrderStatus(orderId, { status });
       setOrders(orders.map(o => o._id === orderId ? { ...o, status } : o));
       toast.success('Status updated');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleRefundUpdate = async (orderId, payload) => {
+    try {
+      const { order: updated } = await adminAPI.updateOrderRefund(orderId, payload);
+      setOrders(orders.map(o => o._id === orderId ? updated : o));
+      if (selectedOrder && selectedOrder._id === orderId) setSelectedOrder(updated);
+      toast.success('Refund updated');
     } catch (err) {
       toast.error(err.message);
     }
@@ -100,6 +111,7 @@ export default function AdminOrdersPage() {
                 <th className="p-4 font-medium">Amount</th>
                 <th className="p-4 font-medium">Payment</th>
                 <th className="p-4 font-medium">Status</th>
+                <th className="p-4 font-medium">Refund</th>
                 <th className="p-4 font-medium">Date</th>
                 <th className="p-4 font-medium">Actions</th>
               </tr>
@@ -123,6 +135,32 @@ export default function AdminOrdersPage() {
                       {order.status}
                     </span>
                   </td>
+                  <td className="p-4">
+                    {(() => {
+                      if (!['cancelled', 'returned'].includes(order.status)) {
+                        return <span className="text-xs text-gray-400">—</span>;
+                      }
+                      const r = order.refund || {};
+                      const status = r.status || (order.isPaid ? 'processing' : 'not_applicable');
+                      const method = r.method || (order.isPaid ? 'wallet' : 'none');
+                      if (method === 'none' || status === 'not_applicable') {
+                        return <span className="text-xs text-gray-400">N/A</span>;
+                      }
+                      const cls = status === 'refunded'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+                      return (
+                        <div className="flex flex-col gap-0.5">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize w-fit ${cls}`}>
+                            {status === 'refunded' ? 'Refunded' : 'Processing'}
+                          </span>
+                          <span className="text-[10px] text-gray-400 capitalize">
+                            {method === 'wallet' ? 'Wallet' : 'Source'}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                  </td>
                   <td className="p-4 text-gray-500">
                     {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                   </td>
@@ -135,6 +173,15 @@ export default function AdminOrdersPage() {
                       >
                         <FiEye size={14} />
                       </button>
+                      {['cancelled', 'returned'].includes(order.status) && (
+                        <button
+                          onClick={() => setSelectedOrder(order)}
+                          className="p-1.5 hover:bg-orange-50 rounded-lg text-orange-600 transition-colors"
+                          title="Manage refund"
+                        >
+                          <FiDollarSign size={14} />
+                        </button>
+                      )}
                       <select
                         value={order.status}
                         onChange={(e) => handleStatusUpdate(order._id, e.target.value)}
@@ -305,6 +352,14 @@ export default function AdminOrdersPage() {
                   ))}
                 </select>
               </div>
+
+              {/* Refund Tracking */}
+              {['cancelled', 'returned'].includes(selectedOrder.status) && (
+                <RefundEditor
+                  order={selectedOrder}
+                  onSave={(payload) => handleRefundUpdate(selectedOrder._id, payload)}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -348,5 +403,123 @@ export default function AdminOrdersPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function RefundEditor({ order, onSave }) {
+  const initial = order.refund || {};
+  const [method, setMethod] = useState(initial.method || 'none');
+  const [status, setStatus] = useState(initial.status || 'not_applicable');
+  const [amount, setAmount] = useState(initial.amount ?? Math.max(0, (order.totalAmount || 0) - (order.cancellationFee || 0)));
+  const [reference, setReference] = useState(initial.reference || '');
+  const [notes, setNotes] = useState(initial.notes || '');
+
+  // Re-sync when a different order is opened
+  useEffect(() => {
+    const r = order.refund || {};
+    setMethod(r.method || 'none');
+    setStatus(r.status || 'not_applicable');
+    setAmount(r.amount ?? Math.max(0, (order.totalAmount || 0) - (order.cancellationFee || 0)));
+    setReference(r.reference || '');
+    setNotes(r.notes || '');
+  }, [order._id]);
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    onSave({
+      method,
+      status,
+      amount: Number(amount) || 0,
+      reference,
+      notes,
+    });
+  };
+
+  const badgeClass =
+    status === 'refunded'
+      ? 'bg-green-100 text-green-800'
+      : status === 'processing'
+      ? 'bg-yellow-100 text-yellow-800'
+      : 'bg-gray-100 text-gray-700';
+
+  return (
+    <form onSubmit={handleSave} className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4 border border-orange-100 dark:border-orange-900/40">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-semibold text-sm text-brand-charcoal dark:text-gray-100">Refund Tracking</h4>
+        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${badgeClass}`}>
+          {status === 'not_applicable' ? 'N/A' : status}
+        </span>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3 text-sm">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Method</label>
+          <select
+            value={method}
+            onChange={(e) => setMethod(e.target.value)}
+            className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700"
+          >
+            <option value="none">No refund needed</option>
+            <option value="wallet">Wallet credit</option>
+            <option value="source">Source account (bank/card)</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Status</label>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700"
+          >
+            <option value="not_applicable">Not applicable</option>
+            <option value="processing">Processing</option>
+            <option value="refunded">Refunded</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Amount (₹)</label>
+          <input
+            type="number"
+            min="0"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Reference (UTR / Refund ID)</label>
+          <input
+            type="text"
+            value={reference}
+            onChange={(e) => setReference(e.target.value)}
+            placeholder="e.g. rfnd_XYZ123"
+            className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700"
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Notes</label>
+          <textarea
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Internal note shown to customer on refund tracker"
+            className="w-full text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700"
+          />
+        </div>
+      </div>
+
+      {initial.refundedAt && (
+        <p className="text-xs text-gray-500 mt-2">
+          Refunded on {new Date(initial.refundedAt).toLocaleString('en-IN')}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        className="mt-3 px-4 py-2 bg-brand-green text-white text-sm font-medium rounded-lg hover:bg-green-800 transition-colors"
+      >
+        Save Refund Update
+      </button>
+    </form>
   );
 }

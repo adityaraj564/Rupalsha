@@ -357,6 +357,44 @@ router.delete('/orders/:id', async (req, res, next) => {
   }
 });
 
+// PUT /api/admin/orders/:id/refund — admin updates refund tracking for a cancelled/returned order
+router.put('/orders/:id/refund', [
+  body('method').optional().isIn(['wallet', 'source', 'none']),
+  body('status').optional().isIn(['not_applicable', 'processing', 'refunded']),
+  body('amount').optional().isFloat({ min: 0 }),
+  body('reference').optional().isString(),
+  body('notes').optional().isString(),
+], async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    if (!['cancelled', 'returned'].includes(order.status)) {
+      return res.status(400).json({ error: 'Refund tracking only applies to cancelled or returned orders' });
+    }
+
+    const refund = order.refund || {};
+    if (req.body.method !== undefined) refund.method = req.body.method;
+    if (req.body.status !== undefined) {
+      refund.status = req.body.status;
+      if (req.body.status === 'refunded' && !refund.refundedAt) {
+        refund.refundedAt = new Date();
+      }
+    }
+    if (req.body.amount !== undefined) refund.amount = Number(req.body.amount);
+    if (req.body.reference !== undefined) refund.reference = req.body.reference;
+    if (req.body.notes !== undefined) refund.notes = req.body.notes;
+    refund.updatedAt = new Date();
+
+    order.refund = refund;
+    await order.save();
+
+    res.json({ order });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ===== USERS =====
 // GET /api/admin/users
 router.get('/users', async (req, res, next) => {

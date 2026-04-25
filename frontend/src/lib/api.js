@@ -300,6 +300,7 @@ export const adminAPI = {
     return request(`/admin/orders?${query}`);
   },
   updateOrderStatus: (id, data) => request(`/admin/orders/${id}/status`, { method: 'PUT', body: data }),
+  updateOrderRefund: (id, data) => request(`/admin/orders/${id}/refund`, { method: 'PUT', body: data }),
   deleteOrder: (id) => request(`/admin/orders/${id}`, { method: 'DELETE' }),
   // Users
   getUsers: (params) => {

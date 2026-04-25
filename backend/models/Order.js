@@ -62,6 +62,18 @@ const orderSchema = new mongoose.Schema({
   deliveredAt: Date,
   cancelReason: String,
   cancellationFee: { type: Number, default: 0, min: 0 },
+  // Refund tracking — populated after a cancellation/return.
+  // method: 'wallet' (instant), 'source' (manual via Razorpay/bank), 'none' (no refund needed e.g. unpaid COD)
+  // status: 'not_applicable' | 'processing' | 'refunded'
+  refund: {
+    method: { type: String, enum: ['wallet', 'source', 'none'], default: 'none' },
+    status: { type: String, enum: ['not_applicable', 'processing', 'refunded'], default: 'not_applicable' },
+    amount: { type: Number, default: 0, min: 0 },
+    reference: String, // e.g. Razorpay refund id, bank UTR
+    notes: String,
+    refundedAt: Date,
+    updatedAt: Date,
+  },
   returnReason: String,
   notes: String,
 }, {
