@@ -411,6 +411,7 @@ module.exports = {
   sendWelcomeEmail,
   sendPasswordReset,
   sendPasswordChangeConfirmation,
+  sendLoginOtp,
   sendContactConfirmation,
   sendContactNotificationToAdmin,
   sendReturnRequestReceived,
