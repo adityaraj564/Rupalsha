@@ -34,7 +34,9 @@ export default function ReturnTracker({ returnRequest, onCancel }) {
     <div className="card p-5 md:p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="font-serif text-lg font-semibold">Return Request #{returnRequest.returnNumber}</h3>
+          <h3 className="font-serif text-lg font-semibold">
+            Return Request <span className="font-open-sans tracking-wide">#{returnRequest.returnNumber}</span>
+          </h3>
           <p className="text-xs text-gray-500 mt-1">
             Raised {new Date(returnRequest.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
             {returnRequest.reason && ` • ${REASON_LABELS[returnRequest.reason] || returnRequest.reason}`}
@@ -111,15 +113,39 @@ export default function ReturnTracker({ returnRequest, onCancel }) {
         </div>
       )}
 
-      {status === 'refunded' && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-5 text-sm text-green-800 dark:text-green-300">
-          Refund of ₹{returnRequest.refundAmount || '—'} processed on{' '}
-          {returnRequest.refundedAt
-            ? new Date(returnRequest.refundedAt).toLocaleDateString('en-IN')
-            : ''}
-          . It should reflect in your account within 5–7 business days.
-        </div>
-      )}
+      {status === 'refunded' && (() => {
+        const isWallet = (returnRequest.refundMethod || 'wallet') === 'wallet';
+        const amount =
+          returnRequest.refundAmount ||
+          (returnRequest.items || []).reduce(
+            (s, it) => s + (it.price || 0) * (it.quantity || 0),
+            0
+          );
+        const dateStr = returnRequest.refundedAt
+          ? new Date(returnRequest.refundedAt).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })
+          : '';
+        return (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3 mb-5 text-sm text-green-800 dark:text-green-300">
+            {isWallet ? (
+              <>
+                Refund of <strong>₹{Number(amount).toLocaleString('en-IN')}</strong>
+                {dateStr && <> credited to your Rupalsha Wallet on {dateStr}</>}.
+                {' '}It should reflect in your wallet within 2 hours.
+              </>
+            ) : (
+              <>
+                Refund of <strong>₹{Number(amount).toLocaleString('en-IN')}</strong>
+                {dateStr && <> processed on {dateStr}</>}.
+                {' '}It should reflect in your original payment account within 5–7 business days.
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {isRejected && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-5 text-sm">

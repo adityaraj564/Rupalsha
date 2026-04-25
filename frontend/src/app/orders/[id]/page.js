@@ -172,8 +172,11 @@ export default function OrderDetailPage() {
             Placed on {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <Link href="/orders" className="text-sm text-brand-green hover:underline">
-          ← All Orders
+        <Link
+          href="/orders"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-brand-green/30 dark:border-[#F8F0E8]/30 text-sm font-medium text-brand-green dark:text-[#F8F0E8] bg-white dark:bg-gray-900 hover:bg-brand-green hover:text-white dark:hover:bg-[#F8F0E8] dark:hover:text-brand-charcoal hover:shadow-md transition-all"
+        >
+          <span aria-hidden>←</span> All Orders
         </Link>
       </div>
 
