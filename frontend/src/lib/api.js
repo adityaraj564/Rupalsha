@@ -93,13 +93,6 @@ export const authAPI = {
   resetPassword: (data) => request('/auth/reset-password', { method: 'POST', body: data }),
   requestLoginOtp: (email) => request('/auth/login-otp/request', { method: 'POST', body: { email } }),
   verifyLoginOtp: (data) => request('/auth/login-otp/verify', { method: 'POST', body: data }),
-  // Passkeys / WebAuthn
-  passkeyRegisterOptions: () => request('/auth/passkey/register/options', { method: 'POST', body: {} }),
-  passkeyRegisterVerify: (data) => request('/auth/passkey/register/verify', { method: 'POST', body: data }),
-  passkeyLoginOptions: (email) => request('/auth/passkey/login/options', { method: 'POST', body: email ? { email } : {} }),
-  passkeyLoginVerify: (data) => request('/auth/passkey/login/verify', { method: 'POST', body: data }),
-  listPasskeys: () => request('/auth/passkey'),
-  deletePasskey: (id) => request(`/auth/passkey/${id}`, { method: 'DELETE' }),
   addAddress: (data) => request('/auth/addresses', { method: 'POST', body: data }),
   updateAddress: (id, data) => request(`/auth/addresses/${id}`, { method: 'PUT', body: data }),
   deleteAddress: (id) => request(`/auth/addresses/${id}`, { method: 'DELETE' }),
