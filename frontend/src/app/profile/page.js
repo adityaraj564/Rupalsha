@@ -6,9 +6,8 @@ import Link from 'next/link';
 import { FiUser, FiPackage, FiHeart, FiMapPin, FiLock, FiLogOut, FiEdit2, FiTrash2, FiCreditCard, FiKey, FiPlus } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
 import { authAPI } from '@/lib/api';
+import { browserSupportsWebAuthn, startRegistration } from '@simplewebauthn/browser';
 import toast from 'react-hot-toast';
-
-const BIOMETRIC_KEY = 'rupalsha_biometric_email';
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading, logout, updateUser } = useAuthStore();
@@ -24,21 +23,14 @@ export default function ProfilePage() {
   });
   const [fetchingPincode, setFetchingPincode] = useState(false);
 
-  // Biometric / Passkeys
+  // Passkeys
   const [passkeys, setPasskeys] = useState([]);
   const [passkeysLoading, setPasskeysLoading] = useState(false);
   const [passkeyAdding, setPasskeyAdding] = useState(false);
-  const [biometricSupported, setBiometricSupported] = useState(false);
+  const [passkeySupported, setPasskeySupported] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const { browserSupportsWebAuthn } = await import('@simplewebauthn/browser');
-        setBiometricSupported(browserSupportsWebAuthn());
-      } catch {
-        setBiometricSupported(false);
-      }
-    })();
+    setPasskeySupported(typeof window !== 'undefined' && browserSupportsWebAuthn());
   }, []);
 
   const loadPasskeys = async () => {
@@ -54,55 +46,51 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
-    if (activeTab === 'biometric' && isAuthenticated) loadPasskeys();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (activeTab === 'passkeys' && isAuthenticated) loadPasskeys();
   }, [activeTab, isAuthenticated]);
 
   const handleAddPasskey = async () => {
-    if (!biometricSupported) {
-      toast.error('Your browser does not support biometrics');
+    if (!passkeySupported) {
+      toast.error('Your browser does not support passkeys');
       return;
     }
     setPasskeyAdding(true);
     try {
-      const { startRegistration } = await import('@simplewebauthn/browser');
       const options = await authAPI.passkeyRegisterOptions();
       const attestation = await startRegistration({ optionsJSON: options });
-      const deviceName = (() => {
+      const defaultName = (() => {
         try {
           const ua = navigator.userAgent;
           if (/iPhone|iPad/.test(ua)) return 'iPhone (Face ID/Touch ID)';
           if (/Android/.test(ua)) return 'Android (Fingerprint)';
           if (/Mac/.test(ua)) return 'Mac (Touch ID)';
           if (/Windows/.test(ua)) return 'Windows Hello';
-          return 'This device';
+          return 'Passkey';
         } catch {
-          return 'This device';
+          return 'Passkey';
         }
       })();
-      await authAPI.passkeyRegisterVerify({ response: attestation, name: deviceName });
-      try {
-        if (user?.email) localStorage.setItem(BIOMETRIC_KEY, user.email);
-      } catch {}
-      toast.success('Biometric login enabled for this device');
+      await authAPI.passkeyRegisterVerify({ response: attestation, name: defaultName });
+      toast.success('Passkey added — you can now sign in with biometrics');
       loadPasskeys();
     } catch (err) {
-      if (err?.name === 'NotAllowedError' || err?.name === 'AbortError') return;
-      toast.error(err.message || 'Could not enable biometric login');
+      if (err?.name === 'NotAllowedError' || err?.name === 'AbortError') {
+        return; // user cancelled
+      }
+      toast.error(err.message || 'Could not add passkey');
     } finally {
       setPasskeyAdding(false);
     }
   };
 
   const handleDeletePasskey = async (id) => {
-    if (!confirm('Disable biometric sign-in on this device?')) return;
+    if (!confirm('Remove this passkey? You will not be able to sign in with this device until you add it again.')) return;
     try {
       await authAPI.deletePasskey(id);
-      try { localStorage.removeItem(BIOMETRIC_KEY); } catch {}
-      toast.success('Biometric sign-in disabled');
+      toast.success('Passkey removed');
       loadPasskeys();
     } catch (err) {
-      toast.error(err.message || 'Failed to disable');
+      toast.error(err.message || 'Failed to remove passkey');
     }
   };
 
@@ -228,7 +216,7 @@ export default function ProfilePage() {
     { id: 'profile', label: 'Profile', icon: FiUser },
     { id: 'addresses', label: 'Addresses', icon: FiMapPin },
     { id: 'password', label: 'Password', icon: FiLock },
-    { id: 'biometric', label: 'Biometric', icon: FiKey },
+    { id: 'passkeys', label: 'Passkeys', icon: FiKey },
   ];
 
   return (
@@ -528,39 +516,39 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Biometric Tab */}
-      {activeTab === 'biometric' && (
+      {/* Passkeys Tab */}
+      {activeTab === 'passkeys' && (
         <div className="card p-6">
           <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
             <div>
-              <h2 className="font-serif text-xl font-semibold dark:text-white">Biometric Sign-in</h2>
+              <h2 className="font-serif text-xl font-semibold dark:text-white">Passkeys & Biometrics</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-xl">
-                Sign in instantly with Face ID, Touch ID, fingerprint, or Windows Hello — no password needed. Each device you enable can be removed here at any time.
+                Sign in with Face ID, Touch ID, fingerprint, or Windows Hello — no password needed. Each device you add a passkey from will be able to sign you in instantly.
               </p>
             </div>
             <button
               type="button"
               onClick={handleAddPasskey}
-              disabled={!biometricSupported || passkeyAdding}
+              disabled={!passkeySupported || passkeyAdding}
               className="btn-primary text-sm py-2 px-4 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FiPlus size={16} />
-              {passkeyAdding ? 'Setting up…' : 'Enable on this device'}
+              {passkeyAdding ? 'Setting up...' : 'Add a passkey'}
             </button>
           </div>
 
-          {!biometricSupported && (
+          {!passkeySupported && (
             <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
-              Your browser does not support biometric sign-in. Try Chrome, Safari, or Edge on a device with Face ID, Touch ID, fingerprint, or Windows Hello.
+              Your browser does not support passkeys. Try Chrome, Safari, or Edge on a device with biometrics.
             </p>
           )}
 
           {passkeysLoading ? (
-            <p className="text-sm text-gray-500">Loading…</p>
+            <p className="text-sm text-gray-500">Loading...</p>
           ) : passkeys.length === 0 ? (
             <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
               <FiKey className="mx-auto mb-2 text-gray-400" size={32} />
-              <p>Biometric sign-in is not enabled on any device yet.</p>
+              <p>No passkeys yet. Add one to enable biometric sign-in.</p>
             </div>
           ) : (
             <ul className="space-y-3">
@@ -574,7 +562,7 @@ export default function ProfilePage() {
                       <FiKey className="text-brand-green" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium text-brand-charcoal dark:text-gray-100 truncate">{p.name || 'Device'}</p>
+                      <p className="font-medium text-brand-charcoal dark:text-gray-100 truncate">{p.name || 'Passkey'}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         Added {new Date(p.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                         {p.lastUsedAt && ` · Last used ${new Date(p.lastUsedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
@@ -585,7 +573,7 @@ export default function ProfilePage() {
                     type="button"
                     onClick={() => handleDeletePasskey(p.id)}
                     className="text-red-500 hover:text-red-600 p-2"
-                    title="Disable on this device"
+                    title="Remove passkey"
                   >
                     <FiTrash2 size={16} />
                   </button>

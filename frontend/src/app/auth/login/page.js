@@ -5,29 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { authAPI } from '@/lib/api';
+import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser';
 import toast from 'react-hot-toast';
-import { FiEye, FiEyeOff, FiMail, FiLock, FiX } from 'react-icons/fi';
-
-const BIOMETRIC_KEY = 'rupalsha_biometric_email';
-
-const getBiometricEmail = () => {
-  if (typeof window === 'undefined') return null;
-  try {
-    return localStorage.getItem(BIOMETRIC_KEY) || null;
-  } catch {
-    return null;
-  }
-};
-
-const setBiometricEmail = (email) => {
-  if (typeof window === 'undefined') return;
-  try {
-    if (email) localStorage.setItem(BIOMETRIC_KEY, email);
-    else localStorage.removeItem(BIOMETRIC_KEY);
-  } catch {
-    // ignore
-  }
-};
+import { FiEye, FiEyeOff, FiMail, FiLock } from 'react-icons/fi';
 
 export default function LoginPage() {
   const [mode, setMode] = useState('password');
@@ -40,52 +20,23 @@ export default function LoginPage() {
 
   // OTP mode
   const [otpEmail, setOtpEmail] = useState('');
-  const [otpStep, setOtpStep] = useState('email');
+  const [otpStep, setOtpStep] = useState('email'); // 'email' | 'verify'
   const [otp, setOtp] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
   const [resendIn, setResendIn] = useState(0);
   const otpInputRef = useRef(null);
 
-  // Biometric
-  const [biometricSupported, setBiometricSupported] = useState(false);
-  const [biometricEnabled, setBiometricEnabled] = useState(false); // for current saved email
-  const [biometricBusy, setBiometricBusy] = useState(false);
-  const [autoPromptDone, setAutoPromptDone] = useState(false);
-  const [showSavePrompt, setShowSavePrompt] = useState(false);
-  const [pendingUser, setPendingUser] = useState(null); // user just signed in via password
-  const [savePromptBusy, setSavePromptBusy] = useState(false);
-
   const login = useAuthStore((s) => s.login);
   const loginWithToken = useAuthStore((s) => s.loginWithToken);
   const router = useRouter();
 
-  // ----- Biometric support detection + auto-prompt on mount -----
+  const [passkeySupported, setPasskeySupported] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { browserSupportsWebAuthn } = await import('@simplewebauthn/browser');
-        if (cancelled) return;
-        const supported = browserSupportsWebAuthn();
-        setBiometricSupported(supported);
-        const savedEmail = getBiometricEmail();
-        if (supported && savedEmail) {
-          setBiometricEnabled(true);
-          setEmail(savedEmail);
-          // Auto-trigger biometric prompt once when the page opens
-          setTimeout(() => triggerBiometricLogin(savedEmail, true), 350);
-        }
-      } catch {
-        setBiometricSupported(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setPasskeySupported(typeof window !== 'undefined' && browserSupportsWebAuthn());
   }, []);
 
-  // ----- Resend timer -----
   useEffect(() => {
     if (resendIn <= 0) return undefined;
     const t = setInterval(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
@@ -108,69 +59,13 @@ export default function LoginPage() {
     );
   };
 
-  // ----- Biometric login flow -----
-  const triggerBiometricLogin = async (forEmail, isAutoTrigger = false) => {
-    if (!biometricSupported && typeof window !== 'undefined') {
-      // Re-check in case state hasn't settled yet
-      try {
-        const { browserSupportsWebAuthn } = await import('@simplewebauthn/browser');
-        if (!browserSupportsWebAuthn()) {
-          if (!isAutoTrigger) toast.error('Your browser does not support biometrics');
-          return;
-        }
-      } catch {
-        return;
-      }
-    }
-    if (biometricBusy) return;
-    if (isAutoTrigger && autoPromptDone) return;
-    setAutoPromptDone(true);
-    setBiometricBusy(true);
-    try {
-      const { startAuthentication } = await import('@simplewebauthn/browser');
-      const { options, sessionId } = await authAPI.passkeyLoginOptions(forEmail || undefined);
-      const assertion = await startAuthentication({ optionsJSON: options });
-      const { token, user } = await authAPI.passkeyLoginVerify({ response: assertion, sessionId });
-      loginWithToken(token, user);
-      toast.success(`Welcome back, ${user.name}!`);
-      routeAfterLogin(user);
-    } catch (err) {
-      // User dismissed biometric prompt — silently fall back to password
-      if (
-        err?.name === 'NotAllowedError' ||
-        err?.name === 'AbortError' ||
-        err?.message?.includes('cancel')
-      ) {
-        return;
-      }
-      // Non-fatal: clear flag if the saved email no longer has a passkey on this device
-      if (err?.message?.toLowerCase().includes('not recognised')) {
-        setBiometricEmail(null);
-        setBiometricEnabled(false);
-      }
-      if (!isAutoTrigger) toast.error(err.message || 'Biometric sign-in failed');
-    } finally {
-      setBiometricBusy(false);
-    }
-  };
-
-  // ----- Password login -----
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       const user = await login({ email, password });
       toast.success(`Welcome back, ${user.name}!`);
-
-      // Offer to save credentials for biometric login (only once per device per email)
-      const alreadySaved = getBiometricEmail() === email;
-      if (biometricSupported && !alreadySaved) {
-        setPendingUser(user);
-        setShowSavePrompt(true);
-        // Don't redirect yet — wait for user's choice
-      } else {
-        routeAfterLogin(user);
-      }
+      routeAfterLogin(user);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -178,52 +73,6 @@ export default function LoginPage() {
     }
   };
 
-  // ----- "Save for biometric login?" modal handlers -----
-  const handleSaveBiometric = async () => {
-    setSavePromptBusy(true);
-    try {
-      const { startRegistration } = await import('@simplewebauthn/browser');
-      const options = await authAPI.passkeyRegisterOptions();
-      const attestation = await startRegistration({ optionsJSON: options });
-      const deviceName = (() => {
-        try {
-          const ua = navigator.userAgent;
-          if (/iPhone|iPad/.test(ua)) return 'iPhone (Face ID/Touch ID)';
-          if (/Android/.test(ua)) return 'Android (Fingerprint)';
-          if (/Mac/.test(ua)) return 'Mac (Touch ID)';
-          if (/Windows/.test(ua)) return 'Windows Hello';
-          return 'This device';
-        } catch {
-          return 'This device';
-        }
-      })();
-      await authAPI.passkeyRegisterVerify({ response: attestation, name: deviceName });
-      setBiometricEmail(email);
-      setBiometricEnabled(true);
-      toast.success('Biometric login enabled for this device');
-      setShowSavePrompt(false);
-      if (pendingUser) routeAfterLogin(pendingUser);
-    } catch (err) {
-      if (err?.name === 'NotAllowedError' || err?.name === 'AbortError') {
-        // user cancelled biometric prompt — proceed without saving
-        setShowSavePrompt(false);
-        if (pendingUser) routeAfterLogin(pendingUser);
-        return;
-      }
-      toast.error(err.message || 'Could not enable biometric login');
-      setShowSavePrompt(false);
-      if (pendingUser) routeAfterLogin(pendingUser);
-    } finally {
-      setSavePromptBusy(false);
-    }
-  };
-
-  const handleSkipBiometric = () => {
-    setShowSavePrompt(false);
-    if (pendingUser) routeAfterLogin(pendingUser);
-  };
-
-  // ----- OTP -----
   const handleRequestOtp = async (e) => {
     e?.preventDefault?.();
     if (!otpEmail) return;
@@ -260,12 +109,29 @@ export default function LoginPage() {
     }
   };
 
-  // ----- Email field focus → re-trigger biometric (per spec) -----
-  const handleEmailFocus = () => {
-    if (autoPromptDone) return;
-    if (!biometricEnabled || !biometricSupported) return;
-    const saved = getBiometricEmail();
-    if (saved) triggerBiometricLogin(saved, true);
+  const handlePasskeyLogin = async () => {
+    if (!passkeySupported) {
+      toast.error('Your browser does not support passkeys');
+      return;
+    }
+    setPasskeyLoading(true);
+    try {
+      const passkeyEmail = mode === 'password' ? email : otpEmail;
+      const { options, sessionId } = await authAPI.passkeyLoginOptions(passkeyEmail || undefined);
+      const assertion = await startAuthentication({ optionsJSON: options });
+      const { token, user } = await authAPI.passkeyLoginVerify({ response: assertion, sessionId });
+      loginWithToken(token, user);
+      toast.success(`Welcome back, ${user.name}!`);
+      routeAfterLogin(user);
+    } catch (err) {
+      if (err?.name === 'NotAllowedError') {
+        // user dismissed the prompt — stay quiet
+        return;
+      }
+      toast.error(err.message || 'Passkey sign-in failed');
+    } finally {
+      setPasskeyLoading(false);
+    }
   };
 
   return (
@@ -307,22 +173,6 @@ export default function LoginPage() {
               </button>
             </div>
 
-            {/* Quick biometric chip when enabled */}
-            {biometricEnabled && biometricSupported && mode === 'password' && (
-              <button
-                type="button"
-                onClick={() => triggerBiometricLogin(getBiometricEmail() || email)}
-                disabled={biometricBusy}
-                className="w-full mb-5 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-brand-green/30 bg-brand-green/5 dark:bg-brand-green/10 hover:bg-brand-green/10 dark:hover:bg-brand-green/20 text-sm font-medium text-brand-green dark:text-[#F5F1E9] transition disabled:opacity-50"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 11V7a5 5 0 0 0-10 0v4" />
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                </svg>
-                {biometricBusy ? 'Authenticating…' : 'Sign in with biometrics'}
-              </button>
-            )}
-
             {mode === 'password' && (
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
@@ -331,7 +181,6 @@ export default function LoginPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    onFocus={handleEmailFocus}
                     className="input-field"
                     placeholder="your@email.com"
                     required
@@ -454,6 +303,22 @@ export default function LoginPage() {
               <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
             </div>
 
+            {passkeySupported && (
+              <button
+                type="button"
+                onClick={handlePasskeyLogin}
+                disabled={passkeyLoading}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 mb-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium text-brand-charcoal dark:text-gray-100 transition disabled:opacity-50"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 11c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2z" />
+                  <path d="M21 12c-3 5-7 7-9 7s-6-2-9-7c3-5 7-7 9-7s6 2 9 7z" />
+                  <circle cx="15" cy="12" r="1.5" />
+                </svg>
+                {passkeyLoading ? 'Authenticating...' : 'Sign in with passkey / biometrics'}
+              </button>
+            )}
+
             <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
               Don&apos;t have an account?{' '}
               <Link href="/auth/register" className="text-brand-green dark:text-brand-gold font-semibold hover:underline">
@@ -463,62 +328,6 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-
-      {/* Save-for-biometric modal */}
-      {showSavePrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden animate-fade-in">
-            <div className="bg-brand-green/10 dark:bg-brand-green/20 px-6 py-5 flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-brand-green/20 dark:bg-brand-green/30 flex items-center justify-center flex-shrink-0">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-brand-green dark:text-[#F5F1E9]">
-                    <path d="M17 11V7a5 5 0 0 0-10 0v4" />
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-serif text-lg font-semibold text-brand-charcoal dark:text-white">Quick sign-in next time?</h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Use Face ID, Touch ID, or fingerprint</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleSkipBiometric}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1"
-                aria-label="Close"
-              >
-                <FiX size={20} />
-              </button>
-            </div>
-            <div className="px-6 py-5">
-              <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                Save this device for biometric sign-in. Next time you visit, just unlock with your fingerprint or face — no password needed.
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                You can disable this anytime from your profile.
-              </p>
-              <div className="mt-5 flex gap-3">
-                <button
-                  type="button"
-                  onClick={handleSkipBiometric}
-                  disabled={savePromptBusy}
-                  className="flex-1 py-2.5 px-4 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition disabled:opacity-50"
-                >
-                  Not now
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveBiometric}
-                  disabled={savePromptBusy}
-                  className="flex-1 btn-primary text-sm py-2.5 disabled:opacity-50"
-                >
-                  {savePromptBusy ? 'Setting up…' : 'Enable'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
