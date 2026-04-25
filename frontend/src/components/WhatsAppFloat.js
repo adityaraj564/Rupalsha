@@ -26,8 +26,6 @@ export default function WhatsAppFloat() {
       aria-label="Chat with us on WhatsApp"
       className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 group"
     >
-      {/* Pulse ring */}
-      <span className="absolute inset-0 rounded-full bg-[#25D366] opacity-60 animate-ping" aria-hidden />
       <span
         className="relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[#25D366] shadow-lg shadow-[#25D366]/40 hover:scale-110 active:scale-95 transition-transform"
       >
