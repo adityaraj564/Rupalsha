@@ -210,7 +210,7 @@ export default function AdminSettingsPage() {
         <button
           type="submit"
           disabled={saving || !isDirty}
-          className="btn-primary text-sm py-2.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-[#F6F0E7] dark:text-gray-700 dark:hover:bg-[#F6F0E7]/90"
+          className="btn-primary text-sm py-2.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-[#F6F0E7] dark:!text-gray-900 dark:hover:bg-[#F6F0E7]/90"
         >
           <FiSave size={16} /> {saving ? 'Saving...' : isDirty ? 'Save Settings' : 'Saved'}
         </button>
