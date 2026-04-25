@@ -28,7 +28,7 @@ export default function InvoicePage() {
     ])
       .then(([orderData, returnsData]) => {
         const o = orderData.order;
-        if (o.status !== 'delivered') {
+        if (!['delivered', 'returned'].includes(o.status)) {
           setError('Invoice is only available for delivered orders.');
           return;
         }

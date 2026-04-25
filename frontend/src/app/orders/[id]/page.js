@@ -547,7 +547,7 @@ export default function OrderDetailPage() {
               activeItems.length > 0 &&
               activeItems.some((it) => it.product?.isReturnable === false);
             const showInvoice =
-              order.status === 'delivered' && activeItems.length > 0;
+              ['delivered', 'returned'].includes(order.status) && activeItems.length > 0;
             return (
               <>
                 {showReturnButton && (

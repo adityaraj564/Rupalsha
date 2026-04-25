@@ -256,9 +256,26 @@ router.patch('/:id/status', adminAuth, async (req, res, next) => {
     // Reflect on order when refunded
     if (status === 'refunded') {
       const order = await Order.findById(rr.order);
-      if (order && order.status !== 'returned') {
-        order.status = 'returned';
-        await order.save();
+      if (order) {
+        // Only mark the entire order as 'returned' when ALL items in the order
+        // have been refunded across one or more return requests. Partial returns
+        // must keep the order in 'delivered' state so the customer can still
+        // download an invoice for the remaining items and (potentially) request
+        // additional returns.
+        const refundedReturns = await ReturnRequest.find({
+          order: order._id,
+          status: 'refunded',
+        });
+        const itemKey = (it) => `${String(it.product?._id || it.product || '')}|${it.size || ''}`;
+        const refundedKeys = new Set();
+        for (const r of refundedReturns) {
+          for (const it of r.items || []) refundedKeys.add(itemKey(it));
+        }
+        const allReturned = order.items.every((it) => refundedKeys.has(itemKey(it)));
+        if (allReturned && order.status !== 'returned') {
+          order.status = 'returned';
+          await order.save();
+        }
       }
 
       // Auto-credit the Rupalsha Wallet when refund method is 'wallet'.
