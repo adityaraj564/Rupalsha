@@ -3,7 +3,7 @@ const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
 const User = require('../models/User');
 const { auth, generateToken } = require('../middleware/auth');
-const { sendPasswordReset, sendWelcomeEmail, sendPasswordChangeConfirmation } = require('../utils/email');
+const { sendPasswordReset, sendWelcomeEmail, sendPasswordChangeConfirmation, sendLoginOtp } = require('../utils/email');
 
 const router = express.Router();
 
@@ -258,6 +258,107 @@ router.delete('/addresses/:id', auth, async (req, res, next) => {
     user.addresses.pull(req.params.id);
     await user.save();
     res.json({ addresses: user.addresses });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ===== EMAIL OTP LOGIN =====
+
+// POST /api/auth/login-otp/request
+router.post('/login-otp/request', [
+  body('email').isEmail().normalizeEmail(),
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { email } = req.body;
+    const user = await User.findOne({ email }).select('+loginOtp +loginOtpExpire +loginOtpAttempts');
+
+    // Always respond generically to avoid leaking which emails are registered.
+    const generic = { message: 'If an account exists for this email, a login code has been sent.' };
+
+    if (!user) return res.json(generic);
+    if (user.isBlocked) return res.json(generic);
+
+    // Throttle: don't issue a new OTP if one was issued less than 30 seconds ago.
+    if (user.loginOtpExpire && user.loginOtpExpire.getTime() - Date.now() > 9.5 * 60 * 1000) {
+      return res.json(generic);
+    }
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit
+    const hashed = crypto.createHash('sha256').update(otp).digest('hex');
+    user.loginOtp = hashed;
+    user.loginOtpExpire = new Date(Date.now() + 10 * 60 * 1000);
+    user.loginOtpAttempts = 0;
+    await user.save();
+
+    sendLoginOtp(user.name, user.email, otp);
+
+    res.json(generic);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/auth/login-otp/verify
+router.post('/login-otp/verify', [
+  body('email').isEmail().normalizeEmail(),
+  body('otp').isLength({ min: 6, max: 6 }).matches(/^\d{6}$/),
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ error: 'Enter the 6-digit code from your email' });
+
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email }).select('+loginOtp +loginOtpExpire +loginOtpAttempts');
+
+    if (!user || !user.loginOtp || !user.loginOtpExpire) {
+      return res.status(400).json({ error: 'Invalid or expired code. Please request a new one.' });
+    }
+    if (user.isBlocked) {
+      return res.status(403).json({ error: 'Account has been blocked' });
+    }
+    if (user.loginOtpExpire.getTime() < Date.now()) {
+      user.loginOtp = undefined;
+      user.loginOtpExpire = undefined;
+      user.loginOtpAttempts = 0;
+      await user.save();
+      return res.status(400).json({ error: 'Code has expired. Please request a new one.' });
+    }
+    if ((user.loginOtpAttempts || 0) >= 5) {
+      user.loginOtp = undefined;
+      user.loginOtpExpire = undefined;
+      user.loginOtpAttempts = 0;
+      await user.save();
+      return res.status(429).json({ error: 'Too many incorrect attempts. Please request a new code.' });
+    }
+
+    const hashed = crypto.createHash('sha256').update(otp).digest('hex');
+    if (hashed !== user.loginOtp) {
+      user.loginOtpAttempts = (user.loginOtpAttempts || 0) + 1;
+      await user.save();
+      return res.status(400).json({ error: 'Invalid code. Please try again.' });
+    }
+
+    // Success — clear OTP and issue token.
+    user.loginOtp = undefined;
+    user.loginOtpExpire = undefined;
+    user.loginOtpAttempts = 0;
+    await user.save();
+
+    const token = generateToken(user._id);
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    });
   } catch (error) {
     next(error);
   }

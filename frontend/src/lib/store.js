@@ -29,6 +29,12 @@ export const useAuthStore = create((set, get) => ({
     return user;
   },
 
+  loginWithToken: (token, user) => {
+    localStorage.setItem('rupalsha_token', token);
+    set({ user, isAuthenticated: true });
+    return user;
+  },
+
   register: async (data) => {
     const { token, user } = await authAPI.register(data);
     localStorage.setItem('rupalsha_token', token);

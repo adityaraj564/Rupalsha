@@ -206,6 +206,29 @@ const sendPasswordChangeConfirmation = async (name, email) => {
   }
 };
 
+const sendLoginOtp = async (name, email, otp) => {
+  try {
+    await sendSmtp({
+      to: email,
+      subject: `${otp} is your Rupalsha login code`,
+      html: emailWrapper(`
+        <div style="text-align: center; padding: 20px 0;">
+          <span style="font-size: 48px;">🔐</span>
+          <h2 style="color: #1F3A2F; margin-top: 12px;">Your Login Code</h2>
+        </div>
+        <p style="color: #2B2B2B;">Hi ${name || 'there'},</p>
+        <p style="color: #2B2B2B;">Use the code below to sign in to your Rupalsha account:</p>
+        <div style="text-align: center; margin: 28px 0;">
+          <div style="display: inline-block; background: #1F3A2F; color: #F5F1E9; padding: 18px 36px; border-radius: 12px; font-family: 'Courier New', monospace; font-size: 32px; font-weight: bold; letter-spacing: 8px;">${otp}</div>
+        </div>
+        <p style="color: #888; font-size: 13px; text-align: center;">This code expires in 10 minutes. If you didn't request this, please ignore this email.</p>
+      `),
+    });
+  } catch (error) {
+    console.error('Login OTP email error:', error.message);
+  }
+};
+
 // ===== CONTACT EMAILS =====
 
 const sendContactConfirmation = async (name, email, subject) => {
@@ -364,7 +387,8 @@ const sendReturnAdminAlert = async (returnRequest, customerName, customerEmail, 
     subject: `🔔 New return request — ${returnRequest.returnNumber}`,
     html: emailWrapper(`
       <h2 style="color: #1F3A2F;">New Return Request</h2>
-      <table style="width: 100%; color: #2B2B2B; font-size: 14px;">
+      LoginOtp,
+  send<table style="width: 100%; color: #2B2B2B; font-size: 14px;">
         <tr><td style="padding: 6px 0;"><strong>Return #:</strong></td><td>${returnRequest.returnNumber}</td></tr>
         <tr><td style="padding: 6px 0;"><strong>Order #:</strong></td><td>${orderNumber}</td></tr>
         <tr><td style="padding: 6px 0;"><strong>Customer:</strong></td><td>${customerName} &lt;${customerEmail}&gt;</td></tr>
