@@ -78,7 +78,7 @@ export default function HelpPage() {
                 <FiAlertTriangle className="flex-shrink-0 text-red-600 dark:text-red-400 mt-0.5" size={20} />
                 <div className="text-sm">
                   <p className="font-semibold text-red-700 dark:text-red-300 mb-1">
-                    ⚠️ Mandatory: Unboxing Video Required
+                    Mandatory: Unboxing Video Required
                   </p>
                   <p className="text-red-700/90 dark:text-red-200/90 leading-relaxed">
                     You must record a video while opening your package. This unboxing video is mandatory for processing any return or exchange request. Claims without an unboxing video will not be accepted.
