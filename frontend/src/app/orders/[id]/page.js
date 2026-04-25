@@ -26,7 +26,7 @@ export default function OrderDetailPage() {
   const [siteSettings, setSiteSettings] = useState(null);
   const [retryingPayment, setRetryingPayment] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
-  const [returnRequest, setReturnRequest] = useState(null);
+  const [returns, setReturns] = useState([]);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
   const user = useAuthStore((s) => s.user);
@@ -45,8 +45,10 @@ export default function OrderDetailPage() {
       .catch(() => { toast.error('Order not found'); router.push('/orders'); })
       .finally(() => setLoading(false));
 
-    // Load any existing return request for this order
-    returnsAPI.getByOrder(id)
+    // Load all return requests for this order
+    returnsAPI.getAllByOrder(id)
+      .then((data) => setReturns(data.returns || []))
+      .catch(() => {});
 
     // Load site settings (cancellation fee config)
     settingsAPI.get()
@@ -175,21 +177,26 @@ export default function OrderDetailPage() {
         </Link>
       </div>
 
-      {/* Return request tracker (if any) */}
-      {returnRequest && (
-        <ReturnTracker
-          returnRequest={returnRequest}
-          onCancel={async () => {
-            if (!confirm('Cancel this return request? This cannot be undone.')) return;
-            try {
-              const { return: updated } = await returnsAPI.cancel(returnRequest._id);
-              setReturnRequest(updated);
-              toast.success('Return cancelled');
-            } catch (err) {
-              toast.error(err.message || 'Failed to cancel return');
-            }
-          }}
-        />
+      {/* Return request trackers (each non-rejected return) */}
+      {returns.length > 0 && (
+        <div className="space-y-4 mb-6">
+          {returns.map((rr) => (
+            <ReturnTracker
+              key={rr._id}
+              returnRequest={rr}
+              onCancel={async () => {
+                if (!confirm('Cancel this return request? This cannot be undone.')) return;
+                try {
+                  const { return: updated } = await returnsAPI.cancel(rr._id);
+                  setReturns((prev) => prev.map((r) => (r._id === updated._id ? updated : r)));
+                  toast.success('Return cancelled');
+                } catch (err) {
+                  toast.error(err.message || 'Failed to cancel return');
+                }
+              }}
+            />
+          ))}
+        </div>
       )}
 
       {/* Status Tracker */}
@@ -343,30 +350,86 @@ export default function OrderDetailPage() {
       <div className="grid md:grid-cols-3 gap-6">
         {/* Items */}
         <div className="md:col-span-2">
-          <div className="card p-6">
-            <h2 className="font-serif text-lg font-semibold mb-4">Items</h2>
-            <div className="space-y-4">
-              {order.items.map((item, i) => (
-                <Link
-                  key={i}
-                  href={item.product?.slug ? `/product/${item.product.slug}` : '#'}
-                  className="flex gap-4 hover:bg-gray-50 rounded-xl p-2 -m-2 transition-colors"
-                >
-                  <div className="relative w-20 h-24 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                    {item.image && <Image src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />}
+          {(() => {
+            const itemKey = (it) => `${String(it.product?._id || it.product || '')}|${it.size || ''}`;
+            const returnedKeysSet = new Set(
+              returns
+                .filter((r) => !['rejected', 'closed'].includes(r.status))
+                .flatMap((r) => (r.items || []).map(itemKey))
+            );
+            const activeItems = order.items.filter((it) => !returnedKeysSet.has(itemKey(it)));
+            const returnedItems = order.items.filter((it) => returnedKeysSet.has(itemKey(it)));
+
+            const renderItem = (item, i) => (
+              <Link
+                key={`${itemKey(item)}-${i}`}
+                href={item.product?.slug ? `/product/${item.product.slug}` : '#'}
+                className="flex gap-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 rounded-xl p-2 -m-2 transition-colors"
+              >
+                <div className="relative w-20 h-24 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                  {item.image && <Image src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />}
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium hover:text-brand-green transition-colors">{item.name}</p>
+                  <p className="text-sm text-gray-500">Size: {item.size} • Qty: {item.quantity}</p>
+                  <p className="font-semibold mt-1">₹{(item.price * item.quantity).toLocaleString()}</p>
+                  {order.status === 'delivered' && !returnedKeysSet.has(itemKey(item)) && (
+                    <span className="text-xs text-brand-green font-medium mt-1 inline-block">Tap to review →</span>
+                  )}
+                </div>
+              </Link>
+            );
+
+            return (
+              <div className="space-y-6">
+                {activeItems.length > 0 && (
+                  <div className="card p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="font-serif text-lg font-semibold">
+                        {returnedItems.length > 0 ? 'Active Items' : 'Items'}
+                      </h2>
+                      <span className="text-xs text-gray-500">{activeItems.length} item{activeItems.length > 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="space-y-4">{activeItems.map(renderItem)}</div>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium hover:text-brand-green transition-colors">{item.name}</p>
-                    <p className="text-sm text-gray-500">Size: {item.size} • Qty: {item.quantity}</p>
-                    <p className="font-semibold mt-1">₹{(item.price * item.quantity).toLocaleString()}</p>
-                    {order.status === 'delivered' && (
-                      <span className="text-xs text-brand-green font-medium mt-1 inline-block">Tap to review →</span>
-                    )}
+                )}
+
+                {returnedItems.length > 0 && (
+                  <div className="card p-6 border-orange-200 dark:border-orange-800/40">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="font-serif text-lg font-semibold flex items-center gap-2">
+                        <span className="inline-flex w-2.5 h-2.5 rounded-full bg-orange-400" />
+                        Returned Items
+                      </h2>
+                      <span className="text-xs text-orange-700 dark:text-orange-300 font-medium">
+                        {returnedItems.length} item{returnedItems.length > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="space-y-4 opacity-90">
+                      {returnedItems.map((item, i) => (
+                        <div
+                          key={`returned-${itemKey(item)}-${i}`}
+                          className="flex gap-4 p-2 -m-2 rounded-xl"
+                        >
+                          <div className="relative w-20 h-24 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                            {item.image && <Image src={item.image} alt={item.name} fill className="object-cover grayscale" sizes="80px" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium">{item.name}</p>
+                            <p className="text-sm text-gray-500">Size: {item.size} • Qty: {item.quantity}</p>
+                            <p className="font-semibold mt-1">₹{(item.price * item.quantity).toLocaleString()}</p>
+                            <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
+                              In return
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </Link>
-              ))}
-            </div>
-          </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Summary */}
@@ -463,37 +526,61 @@ export default function OrderDetailPage() {
             );
           })()}
 
-          {order.status === 'delivered' && !returnRequest && order.items.every(item => item.product?.isReturnable !== false) && (
-            <div className="space-y-2">
-              <button onClick={handleReturn} className="w-full px-4 py-2.5 border-2 border-orange-400 text-orange-500 dark:border-orange-400 dark:text-orange-400 rounded-xl text-sm font-medium hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors">
-                Request Return
-              </button>
-            </div>
-          )}
-
-          {order.status === 'delivered' && order.items.some(item => item.product?.isReturnable === false) && (
-            <p className="text-sm text-gray-500">This order contains non-returnable items and cannot be returned.</p>
-          )}
-
-          {/* Invoice download — only when delivered and no return/refund in progress */}
-          {order.status === 'delivered' && !returnRequest && (
-            <Link
-              href={`/orders/${order._id}/invoice`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full px-4 py-2.5 border-2 border-brand-green text-brand-green dark:border-[#F8F0E8] dark:text-[#F8F0E8] rounded-xl text-sm font-medium hover:bg-brand-green/5 dark:hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
-            >
-              <FiDownload size={16} /> Download Invoice
-            </Link>
-          )}
+          {(() => {
+            const itemKey = (it) => `${String(it.product?._id || it.product || '')}|${it.size || ''}`;
+            const returnedKeysSet = new Set(
+              returns
+                .filter((r) => !['rejected', 'closed'].includes(r.status))
+                .flatMap((r) => (r.items || []).map(itemKey))
+            );
+            const activeItems = order.items.filter((it) => !returnedKeysSet.has(itemKey(it)));
+            const hasReturnableActive =
+              activeItems.length > 0 &&
+              activeItems.every((it) => it.product?.isReturnable !== false);
+            const showReturnButton =
+              order.status === 'delivered' && hasReturnableActive;
+            const showNonReturnableNotice =
+              order.status === 'delivered' &&
+              activeItems.length > 0 &&
+              activeItems.some((it) => it.product?.isReturnable === false);
+            const showInvoice =
+              order.status === 'delivered' && activeItems.length > 0;
+            return (
+              <>
+                {showReturnButton && (
+                  <div className="space-y-2">
+                    <button onClick={handleReturn} className="w-full px-4 py-2.5 border-2 border-orange-400 text-orange-500 dark:border-orange-400 dark:text-orange-400 rounded-xl text-sm font-medium hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors">
+                      {returns.length > 0 ? 'Request another return' : 'Request Return'}
+                    </button>
+                  </div>
+                )}
+                {showNonReturnableNotice && (
+                  <p className="text-sm text-gray-500">Some remaining items are non-returnable.</p>
+                )}
+                {showInvoice && (
+                  <Link
+                    href={`/orders/${order._id}/invoice`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full px-4 py-2.5 border-2 border-brand-green text-brand-green dark:border-[#F8F0E8] dark:text-[#F8F0E8] rounded-xl text-sm font-medium hover:bg-brand-green/5 dark:hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <FiDownload size={16} /> Download Invoice
+                  </Link>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
 
       {showReturnModal && (
         <ReturnModal
           order={order}
+          returnedKeys={returns
+            .filter((r) => !['rejected', 'closed'].includes(r.status))
+            .flatMap((r) => (r.items || []).map((it) => `${String(it.product?._id || it.product || '')}|${it.size || ''}`))}
           onClose={() => setShowReturnModal(false)}
-          onSuccess={(rr) => setReturnRequest(rr)}
+          onSuccess={(rr) => setReturns((prev) => [rr, ...prev])}
         />
       )}
 

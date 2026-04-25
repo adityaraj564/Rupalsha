@@ -175,6 +175,7 @@ export const returnsAPI = {
   create: (formData) => request('/returns', { method: 'POST', body: formData }),
   getMine: () => request('/returns/my'),
   getByOrder: (orderId) => request(`/returns/by-order/${orderId}`),
+  getAllByOrder: (orderId) => request(`/returns/by-order/${orderId}/all`),
   getById: (id) => request(`/returns/${id}`),
   cancel: (id) => request(`/returns/${id}/cancel`, { method: 'POST' }),
   // Admin

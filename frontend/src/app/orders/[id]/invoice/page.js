@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ordersAPI } from '@/lib/api';
+import { ordersAPI, returnsAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { OrdersSkeleton } from '@/components/Skeleton';
 
@@ -12,6 +12,7 @@ export default function InvoicePage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
   const [order, setOrder] = useState(null);
+  const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -21,16 +22,18 @@ export default function InvoicePage() {
       router.push('/auth/login');
       return;
     }
-    ordersAPI
-      .getById(id)
-      .then((data) => {
-        const o = data.order;
-        // Hide invoice once a return is in motion or refund processed
+    Promise.all([
+      ordersAPI.getById(id),
+      returnsAPI.getAllByOrder(id).catch(() => ({ returns: [] })),
+    ])
+      .then(([orderData, returnsData]) => {
+        const o = orderData.order;
         if (o.status !== 'delivered') {
           setError('Invoice is only available for delivered orders.');
           return;
         }
         setOrder(o);
+        setReturns(returnsData.returns || []);
       })
       .catch(() => setError('Order not found'))
       .finally(() => setLoading(false));
@@ -51,6 +54,28 @@ export default function InvoicePage() {
     );
   }
   if (!order) return null;
+
+  // Filter out items in non-rejected returns
+  const itemKey = (it) => `${String(it.product?._id || it.product || '')}|${it.size || ''}`;
+  const returnedKeysSet = new Set(
+    (returns || [])
+      .filter((r) => !['rejected', 'closed'].includes(r.status))
+      .flatMap((r) => (r.items || []).map(itemKey))
+  );
+  const invoiceItems = (order.items || []).filter((it) => !returnedKeysSet.has(itemKey(it)));
+
+  if (invoiceItems.length === 0) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-gray-600 text-center px-4">
+        All items in this order have been returned. No invoice is available.
+      </div>
+    );
+  }
+
+  const invoiceItemsTotal = invoiceItems.reduce((s, it) => s + (it.price || 0) * (it.quantity || 0), 0);
+  const invoiceShipping = order.shippingCharge || 0;
+  const invoiceDiscount = order.discount || 0;
+  const invoiceTotal = Math.max(0, invoiceItemsTotal + invoiceShipping - invoiceDiscount);
 
   const addr = order.shippingAddress || {};
   const placedOn = new Date(order.createdAt).toLocaleDateString('en-IN', {
@@ -156,7 +181,7 @@ export default function InvoicePage() {
             </tr>
           </thead>
           <tbody>
-            {order.items?.map((item, i) => (
+            {invoiceItems.map((item, i) => (
               <tr key={i}>
                 <td className="p-2 border border-gray-300">{i + 1}</td>
                 <td className="p-2 border border-gray-300">{item.name}</td>
@@ -173,28 +198,34 @@ export default function InvoicePage() {
           </tbody>
         </table>
 
+        {returnedKeysSet.size > 0 && (
+          <p className="text-xs text-gray-500 italic mb-4">
+            Note: Returned items have been excluded from this invoice.
+          </p>
+        )}
+
         {/* Totals */}
         <div className="flex justify-end mb-8">
           <div className="w-72 text-sm">
             <div className="flex justify-between py-1 border-b border-gray-200">
               <span className="text-gray-600">Subtotal</span>
-              <span>₹{order.itemsTotal?.toLocaleString()}</span>
+              <span>₹{invoiceItemsTotal.toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-gray-200">
               <span className="text-gray-600">Shipping</span>
-              <span>{order.shippingCharge === 0 ? 'Free' : `₹${order.shippingCharge}`}</span>
+              <span>{invoiceShipping === 0 ? 'Free' : `₹${invoiceShipping}`}</span>
             </div>
-            {order.discount > 0 && (
+            {invoiceDiscount > 0 && (
               <div className="flex justify-between py-1 border-b border-gray-200">
                 <span className="text-gray-600">
                   Discount {order.couponCode ? `(${order.couponCode})` : ''}
                 </span>
-                <span>-₹{order.discount?.toLocaleString()}</span>
+                <span>-₹{invoiceDiscount.toLocaleString()}</span>
               </div>
             )}
             <div className="flex justify-between py-2 mt-1 border-t-2 border-gray-800 font-bold text-base">
               <span>Total</span>
-              <span>₹{order.totalAmount?.toLocaleString()}</span>
+              <span>₹{invoiceTotal.toLocaleString()}</span>
             </div>
           </div>
         </div>

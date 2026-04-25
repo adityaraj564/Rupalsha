@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
+import Image from 'next/image';
 import { FiX, FiImage, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { returnsAPI } from '@/lib/api';
@@ -15,14 +16,37 @@ const REASONS = [
 
 const MAX_IMAGES = 4;
 
-export default function ReturnModal({ order, onClose, onSuccess }) {
+const itemKey = (it) => `${String(it.product?._id || it.product || '')}|${it.size || ''}`;
+
+export default function ReturnModal({ order, onClose, onSuccess, returnedKeys = [] }) {
   const isCod = order?.paymentMethod === 'cod';
+
+  // Items already covered by another return (non-rejected). Hidden from selection.
+  const returnedSet = useMemo(() => new Set(returnedKeys), [returnedKeys]);
+  const availableItems = useMemo(
+    () => (order?.items || []).filter((it) => !returnedSet.has(itemKey(it))),
+    [order, returnedSet]
+  );
+
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');
   const [images, setImages] = useState([]);           // File[]
   const [refundMethod, setRefundMethod] = useState('wallet');
   const [submitting, setSubmitting] = useState(false);
+  // Selection: default all available items selected
+  const [selectedKeys, setSelectedKeys] = useState(
+    () => new Set(availableItems.map(itemKey))
+  );
   const imageInputRef = useRef(null);
+
+  const toggleItem = (key) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const onPickImages = (e) => {
     const files = Array.from(e.target.files || []);
@@ -42,6 +66,9 @@ export default function ReturnModal({ order, onClose, onSuccess }) {
   const submit = async (e) => {
     e.preventDefault();
     if (!reason) return toast.error('Please select a reason');
+    if (selectedKeys.size === 0) {
+      return toast.error('Please select at least one product to return');
+    }
     if (images.length === 0) {
       return toast.error('Please upload at least one image as evidence');
     }
@@ -52,14 +79,16 @@ export default function ReturnModal({ order, onClose, onSuccess }) {
       fd.append('orderId', order._id);
       fd.append('reason', reason);
       if (description.trim()) fd.append('description', description.trim());
-      const items = order.items.map((it) => ({
-        product: it.product?._id || it.product,
-        name: it.name,
-        image: it.image,
-        size: it.size,
-        quantity: it.quantity,
-        price: it.price,
-      }));
+      const items = availableItems
+        .filter((it) => selectedKeys.has(itemKey(it)))
+        .map((it) => ({
+          product: it.product?._id || it.product,
+          name: it.name,
+          image: it.image,
+          size: it.size,
+          quantity: it.quantity,
+          price: it.price,
+        }));
       fd.append('items', JSON.stringify(items));
       fd.append('refundMethod', isCod ? 'wallet' : refundMethod);
       images.forEach((img) => fd.append('images', img));
@@ -89,6 +118,53 @@ export default function ReturnModal({ order, onClose, onSuccess }) {
         </div>
 
         <div className="p-6 space-y-5">
+          {/* Item selection */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Select item(s) to return *
+            </label>
+            {availableItems.length === 0 ? (
+              <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/40 text-sm">
+                All items in this order are already part of an active or completed return.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {availableItems.map((it) => {
+                  const key = itemKey(it);
+                  const checked = selectedKeys.has(key);
+                  return (
+                    <label
+                      key={key}
+                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition ${
+                        checked
+                          ? 'border-brand-green bg-green-50/50 dark:bg-green-900/20'
+                          : 'dark:border-gray-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleItem(key)}
+                        className="accent-brand-green w-4 h-4"
+                      />
+                      <div className="relative w-12 h-14 rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+                        {it.image && (
+                          <Image src={it.image} alt={it.name} fill sizes="48px" className="object-cover" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{it.name}</p>
+                        <p className="text-xs text-gray-500">
+                          Size: {it.size} • Qty: {it.quantity} • ₹{(it.price * it.quantity).toLocaleString('en-IN')}
+                        </p>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="block text-sm font-medium mb-2">Reason for return *</label>
             <select
@@ -214,7 +290,7 @@ export default function ReturnModal({ order, onClose, onSuccess }) {
           </button>
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || availableItems.length === 0}
             className="px-5 py-2 bg-brand-green text-white rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-60 transition"
           >
             {submitting ? 'Submitting...' : 'Submit return request'}

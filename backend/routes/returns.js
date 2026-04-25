@@ -56,15 +56,6 @@ router.post(
         return res.status(400).json({ error: 'Return window (7 days) has expired' });
       }
 
-      // Prevent duplicate active return for the same order
-      const existing = await ReturnRequest.findOne({
-        order: orderId,
-        status: { $nin: ['rejected', 'refunded'] },
-      });
-      if (existing) {
-        return res.status(409).json({ error: 'A return request for this order is already in progress' });
-      }
-
       // Parse items array (sent as JSON string from multipart)
       let parsedItems = [];
       try {
@@ -82,6 +73,31 @@ router.post(
           quantity: it.quantity,
           price: it.price,
         }));
+      }
+
+      // Validate every requested item exists in the order (match by product+size)
+      const orderItemKey = (it) => `${String(it.product?._id || it.product)}|${it.size || ''}`;
+      const orderItemMap = new Map(order.items.map((it) => [orderItemKey(it), it]));
+      for (const it of parsedItems) {
+        if (!orderItemMap.has(orderItemKey(it))) {
+          return res.status(400).json({ error: 'One or more selected items are not part of this order' });
+        }
+      }
+
+      // Block items already covered by another active or completed (non-rejected, non-closed) return
+      const activeReturns = await ReturnRequest.find({
+        order: orderId,
+        status: { $nin: ['rejected', 'closed'] },
+      });
+      const returnedKeys = new Set();
+      for (const r of activeReturns) {
+        for (const it of r.items || []) returnedKeys.add(orderItemKey(it));
+      }
+      const overlap = parsedItems.filter((it) => returnedKeys.has(orderItemKey(it)));
+      if (overlap.length > 0) {
+        return res.status(409).json({
+          error: 'Some selected items are already part of another return request',
+        });
       }
 
       // Build images array from uploaded files
@@ -130,12 +146,23 @@ router.get('/my', auth, async (req, res, next) => {
   }
 });
 
-// GET /api/returns/by-order/:orderId — user: fetch return for a specific order
+// GET /api/returns/by-order/:orderId — user: fetch latest return for a specific order
 router.get('/by-order/:orderId', auth, async (req, res, next) => {
   try {
     const rr = await ReturnRequest.findOne({ order: req.params.orderId, user: req.user._id })
       .sort({ createdAt: -1 });
     res.json({ return: rr || null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/returns/by-order/:orderId/all — user: fetch ALL returns for a specific order
+router.get('/by-order/:orderId/all', auth, async (req, res, next) => {
+  try {
+    const list = await ReturnRequest.find({ order: req.params.orderId, user: req.user._id })
+      .sort({ createdAt: -1 });
+    res.json({ returns: list });
   } catch (err) {
     next(err);
   }

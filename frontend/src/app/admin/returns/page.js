@@ -238,6 +238,34 @@ function ReturnDetailModal({ returnId, onClose, onUpdated }) {
             {data.description && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{data.description}</p>}
           </div>
 
+          {/* Items selected by customer for return */}
+          {data.items?.length > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-2">
+                Items being returned
+                <span className="ml-2 text-xs font-normal text-gray-500">
+                  ({data.items.length} of {data.order?.items?.length || data.items.length})
+                </span>
+              </p>
+              <div className="space-y-2 border rounded-lg dark:border-gray-700 divide-y dark:divide-gray-800">
+                {data.items.map((it, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3">
+                    <div className="relative w-12 h-14 rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {it.image && <img src={it.image} alt={it.name} className="w-full h-full object-cover" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{it.name}</p>
+                      <p className="text-xs text-gray-500">
+                        Size: {it.size} • Qty: {it.quantity} • ₹{((it.price || 0) * (it.quantity || 0)).toLocaleString('en-IN')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Evidence */}
           <div>
             <p className="text-sm font-medium mb-2">Customer evidence</p>
