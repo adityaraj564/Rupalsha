@@ -59,6 +59,23 @@ const userSchema = new mongoose.Schema({
   loginOtp: { type: String, select: false },
   loginOtpExpire: { type: Date, select: false },
   loginOtpAttempts: { type: Number, default: 0, select: false },
+  // WebAuthn / Passkeys
+  passkeys: {
+    type: [{
+      credentialID: { type: String, required: true }, // base64url
+      publicKey: { type: String, required: true }, // base64url of CBOR-encoded public key
+      counter: { type: Number, default: 0 },
+      transports: [String],
+      deviceType: String,
+      backedUp: Boolean,
+      name: { type: String, default: 'Passkey' },
+      createdAt: { type: Date, default: Date.now },
+      lastUsedAt: Date,
+    }],
+    default: [],
+    select: false,
+  },
+  currentChallenge: { type: String, select: false },
 }, {
   timestamps: true,
 });

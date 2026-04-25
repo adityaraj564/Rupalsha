@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { authAPI } from '@/lib/api';
+import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/browser';
 import toast from 'react-hot-toast';
 import { FiEye, FiEyeOff, FiMail, FiLock } from 'react-icons/fi';
 
@@ -28,6 +29,13 @@ export default function LoginPage() {
   const login = useAuthStore((s) => s.login);
   const loginWithToken = useAuthStore((s) => s.loginWithToken);
   const router = useRouter();
+
+  const [passkeySupported, setPasskeySupported] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+
+  useEffect(() => {
+    setPasskeySupported(typeof window !== 'undefined' && browserSupportsWebAuthn());
+  }, []);
 
   useEffect(() => {
     if (resendIn <= 0) return undefined;
@@ -98,6 +106,31 @@ export default function LoginPage() {
       toast.error(err.message || 'Invalid code');
     } finally {
       setOtpLoading(false);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    if (!passkeySupported) {
+      toast.error('Your browser does not support passkeys');
+      return;
+    }
+    setPasskeyLoading(true);
+    try {
+      const passkeyEmail = mode === 'password' ? email : otpEmail;
+      const { options, sessionId } = await authAPI.passkeyLoginOptions(passkeyEmail || undefined);
+      const assertion = await startAuthentication({ optionsJSON: options });
+      const { token, user } = await authAPI.passkeyLoginVerify({ response: assertion, sessionId });
+      loginWithToken(token, user);
+      toast.success(`Welcome back, ${user.name}!`);
+      routeAfterLogin(user);
+    } catch (err) {
+      if (err?.name === 'NotAllowedError') {
+        // user dismissed the prompt — stay quiet
+        return;
+      }
+      toast.error(err.message || 'Passkey sign-in failed');
+    } finally {
+      setPasskeyLoading(false);
     }
   };
 
@@ -269,6 +302,22 @@ export default function LoginPage() {
               <span className="text-xs text-gray-400 uppercase tracking-wider">or</span>
               <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
             </div>
+
+            {passkeySupported && (
+              <button
+                type="button"
+                onClick={handlePasskeyLogin}
+                disabled={passkeyLoading}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 mb-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-medium text-brand-charcoal dark:text-gray-100 transition disabled:opacity-50"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 11c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2z" />
+                  <path d="M21 12c-3 5-7 7-9 7s-6-2-9-7c3-5 7-7 9-7s6 2 9 7z" />
+                  <circle cx="15" cy="12" r="1.5" />
+                </svg>
+                {passkeyLoading ? 'Authenticating...' : 'Sign in with passkey / biometrics'}
+              </button>
+            )}
 
             <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
               Don&apos;t have an account?{' '}

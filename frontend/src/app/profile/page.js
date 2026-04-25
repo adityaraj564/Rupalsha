@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiUser, FiPackage, FiHeart, FiMapPin, FiLock, FiLogOut, FiEdit2, FiTrash2, FiCreditCard } from 'react-icons/fi';
+import { FiUser, FiPackage, FiHeart, FiMapPin, FiLock, FiLogOut, FiEdit2, FiTrash2, FiCreditCard, FiKey, FiPlus } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
 import { authAPI } from '@/lib/api';
+import { browserSupportsWebAuthn, startRegistration } from '@simplewebauthn/browser';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
@@ -21,6 +22,77 @@ export default function ProfilePage() {
     fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
   const [fetchingPincode, setFetchingPincode] = useState(false);
+
+  // Passkeys
+  const [passkeys, setPasskeys] = useState([]);
+  const [passkeysLoading, setPasskeysLoading] = useState(false);
+  const [passkeyAdding, setPasskeyAdding] = useState(false);
+  const [passkeySupported, setPasskeySupported] = useState(false);
+
+  useEffect(() => {
+    setPasskeySupported(typeof window !== 'undefined' && browserSupportsWebAuthn());
+  }, []);
+
+  const loadPasskeys = async () => {
+    setPasskeysLoading(true);
+    try {
+      const { passkeys: list } = await authAPI.listPasskeys();
+      setPasskeys(list || []);
+    } catch (err) {
+      toast.error(err.message || 'Failed to load passkeys');
+    } finally {
+      setPasskeysLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'passkeys' && isAuthenticated) loadPasskeys();
+  }, [activeTab, isAuthenticated]);
+
+  const handleAddPasskey = async () => {
+    if (!passkeySupported) {
+      toast.error('Your browser does not support passkeys');
+      return;
+    }
+    setPasskeyAdding(true);
+    try {
+      const options = await authAPI.passkeyRegisterOptions();
+      const attestation = await startRegistration({ optionsJSON: options });
+      const defaultName = (() => {
+        try {
+          const ua = navigator.userAgent;
+          if (/iPhone|iPad/.test(ua)) return 'iPhone (Face ID/Touch ID)';
+          if (/Android/.test(ua)) return 'Android (Fingerprint)';
+          if (/Mac/.test(ua)) return 'Mac (Touch ID)';
+          if (/Windows/.test(ua)) return 'Windows Hello';
+          return 'Passkey';
+        } catch {
+          return 'Passkey';
+        }
+      })();
+      await authAPI.passkeyRegisterVerify({ response: attestation, name: defaultName });
+      toast.success('Passkey added — you can now sign in with biometrics');
+      loadPasskeys();
+    } catch (err) {
+      if (err?.name === 'NotAllowedError' || err?.name === 'AbortError') {
+        return; // user cancelled
+      }
+      toast.error(err.message || 'Could not add passkey');
+    } finally {
+      setPasskeyAdding(false);
+    }
+  };
+
+  const handleDeletePasskey = async (id) => {
+    if (!confirm('Remove this passkey? You will not be able to sign in with this device until you add it again.')) return;
+    try {
+      await authAPI.deletePasskey(id);
+      toast.success('Passkey removed');
+      loadPasskeys();
+    } catch (err) {
+      toast.error(err.message || 'Failed to remove passkey');
+    }
+  };
 
   useEffect(() => {
     if (isLoading) return;
@@ -144,6 +216,7 @@ export default function ProfilePage() {
     { id: 'profile', label: 'Profile', icon: FiUser },
     { id: 'addresses', label: 'Addresses', icon: FiMapPin },
     { id: 'password', label: 'Password', icon: FiLock },
+    { id: 'passkeys', label: 'Passkeys', icon: FiKey },
   ];
 
   return (
@@ -440,6 +513,74 @@ export default function ProfilePage() {
               disabled={!passwordForm.currentPassword || !passwordForm.newPassword || passwordForm.newPassword === passwordForm.currentPassword || passwordForm.newPassword !== passwordForm.confirmPassword}
             >Update Password</button>
           </form>
+        </div>
+      )}
+
+      {/* Passkeys Tab */}
+      {activeTab === 'passkeys' && (
+        <div className="card p-6">
+          <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+            <div>
+              <h2 className="font-serif text-xl font-semibold dark:text-white">Passkeys & Biometrics</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-xl">
+                Sign in with Face ID, Touch ID, fingerprint, or Windows Hello — no password needed. Each device you add a passkey from will be able to sign you in instantly.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleAddPasskey}
+              disabled={!passkeySupported || passkeyAdding}
+              className="btn-primary text-sm py-2 px-4 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiPlus size={16} />
+              {passkeyAdding ? 'Setting up...' : 'Add a passkey'}
+            </button>
+          </div>
+
+          {!passkeySupported && (
+            <p className="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
+              Your browser does not support passkeys. Try Chrome, Safari, or Edge on a device with biometrics.
+            </p>
+          )}
+
+          {passkeysLoading ? (
+            <p className="text-sm text-gray-500">Loading...</p>
+          ) : passkeys.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
+              <FiKey className="mx-auto mb-2 text-gray-400" size={32} />
+              <p>No passkeys yet. Add one to enable biometric sign-in.</p>
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {passkeys.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex items-center justify-between gap-3 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-brand-green/10 dark:bg-brand-green/20 flex items-center justify-center flex-shrink-0">
+                      <FiKey className="text-brand-green" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-brand-charcoal dark:text-gray-100 truncate">{p.name || 'Passkey'}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Added {new Date(p.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {p.lastUsedAt && ` · Last used ${new Date(p.lastUsedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeletePasskey(p.id)}
+                    className="text-red-500 hover:text-red-600 p-2"
+                    title="Remove passkey"
+                  >
+                    <FiTrash2 size={16} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>
