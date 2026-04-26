@@ -25,32 +25,36 @@ function createUploader(subFolder, opts = {}) {
 
 // Product-specific uploader that accepts BOTH images and videos.
 // - Per-file size cap: 50MB (covers high-quality short product videos)
-// - Images: cap at 2000x2500 (no upscale) with quality:auto:good + auto format (AVIF/WebP)
-//   so visual quality is preserved while file size shrinks.
-// - Videos: Cloudinary re-encodes with quality:auto:good + auto codec/format,
-//   keeping resolution intact and producing a much smaller file with no visible loss.
+// - Images: cap at 2000x2500 (no upscale) with quality:auto:good + auto format
+//   so visual quality is preserved while file size shrinks at upload time.
+// - Videos: stored as-is; compression happens at delivery time via Cloudinary
+//   URL transforms (q_auto,f_auto). Doing transforms at upload time triggers an
+//   "eager" synchronous re-encode that easily exceeds the request timeout.
 const productMediaStorage = new CloudinaryStorage({
   cloudinary,
-  params: async (req, file) => {
-    const isVideo = (file.mimetype || '').startsWith('video/');
-    if (isVideo) {
-      return {
-        folder: 'rupalsha/products/videos',
-        resource_type: 'video',
-        allowed_formats: ['mp4', 'mov', 'webm', 'm4v', 'mkv'],
-        transformation: [
-          { quality: 'auto:good', video_codec: 'auto', fetch_format: 'auto' },
-        ],
-      };
-    }
-    return {
-      folder: 'rupalsha/products/images',
-      resource_type: 'image',
-      allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
-      transformation: [
-        { width: 2000, height: 2500, crop: 'limit', quality: 'auto:good', fetch_format: 'auto' },
-      ],
-    };
+  params: {
+    folder: (req, file) =>
+      (file.mimetype || '').startsWith('video/')
+        ? 'rupalsha/products/videos'
+        : 'rupalsha/products/images',
+    resource_type: (req, file) =>
+      (file.mimetype || '').startsWith('video/') ? 'video' : 'image',
+    allowed_formats: (req, file) =>
+      (file.mimetype || '').startsWith('video/')
+        ? ['mp4', 'mov', 'webm', 'm4v', 'mkv']
+        : ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+    transformation: (req, file) =>
+      (file.mimetype || '').startsWith('video/')
+        ? undefined // skip eager transform for videos
+        : [
+            {
+              width: 2000,
+              height: 2500,
+              crop: 'limit',
+              quality: 'auto:good',
+              fetch_format: 'auto',
+            },
+          ],
   },
 });
 

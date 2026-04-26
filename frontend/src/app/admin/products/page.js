@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiX } from 'react-icons/fi';
 import { adminAPI, categoriesAPI } from '@/lib/api';
+import { uploadToCloudinary } from '@/lib/cloudinaryUpload';
 import { AdminTableSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
@@ -105,6 +106,28 @@ export default function AdminProductsPage() {
   const [dragIndex, setDragIndex] = useState(null);
   const [existingImages, setExistingImages] = useState([]);
   const [existingVideos, setExistingVideos] = useState([]);
+  const [removedImageIds, setRemovedImageIds] = useState([]);
+  const [removedVideoIds, setRemovedVideoIds] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  // Per-file upload progress: { type: 'image'|'video', index, percent }
+  const [imageProgress, setImageProgress] = useState({}); // { [index]: percent }
+  const [videoProgress, setVideoProgress] = useState({});
+  const imagesInputRef = useRef(null);
+  const videosInputRef = useRef(null);
+
+  // Sync a native <input type="file"> .files with a JS array so the
+  // browser-rendered "N files" text stays accurate after removals.
+  const syncInputFiles = (inputEl, files) => {
+    if (!inputEl) return;
+    try {
+      const dt = new DataTransfer();
+      files.forEach((f) => dt.items.add(f));
+      inputEl.files = dt.files;
+    } catch {
+      // Some older browsers don't allow setting .files; fall back to clearing.
+      if (files.length === 0) inputEl.value = '';
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -196,6 +219,10 @@ export default function AdminProductsPage() {
     setVideos([]);
     setExistingImages([]);
     setExistingVideos([]);
+    setRemovedImageIds([]);
+    setRemovedVideoIds([]);
+    if (imagesInputRef.current) imagesInputRef.current.value = '';
+    if (videosInputRef.current) videosInputRef.current.value = '';
     setEditingProduct(null);
   };
 
@@ -235,64 +262,94 @@ export default function AdminProductsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const formData = new FormData();
-    formData.append('name', form.name);
-    formData.append('description', form.description);
-    formData.append('price', form.price);
-    if (form.comparePrice) formData.append('comparePrice', form.comparePrice);
-    if (form.sku) formData.append('sku', form.sku);
-    if (form.lowStockThreshold) formData.append('lowStockThreshold', form.lowStockThreshold);
-    formData.append('isReturnable', form.isReturnable);
-    formData.append('returnDays', form.returnDays);
-    formData.append('returnPolicy', form.returnPolicy);
-    formData.append('shippingCharge', form.shippingCharge);
-    formData.append('category', form.category);
-    if (form.subcategory) formData.append('subcategory', form.subcategory);
-    if (form.childCategory) formData.append('childCategory', form.childCategory);
-    if (form.categoryRef) formData.append('categoryRef', form.categoryRef);
-    formData.append('fabric', form.fabric);
-    formData.append('careInstructions', form.careInstructions);
-    formData.append('isFeatured', form.isFeatured);
-    formData.append('isTrending', form.isTrending);
-    formData.append('sizes', JSON.stringify(form.sizes.filter(s => s.stock > 0)));
-    formData.append('tags', JSON.stringify(form.tags.split(',').map(t => t.trim()).filter(Boolean)));
-
-    // Filter out empty highlights and specifications
-    const validHighlights = form.highlights.filter(h => h.key.trim() && h.value.trim());
-    formData.append('highlights', JSON.stringify(validHighlights));
-
-    const validSpecs = form.specifications
-      .map(g => ({
-        group: g.group.trim(),
-        fields: g.fields.filter(f => f.key.trim() && f.value.trim()),
-      }))
-      .filter(g => g.group && g.fields.length > 0);
-    formData.append('specifications', JSON.stringify(validSpecs));
-
-    for (const img of images) {
-      formData.append('images', img);
+    if (submitting) {
+      const hasMedia = images.length > 0 || videos.length > 0;
+      toast.error(hasMedia ? 'Image / video upload is in progress, please wait…' : 'Please wait…');
+      return;
     }
-    for (const vid of videos) {
-      formData.append('videos', vid);
+    setSubmitting(true);
+    setImageProgress({});
+    setVideoProgress({});
+
+    let uploadedImages = [];
+    let uploadedVideos = [];
+    try {
+      // 1) Upload media directly to Cloudinary in parallel with real progress.
+      const imgPromises = images.map((file, i) =>
+        uploadToCloudinary(file, {
+          resourceType: 'image',
+          onProgress: (p) => setImageProgress((prev) => ({ ...prev, [i]: p })),
+        }),
+      );
+      const vidPromises = videos.map((file, i) =>
+        uploadToCloudinary(file, {
+          resourceType: 'video',
+          onProgress: (p) => setVideoProgress((prev) => ({ ...prev, [i]: p })),
+        }),
+      );
+      [uploadedImages, uploadedVideos] = await Promise.all([
+        Promise.all(imgPromises),
+        Promise.all(vidPromises),
+      ]);
+    } catch (err) {
+      toast.error(`Upload failed: ${err.message}`);
+      setSubmitting(false);
+      return;
     }
 
-    // Send image order for existing images when editing
-    if (editingProduct && existingImages.length > 0) {
-      const order = existingImages.map(img => img.public_id || img.url);
-      formData.append('imageOrder', JSON.stringify(order));
-    }
-    // Send video order for existing videos when editing
-    if (editingProduct && existingVideos.length > 0) {
-      const order = existingVideos.map((v) => v.public_id || v.url);
-      formData.append('videoOrder', JSON.stringify(order));
+    // 2) Build the JSON payload for our API.
+    const payload = {
+      name: form.name,
+      description: form.description,
+      price: form.price,
+      category: form.category,
+      fabric: form.fabric,
+      careInstructions: form.careInstructions,
+      isFeatured: form.isFeatured,
+      isTrending: form.isTrending,
+      isReturnable: form.isReturnable,
+      returnDays: form.returnDays,
+      returnPolicy: form.returnPolicy,
+      shippingCharge: form.shippingCharge,
+      sizes: form.sizes.filter((s) => s.stock > 0),
+      tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+      highlights: form.highlights.filter((h) => h.key.trim() && h.value.trim()),
+      specifications: form.specifications
+        .map((g) => ({
+          group: g.group.trim(),
+          fields: g.fields.filter((f) => f.key.trim() && f.value.trim()),
+        }))
+        .filter((g) => g.group && g.fields.length > 0),
+    };
+    if (form.comparePrice) payload.comparePrice = form.comparePrice;
+    if (form.sku) payload.sku = form.sku;
+    if (form.lowStockThreshold) payload.lowStockThreshold = form.lowStockThreshold;
+    if (form.subcategory) payload.subcategory = form.subcategory;
+    if (form.childCategory) payload.childCategory = form.childCategory;
+    if (form.categoryRef) payload.categoryRef = form.categoryRef;
+
+    if (editingProduct) {
+      payload.newImages = uploadedImages;
+      payload.newVideos = uploadedVideos;
+      if (existingImages.length > 0) {
+        payload.imageOrder = existingImages.map((img) => img.public_id || img.url);
+      }
+      if (existingVideos.length > 0) {
+        payload.videoOrder = existingVideos.map((v) => v.public_id || v.url);
+      }
+      if (removedImageIds.length > 0) payload.removeImages = removedImageIds;
+      if (removedVideoIds.length > 0) payload.removeVideos = removedVideoIds;
+    } else {
+      payload.images = uploadedImages;
+      payload.videos = uploadedVideos;
     }
 
     try {
       if (editingProduct) {
-        await adminAPI.updateProduct(editingProduct._id, formData);
+        await adminAPI.updateProduct(editingProduct._id, payload);
         toast.success('Product updated');
       } else {
-        await adminAPI.createProduct(formData);
+        await adminAPI.createProduct(payload);
         toast.success('Product created');
       }
       setShowForm(false);
@@ -300,6 +357,8 @@ export default function AdminProductsPage() {
       fetchProducts();
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -539,10 +598,16 @@ export default function AdminProductsPage() {
                 <label className="block text-sm font-medium mb-1">Images</label>
                 <p className="text-xs text-gray-400 mb-1">Recommended: 600×800 px (3:4 ratio). Use portrait orientation for best display. Auto-compressed without quality loss.</p>
                 <input
+                  ref={imagesInputRef}
                   type="file"
                   accept="image/*"
                   multiple
-                  onChange={(e) => setImages(Array.from(e.target.files))}
+                  onChange={(e) => {
+                    const newFiles = Array.from(e.target.files);
+                    const merged = [...images, ...newFiles];
+                    setImages(merged);
+                    syncInputFiles(imagesInputRef.current, merged);
+                  }}
                   className="input-field"
                 />
                 <p className="text-xs text-gray-400 mt-1">Drag images to reorder. First image is the main display image.</p>
@@ -571,9 +636,22 @@ export default function AdminProductsPage() {
                         >
                           <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
                           <span className="absolute top-0 left-0 bg-black/60 text-white text-[10px] px-1">{i + 1}</span>
+                          {submitting && (imageProgress[i] ?? 0) < 100 && (
+                            <span className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1">
+                              <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                              <span className="text-[10px] text-white">{imageProgress[i] ?? 0}%</span>
+                            </span>
+                          )}
+                          {submitting && (imageProgress[i] ?? 0) === 100 && (
+                            <span className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-xs">✓</span>
+                          )}
                           <button
                             type="button"
-                            onClick={() => setImages(images.filter((_, idx) => idx !== i))}
+                            onClick={() => {
+                              const next = images.filter((_, idx) => idx !== i);
+                              setImages(next);
+                              syncInputFiles(imagesInputRef.current, next);
+                            }}
                             className="absolute top-0 right-0 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-bl"
                           >×</button>
                         </div>
@@ -606,6 +684,15 @@ export default function AdminProductsPage() {
                         >
                           <img src={img.url} alt="" className="w-full h-full object-cover" />
                           <span className="absolute top-0 left-0 bg-black/60 text-white text-[10px] px-1">{i + 1}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (img.public_id) setRemovedImageIds((prev) => [...prev, img.public_id]);
+                              setExistingImages(existingImages.filter((_, idx) => idx !== i));
+                            }}
+                            className="absolute top-0 right-0 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-bl"
+                          >×</button>
                         </div>
                       ))}
                     </div>
@@ -618,17 +705,20 @@ export default function AdminProductsPage() {
                 <label className="block text-sm font-medium mb-1">Videos</label>
                 <p className="text-xs text-gray-400 mb-1">Up to 50MB per file. Auto-compressed by Cloudinary while preserving resolution & quality.</p>
                 <input
+                  ref={videosInputRef}
                   type="file"
                   accept="video/*"
                   multiple
                   onChange={(e) => {
-                    const files = Array.from(e.target.files);
-                    const tooBig = files.find((f) => f.size > 50 * 1024 * 1024);
+                    const newFiles = Array.from(e.target.files);
+                    const tooBig = newFiles.find((f) => f.size > 50 * 1024 * 1024);
                     if (tooBig) {
                       toast.error(`"${tooBig.name}" exceeds the 50MB limit`);
                       return;
                     }
-                    setVideos(files);
+                    const merged = [...videos, ...newFiles];
+                    setVideos(merged);
+                    syncInputFiles(videosInputRef.current, merged);
                   }}
                   className="input-field"
                 />
@@ -641,9 +731,22 @@ export default function AdminProductsPage() {
                         <div key={i} className="relative w-28 h-20 rounded-lg overflow-hidden border-2 border-gray-200">
                           <video src={URL.createObjectURL(file)} className="w-full h-full object-cover" muted />
                           <span className="absolute top-0 left-0 bg-black/60 text-white text-[10px] px-1 truncate max-w-full">{file.name}</span>
+                          {submitting && (videoProgress[i] ?? 0) < 100 && (
+                            <span className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center gap-1">
+                              <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                              <span className="text-[10px] text-white">Uploading {videoProgress[i] ?? 0}%</span>
+                            </span>
+                          )}
+                          {submitting && (videoProgress[i] ?? 0) === 100 && (
+                            <span className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-xs">✓ Uploaded</span>
+                          )}
                           <button
                             type="button"
-                            onClick={() => setVideos(videos.filter((_, idx) => idx !== i))}
+                            onClick={() => {
+                              const next = videos.filter((_, idx) => idx !== i);
+                              setVideos(next);
+                              syncInputFiles(videosInputRef.current, next);
+                            }}
                             className="absolute top-0 right-0 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-bl"
                           >×</button>
                         </div>
@@ -660,6 +763,15 @@ export default function AdminProductsPage() {
                         <div key={v.public_id || v.url} className="relative w-28 h-20 rounded-lg overflow-hidden border-2 border-gray-200">
                           <video src={v.url} className="w-full h-full object-cover" muted />
                           <span className="absolute top-0 left-0 bg-black/60 text-white text-[10px] px-1">{i + 1}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (v.public_id) setRemovedVideoIds((prev) => [...prev, v.public_id]);
+                              setExistingVideos(existingVideos.filter((_, idx) => idx !== i));
+                            }}
+                            className="absolute top-0 right-0 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-bl"
+                          >×</button>
                         </div>
                       ))}
                     </div>
@@ -925,8 +1037,13 @@ export default function AdminProductsPage() {
               </div>
 
               <div className="flex gap-3 pt-4">
-                <button type="submit" className="btn-primary flex-1">{editingProduct ? 'Update' : 'Create'}</button>
-                <button type="button" onClick={() => { setShowForm(false); resetForm(); }} className="btn-secondary flex-1">Cancel</button>
+                <button type="submit" disabled={submitting} className="btn-primary flex-1 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  {submitting && (
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  )}
+                  {submitting ? 'Uploading…' : (editingProduct ? 'Update' : 'Create')}
+                </button>
+                <button type="button" disabled={submitting} onClick={() => { setShowForm(false); resetForm(); }} className="btn-secondary flex-1 disabled:opacity-60 disabled:cursor-not-allowed">Cancel</button>
               </div>
             </form>
           </div>

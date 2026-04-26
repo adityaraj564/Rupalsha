@@ -284,13 +284,19 @@ export const aboutAPI = {
 // Admin
 export const adminAPI = {
   getDashboard: () => request('/admin/dashboard'),
+  // Direct-to-Cloudinary upload signature
+  getUploadSignature: (folder, resource_type) =>
+    request('/admin/upload-signature', {
+      method: 'POST',
+      body: { folder, resource_type },
+    }),
   // Products
   getProducts: (params) => {
     const query = new URLSearchParams(params).toString();
     return request(`/admin/products?${query}`);
   },
-  createProduct: (formData) => request('/admin/products', { method: 'POST', body: formData }).then(d => { clearApiCache('products'); clearApiCache('product'); return d; }),
-  updateProduct: (id, formData) => request(`/admin/products/${id}`, { method: 'PUT', body: formData }).then(d => { clearApiCache('products'); clearApiCache('product'); return d; }),
+  createProduct: (data) => request('/admin/products', { method: 'POST', body: data }).then(d => { clearApiCache('products'); clearApiCache('product'); return d; }),
+  updateProduct: (id, data) => request(`/admin/products/${id}`, { method: 'PUT', body: data }).then(d => { clearApiCache('products'); clearApiCache('product'); return d; }),
   deleteProduct: (id) => request(`/admin/products/${id}`, { method: 'DELETE' }).then(d => { clearApiCache('products'); clearApiCache('product'); return d; }),
   // Inventory
   getInventory: (params) => {

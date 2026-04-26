@@ -12,7 +12,6 @@ const Banner = require('../models/Banner');
 const ActivityLog = require('../models/ActivityLog');
 const uploaders = require('../utils/upload');
 const uploadProducts = uploaders.products;
-const uploadProductMedia = uploaders.productMedia;
 const uploadCategories = uploaders.categories;
 const uploadBanners = uploaders.banners;
 const cloudinary = require('../config/cloudinary');
@@ -23,6 +22,39 @@ const router = express.Router();
 
 // All routes require admin auth
 router.use(adminAuth);
+
+// ===== DIRECT-TO-CLOUDINARY UPLOAD SIGNATURE =====
+// Mints a short-lived signature so the browser can upload directly to
+// Cloudinary, bypassing our Node server entirely. This is the standard
+// pattern used by Instagram/Shopify/Flipkart for large media uploads:
+// no request-body limits, real progress events, parallel uploads.
+router.post('/upload-signature', (req, res, next) => {
+  try {
+    const { folder, resource_type } = req.body || {};
+    const allowedFolders = new Set([
+      'rupalsha/products/images',
+      'rupalsha/products/videos',
+    ]);
+    if (!allowedFolders.has(folder)) {
+      return res.status(400).json({ error: 'Invalid folder' });
+    }
+    const timestamp = Math.round(Date.now() / 1000);
+    const signature = cloudinary.utils.api_sign_request(
+      { folder, timestamp },
+      process.env.CLOUDINARY_API_SECRET,
+    );
+    res.json({
+      signature,
+      timestamp,
+      folder,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      resource_type: resource_type === 'video' ? 'video' : 'image',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ===== DASHBOARD =====
 // GET /api/admin/dashboard
@@ -80,26 +112,21 @@ router.get('/products', async (req, res, next) => {
 });
 
 // POST /api/admin/products
-router.post(
-  '/products',
-  uploadProductMedia.fields([
-    { name: 'images', maxCount: 100 },
-    { name: 'videos', maxCount: 10 },
-  ]),
-  async (req, res, next) => {
+// Receives plain JSON. Media is uploaded directly to Cloudinary by the
+// browser using the signature endpoint above; client just sends back
+// `{ url, public_id }` arrays.
+router.post('/products', async (req, res, next) => {
   try {
     const { name, description, price, comparePrice, category, subcategory, childCategory, categoryRef, sku, lowStockThreshold, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, isReturnable, returnDays, returnPolicy, shippingCharge, highlights, specifications } = req.body;
 
-    const imageFiles = (req.files && req.files.images) || [];
-    const videoFiles = (req.files && req.files.videos) || [];
-    const images = imageFiles.map((file) => ({
-      url: file.path,
-      public_id: file.filename,
-    }));
-    const videos = videoFiles.map((file) => ({
-      url: file.path,
-      public_id: file.filename,
-    }));
+    const sanitizeMedia = (arr) =>
+      Array.isArray(arr)
+        ? arr
+            .filter((m) => m && typeof m.url === 'string' && m.url)
+            .map((m) => ({ url: m.url, public_id: m.public_id || undefined }))
+        : [];
+    const images = sanitizeMedia(req.body.images);
+    const videos = sanitizeMedia(req.body.videos);
 
     // Parse sizes if it comes as JSON string
     let parsedSizes = sizes;
@@ -163,13 +190,7 @@ router.post(
 });
 
 // PUT /api/admin/products/:id
-router.put(
-  '/products/:id',
-  uploadProductMedia.fields([
-    { name: 'images', maxCount: 100 },
-    { name: 'videos', maxCount: 10 },
-  ]),
-  async (req, res, next) => {
+router.put('/products/:id', async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
@@ -204,18 +225,18 @@ router.put(
       product.specifications = typeof req.body.specifications === 'string' ? JSON.parse(req.body.specifications) : req.body.specifications;
     }
 
-    if (req.files && (req.files.images?.length || req.files.videos?.length)) {
-      const newImages = (req.files.images || []).map((file) => ({
-        url: file.path,
-        public_id: file.filename,
-      }));
-      const newVideos = (req.files.videos || []).map((file) => ({
-        url: file.path,
-        public_id: file.filename,
-      }));
-      if (newImages.length) product.images = [...product.images, ...newImages];
-      if (newVideos.length) product.videos = [...(product.videos || []), ...newVideos];
-    }
+    // New media uploaded directly to Cloudinary by the browser; client just
+    // sends back the {url, public_id} pairs.
+    const sanitizeMedia = (arr) =>
+      Array.isArray(arr)
+        ? arr
+            .filter((m) => m && typeof m.url === 'string' && m.url)
+            .map((m) => ({ url: m.url, public_id: m.public_id || undefined }))
+        : [];
+    const newImages = sanitizeMedia(req.body.newImages);
+    const newVideos = sanitizeMedia(req.body.newVideos);
+    if (newImages.length) product.images = [...product.images, ...newImages];
+    if (newVideos.length) product.videos = [...(product.videos || []), ...newVideos];
 
     // Remove specific images
     if (req.body.removeImages) {
