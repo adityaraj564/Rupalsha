@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 
-const WHATSAPP_NUMBER = '917979804477';
+const WHATSAPP_NUMBER = '919288525685';
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
 
 export default function WhatsAppFloat() {
