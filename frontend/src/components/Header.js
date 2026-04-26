@@ -223,10 +223,13 @@ export default function Header() {
     return { text: c.description || `${off}${min}`, code: c.code };
   };
 
+  const isInvoicePage = pathname?.includes('/invoice');
+
   return (
     <>
-      {/* Announcement Bar */}
-      <div className="bg-brand-green text-white text-center py-2 text-xs md:text-sm font-sans tracking-wide overflow-hidden h-8 flex items-center justify-center">
+      {/* Announcement Bar — hidden on printable invoice pages */}
+      {!isInvoicePage && (
+      <div className="bg-brand-green text-white text-center py-2 text-xs md:text-sm font-sans tracking-wide overflow-hidden h-8 flex items-center justify-center print:hidden">
         {coupons.length > 0 ? (
           <span
             className={`inline-block transition-all duration-300 ${
@@ -240,6 +243,7 @@ export default function Header() {
           <span>Free Shipping on orders above ₹999</span>
         )}
       </div>
+      )}
 
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${
@@ -307,7 +311,7 @@ export default function Header() {
                 >
                   <FiHeart size={20} />
                   {wishlistCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 bg-brand-gold text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
+                    <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
                       {wishlistCount}
                     </span>
                   )}
@@ -320,7 +324,7 @@ export default function Header() {
               >
                 <FiShoppingBag size={20} />
                 {cartCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-brand-gold text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
                     {cartCount}
                   </span>
                 )}
