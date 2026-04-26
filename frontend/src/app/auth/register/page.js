@@ -4,15 +4,29 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
+import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const register = useAuthStore((s) => s.register);
+  const loginWithToken = useAuthStore((s) => s.loginWithToken);
   const router = useRouter();
+
+  const handleGoogleCredential = async (credential) => {
+    try {
+      const { token, user } = await authAPI.googleLogin(credential);
+      loginWithToken(token, user);
+      toast.success(`Welcome, ${user.name}!`);
+      router.push('/');
+    } catch (err) {
+      toast.error(err.message || 'Google sign-in failed');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -110,7 +124,12 @@ export default function RegisterPage() {
               <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
             </div>
 
-            <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
+            <GoogleSignInButton onCredential={handleGoogleCredential} text="signup_with" />
+            <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-3">
+              Quick sign up with Google – no password needed
+            </p>
+
+            <p className="text-center text-gray-500 dark:text-gray-400 text-sm mt-6">
               Already have an account?{' '}
               <Link href="/auth/login" className="text-brand-green dark:text-brand-gold font-semibold hover:underline">
                 Sign in

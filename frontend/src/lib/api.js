@@ -93,6 +93,7 @@ export const authAPI = {
   resetPassword: (data) => request('/auth/reset-password', { method: 'POST', body: data }),
   requestLoginOtp: (email) => request('/auth/login-otp/request', { method: 'POST', body: { email } }),
   verifyLoginOtp: (data) => request('/auth/login-otp/verify', { method: 'POST', body: data }),
+  googleLogin: (credential) => request('/auth/google', { method: 'POST', body: { credential } }),
   addAddress: (data) => request('/auth/addresses', { method: 'POST', body: data }),
   updateAddress: (id, data) => request(`/auth/addresses/${id}`, { method: 'PUT', body: data }),
   deleteAddress: (id) => request(`/auth/addresses/${id}`, { method: 'DELETE' }),

@@ -1,11 +1,15 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const { auth, generateToken } = require('../middleware/auth');
 const { sendPasswordReset, sendWelcomeEmail, sendPasswordChangeConfirmation, sendLoginOtp } = require('../utils/email');
 
 const router = express.Router();
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
 // POST /api/auth/register
 router.post('/register', [
@@ -88,6 +92,8 @@ router.post('/login', [
 
 // GET /api/auth/me
 router.get('/me', auth, async (req, res) => {
+  // Look up password presence without exposing the hash
+  const fresh = await User.findById(req.user._id).select('+password');
   res.json({
     user: {
       id: req.user._id,
@@ -98,6 +104,9 @@ router.get('/me', auth, async (req, res) => {
       addresses: req.user.addresses,
       avatar: req.user.avatar,
       createdAt: req.user.createdAt,
+      authProvider: fresh?.authProvider || 'local',
+      hasPassword: !!(fresh && fresh.password),
+      googleLinked: !!(fresh && fresh.googleId),
     },
   });
 });
@@ -122,22 +131,30 @@ router.put('/profile', auth, [
 });
 
 // PUT /api/auth/change-password
+// - If the user already has a password, currentPassword is required (existing behaviour).
+// - If the user signed up via Google and has no password yet, allow setting one
+//   without currentPassword (hybrid account upgrade).
 router.put('/change-password', auth, [
-  body('currentPassword').notEmpty(),
+  body('currentPassword').optional({ checkFalsy: true }),
   body('newPassword').isLength({ min: 6 }),
 ], async (req, res, next) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
     const { currentPassword, newPassword } = req.body;
     const user = await User.findById(req.user._id).select('+password');
 
-    if (!(await user.comparePassword(currentPassword))) {
-      return res.status(400).json({ error: 'Current password is incorrect' });
+    if (user.password) {
+      if (!currentPassword || !(await user.comparePassword(currentPassword))) {
+        return res.status(400).json({ error: 'Current password is incorrect' });
+      }
     }
 
     user.password = newPassword;
+    if (user.googleId) user.authProvider = 'hybrid';
     await user.save();
 
-    // Send password change confirmation
     sendPasswordChangeConfirmation(user.name, user.email);
 
     res.json({ message: 'Password updated successfully' });
@@ -360,6 +377,97 @@ router.post('/login-otp/verify', [
       },
     });
   } catch (error) {
+    next(error);
+  }
+});
+
+// ===== GOOGLE SIGN-IN =====
+// POST /api/auth/google
+// Body: { credential: <Google ID token from GIS> }
+// Verifies the ID token, then logs in or auto-creates the account.
+router.post('/google', [
+  body('credential').isString().notEmpty(),
+], async (req, res, next) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ error: 'Invalid Google credential' });
+
+    if (!googleClient) {
+      return res.status(500).json({ error: 'Google sign-in is not configured on the server' });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: req.body.credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email_verified) {
+      return res.status(401).json({ error: 'Google account email is not verified' });
+    }
+
+    const googleId = payload.sub;
+    const email = String(payload.email || '').toLowerCase();
+    const name = payload.name || (email ? email.split('@')[0] : 'User');
+    const picture = payload.picture;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Google account did not return an email' });
+    }
+
+    // 1) Look up by googleId (returning Google user)
+    let user = await User.findOne({ googleId });
+    let isNew = false;
+
+    // 2) Otherwise look up by email (link existing local account)
+    if (!user) {
+      user = await User.findOne({ email });
+      if (user) {
+        user.googleId = googleId;
+        user.authProvider = user.password ? 'hybrid' : 'google';
+        if (!user.avatar?.url && picture) user.avatar = { url: picture, public_id: '' };
+        await user.save();
+      }
+    }
+
+    // 3) Otherwise auto-create a new account
+    if (!user) {
+      user = await User.create({
+        name,
+        email,
+        googleId,
+        authProvider: 'google',
+        avatar: picture ? { url: picture, public_id: '' } : undefined,
+      });
+      isNew = true;
+      sendWelcomeEmail(name, email);
+    }
+
+    if (user.isBlocked) {
+      return res.status(403).json({ error: 'Account has been blocked' });
+    }
+
+    const token = generateToken(user._id);
+    res.json({
+      token,
+      isNew,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+        authProvider: user.authProvider,
+        hasPassword: !!user.password,
+        googleLinked: true,
+      },
+    });
+  } catch (error) {
+    if (error?.message?.includes('Token used too')) {
+      return res.status(401).json({ error: 'Google session expired. Please try again.' });
+    }
+    if (error?.message?.toLowerCase?.().includes('audience')) {
+      return res.status(401).json({ error: 'Invalid Google client. Please contact support.' });
+    }
     next(error);
   }
 });

@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/store';
 import { authAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { FiEye, FiEyeOff, FiMail, FiLock } from 'react-icons/fi';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 export default function LoginPage() {
   const [mode, setMode] = useState('password');
@@ -98,6 +99,17 @@ export default function LoginPage() {
       toast.error(err.message || 'Invalid code');
     } finally {
       setOtpLoading(false);
+    }
+  };
+
+  const handleGoogleCredential = async (credential) => {
+    try {
+      const { token, user, isNew } = await authAPI.googleLogin(credential);
+      loginWithToken(token, user);
+      toast.success(isNew ? `Welcome to Rupalsha, ${user.name}!` : `Welcome back, ${user.name}!`);
+      routeAfterLogin(user);
+    } catch (err) {
+      toast.error(err.message || 'Google sign-in failed');
     }
   };
 
@@ -270,7 +282,12 @@ export default function LoginPage() {
               <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
             </div>
 
-            <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
+            <GoogleSignInButton onCredential={handleGoogleCredential} text="continue_with" />
+            <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-3">
+              Quick login with Google – no password needed
+            </p>
+
+            <p className="text-center text-gray-500 dark:text-gray-400 text-sm mt-6">
               Don&apos;t have an account?{' '}
               <Link href="/auth/register" className="text-brand-green dark:text-brand-gold font-semibold hover:underline">
                 Create one

@@ -50,18 +50,25 @@ export default function ProfilePage() {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    if (passwordForm.newPassword === passwordForm.currentPassword) {
-      toast.error('New password must be different from current password');
-      return;
-    }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
+    // For users without a password (Google-only), allow setting one without currentPassword
+    const needsCurrent = !!user?.hasPassword;
+    if (needsCurrent && passwordForm.newPassword === passwordForm.currentPassword) {
+      toast.error('New password must be different from current password');
+      return;
+    }
     try {
-      await authAPI.changePassword({ currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword });
+      await authAPI.changePassword({
+        currentPassword: needsCurrent ? passwordForm.currentPassword : undefined,
+        newPassword: passwordForm.newPassword,
+      });
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      toast.success('Password changed');
+      // Reflect that the user now has a password locally
+      updateUser({ hasPassword: true, authProvider: user?.googleLinked ? 'hybrid' : 'local' });
+      toast.success(needsCurrent ? 'Password changed' : 'Password set successfully');
     } catch (err) {
       toast.error(err.message);
     }
@@ -143,7 +150,7 @@ export default function ProfilePage() {
   const tabs = [
     { id: 'profile', label: 'Profile', icon: FiUser },
     { id: 'addresses', label: 'Addresses', icon: FiMapPin },
-    { id: 'password', label: 'Password', icon: FiLock },
+    { id: 'password', label: user?.hasPassword ? 'Password' : 'Set Password', icon: FiLock },
   ];
 
   return (
@@ -394,20 +401,35 @@ export default function ProfilePage() {
       {/* Password Tab */}
       {activeTab === 'password' && (
         <div className="card p-6">
-          <h2 className="font-serif text-xl font-semibold mb-4">Change Password</h2>
-          <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-              <input
-                type="password"
-                value={passwordForm.currentPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                className="input-field"
-                required
-              />
+          <h2 className="font-serif text-xl font-semibold mb-4">
+            {user?.hasPassword ? 'Change Password' : 'Set a Password'}
+          </h2>
+
+          {user?.googleLinked && (
+            <div className="mb-4 p-3 rounded-lg bg-brand-cream/60 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">
+              {user?.hasPassword
+                ? 'Your account is linked to Google. You can sign in with Google or with this password.'
+                : 'You are logged in via Google. Setting a password is optional — you can use it to sign in on devices where Google is unavailable.'}
             </div>
+          )}
+
+          <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+            {user?.hasPassword && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                <input
+                  type="password"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  className="input-field"
+                  required
+                />
+              </div>
+            )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {user?.hasPassword ? 'New Password' : 'Password'}
+              </label>
               <input
                 type="password"
                 value={passwordForm.newPassword}
@@ -416,7 +438,7 @@ export default function ProfilePage() {
                 required
                 minLength={6}
               />
-              {passwordForm.newPassword && passwordForm.currentPassword && passwordForm.newPassword === passwordForm.currentPassword && (
+              {user?.hasPassword && passwordForm.newPassword && passwordForm.currentPassword && passwordForm.newPassword === passwordForm.currentPassword && (
                 <p className="text-red-500 text-xs mt-1">New password must be different from current password</p>
               )}
             </div>
@@ -437,8 +459,12 @@ export default function ProfilePage() {
             <button
               type="submit"
               className="btn-primary text-sm py-2"
-              disabled={!passwordForm.currentPassword || !passwordForm.newPassword || passwordForm.newPassword === passwordForm.currentPassword || passwordForm.newPassword !== passwordForm.confirmPassword}
-            >Update Password</button>
+              disabled={
+                !passwordForm.newPassword ||
+                passwordForm.newPassword !== passwordForm.confirmPassword ||
+                (user?.hasPassword && (!passwordForm.currentPassword || passwordForm.newPassword === passwordForm.currentPassword))
+              }
+            >{user?.hasPassword ? 'Update Password' : 'Set Password'}</button>
           </form>
         </div>
       )}
