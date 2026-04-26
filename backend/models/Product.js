@@ -61,6 +61,11 @@ const productSchema = new mongoose.Schema({
     public_id: String,
     alt: String,
   }],
+  videos: [{
+    url: { type: String, required: true },
+    public_id: String,
+    thumbnail: String,
+  }],
   sizes: [{
     size: {
       type: String,

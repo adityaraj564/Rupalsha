@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { FiHeart, FiShoppingBag, FiTruck, FiRefreshCw, FiChevronLeft, FiChevronRight, FiStar, FiMapPin, FiCheck, FiX, FiShare2, FiCamera, FiBell, FiVideo, FiChevronDown } from 'react-icons/fi';
+import { FiHeart, FiShoppingBag, FiTruck, FiRefreshCw, FiChevronLeft, FiChevronRight, FiStar, FiMapPin, FiCheck, FiX, FiShare2, FiCamera, FiBell, FiVideo, FiChevronDown, FiPlay, FiPause } from 'react-icons/fi';
 import { productsAPI, reviewsAPI } from '@/lib/api';
 import { useAuthStore, useCartStore, useWishlistStore } from '@/lib/store';
 import SizeGuideModal from '@/components/SizeGuideModal';
@@ -20,6 +20,11 @@ export default function ProductDetailPage() {
   const [initialLoad, setInitialLoad] = useState(true);
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedImage, setSelectedImage] = useState(0);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [showVideoOverlay, setShowVideoOverlay] = useState(true);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const overlayHideTimer = useRef(null);
+  const videoRef = useRef(null);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [totalReviews, setTotalReviews] = useState(0);
@@ -288,22 +293,33 @@ export default function ProductDetailPage() {
       <div className="md:flex md:gap-12 md:items-start">
         {/* Images */}
         <div className="md:sticky md:top-24 md:w-1/2 md:flex-shrink-0 min-w-0 md:self-start">
+          {(() => {
+            const media = [
+              ...(product.images || []).map((m) => ({ ...m, kind: 'image' })),
+              ...(product.videos || []).map((m) => ({ ...m, kind: 'video' })),
+            ];
+            const current = media[selectedImage] || media[0];
+            const isVideo = current?.kind === 'video';
+            return (
+          <>
           <div
-            className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-4 md:cursor-crosshair"
+            className={`relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-4 ${isVideo ? '' : 'md:cursor-crosshair'}`}
             onMouseMove={(e) => {
+              if (isVideo) return;
               if (window.innerWidth < 768) return;
               const rect = e.currentTarget.getBoundingClientRect();
               const x = ((e.clientX - rect.left) / rect.width) * 100;
               const y = ((e.clientY - rect.top) / rect.height) * 100;
               setZoomStyle({
                 display: 'block',
-                backgroundImage: `url(${product.images[selectedImage]?.url})`,
+                backgroundImage: `url(${current?.url})`,
                 backgroundSize: '250%',
                 backgroundPosition: `${x}% ${y}%`,
               });
             }}
             onMouseLeave={() => setZoomStyle({ display: 'none' })}
             onTouchStart={(e) => {
+              if (isVideo) return;
               if (e.touches.length === 2) {
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -315,6 +331,7 @@ export default function ProductDetailPage() {
               }
             }}
             onTouchMove={(e) => {
+              if (isVideo) return;
               if (e.touches.length === 2 && pinchStartDist.current) {
                 e.preventDefault();
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -329,30 +346,108 @@ export default function ProductDetailPage() {
               setPinchScale(1);
             }}
           >
-            <Image
-              src={product.images[selectedImage]?.url || '/placeholder.jpg'}
-              alt={product.name}
-              fill
-              className="object-cover pointer-events-none transition-transform duration-150"
-              style={{ transform: `scale(${pinchScale})`, transformOrigin: pinchOrigin }}
-              priority
-              sizes="(max-width: 768px) 100vw, 50vw"
-            />
+            {isVideo ? (
+              <>
+                <video
+                  key={current.url}
+                  ref={videoRef}
+                  src={current.url}
+                  playsInline
+                  preload="metadata"
+                  poster={current.thumbnail || undefined}
+                  onPlay={() => {
+                    setIsVideoPlaying(true);
+                    if (overlayHideTimer.current) clearTimeout(overlayHideTimer.current);
+                    overlayHideTimer.current = setTimeout(() => setShowVideoOverlay(false), 600);
+                  }}
+                  onPause={() => {
+                    setIsVideoPlaying(false);
+                    if (overlayHideTimer.current) clearTimeout(overlayHideTimer.current);
+                    setShowVideoOverlay(true);
+                  }}
+                  onEnded={() => {
+                    setIsVideoPlaying(false);
+                    if (overlayHideTimer.current) clearTimeout(overlayHideTimer.current);
+                    setShowVideoOverlay(true);
+                    setVideoProgress(0);
+                  }}
+                  onTimeUpdate={(e) => {
+                    const v = e.currentTarget;
+                    if (v.duration) setVideoProgress((v.currentTime / v.duration) * 100);
+                  }}
+                  onClick={() => {
+                    if (!isVideoPlaying) return;
+                    if (overlayHideTimer.current) clearTimeout(overlayHideTimer.current);
+                    setShowVideoOverlay(true);
+                    overlayHideTimer.current = setTimeout(() => setShowVideoOverlay(false), 2500);
+                  }}
+                  className="absolute inset-0 w-full h-full object-cover bg-black cursor-pointer"
+                />
+                {showVideoOverlay && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const v = videoRef.current;
+                      if (!v) return;
+                      if (v.paused) v.play(); else v.pause();
+                    }}
+                    aria-label={isVideoPlaying ? 'Pause video' : 'Play video'}
+                    className="absolute inset-0 z-20 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors group"
+                  >
+                    <span className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/90 group-hover:bg-white shadow-xl flex items-center justify-center transition-transform group-hover:scale-110">
+                      {isVideoPlaying ? (
+                        <FiPause className="text-brand-charcoal" size={32} fill="currentColor" />
+                      ) : (
+                        <FiPlay className="text-brand-charcoal ml-1" size={32} fill="currentColor" />
+                      )}
+                    </span>
+                  </button>
+                )}
+                {/* Progress bar */}
+                <div
+                  className="absolute left-0 right-0 bottom-0 h-1 bg-white/25 z-30 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const v = videoRef.current;
+                    if (!v || !v.duration) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const ratio = (e.clientX - rect.left) / rect.width;
+                    v.currentTime = Math.max(0, Math.min(v.duration, ratio * v.duration));
+                  }}
+                >
+                  <div
+                    className="h-full bg-brand-gold transition-[width] duration-100"
+                    style={{ width: `${videoProgress}%` }}
+                  />
+                </div>
+              </>
+            ) : (
+              <Image
+                src={current?.url || '/placeholder.jpg'}
+                alt={product.name}
+                fill
+                className="object-cover pointer-events-none transition-transform duration-150"
+                style={{ transform: `scale(${pinchScale})`, transformOrigin: pinchOrigin }}
+                priority
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+            )}
             <div
-              className="absolute inset-0 z-10 rounded-2xl hidden md:block"
-              style={zoomStyle}
+              className="absolute inset-0 z-10 rounded-2xl hidden md:block pointer-events-none"
+              style={isVideo ? { display: 'none' } : zoomStyle}
             />
-            {product.images.length > 1 && (
+            {media.length > 1 && (
               <>
                 <button
-                  onClick={() => setSelectedImage((prev) => (prev === 0 ? product.images.length - 1 : prev - 1))}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 dark:bg-gray-700/80 flex items-center justify-center hover:bg-white dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => { setSelectedImage((prev) => (prev === 0 ? media.length - 1 : prev - 1)); setIsVideoPlaying(false); }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/80 dark:bg-gray-700/80 flex items-center justify-center hover:bg-white dark:hover:bg-gray-600 transition-colors"
                 >
                   <FiChevronLeft size={20} />
                 </button>
                 <button
-                  onClick={() => setSelectedImage((prev) => (prev === product.images.length - 1 ? 0 : prev + 1))}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 dark:bg-gray-700/80 flex items-center justify-center hover:bg-white dark:hover:bg-gray-600 transition-colors"
+                  onClick={() => { setSelectedImage((prev) => (prev === media.length - 1 ? 0 : prev + 1)); setIsVideoPlaying(false); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/80 dark:bg-gray-700/80 flex items-center justify-center hover:bg-white dark:hover:bg-gray-600 transition-colors"
                 >
                   <FiChevronRight size={20} />
                 </button>
@@ -366,21 +461,37 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Thumbnails */}
-          {product.images.length > 1 && (
+          {media.length > 1 && (
             <div className="flex gap-3 overflow-x-auto pb-2 max-w-full">
-              {product.images.map((img, i) => (
+              {media.map((m, i) => (
                 <button
                   key={i}
-                  onClick={() => setSelectedImage(i)}
+                  onClick={() => { setSelectedImage(i); setIsVideoPlaying(false); }}
                   className={`relative w-20 h-24 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-colors ${
                     selectedImage === i ? 'border-brand-green' : 'border-transparent'
                   }`}
                 >
-                  <Image src={img.url} alt="" fill className="object-cover" sizes="80px" />
+                  {m.kind === 'video' ? (
+                    <>
+                      {m.thumbnail ? (
+                        <img src={m.thumbnail} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <video src={m.url} muted className="w-full h-full object-cover bg-black" />
+                      )}
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <FiVideo className="text-white drop-shadow" size={20} />
+                      </span>
+                    </>
+                  ) : (
+                    <Image src={m.url} alt="" fill className="object-cover" sizes="80px" />
+                  )}
                 </button>
               ))}
             </div>
           )}
+          </>
+            );
+          })()}
         </div>
 
         {/* Details */}

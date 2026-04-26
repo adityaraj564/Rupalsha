@@ -12,6 +12,7 @@ const Banner = require('../models/Banner');
 const ActivityLog = require('../models/ActivityLog');
 const uploaders = require('../utils/upload');
 const uploadProducts = uploaders.products;
+const uploadProductMedia = uploaders.productMedia;
 const uploadCategories = uploaders.categories;
 const uploadBanners = uploaders.banners;
 const cloudinary = require('../config/cloudinary');
@@ -79,14 +80,26 @@ router.get('/products', async (req, res, next) => {
 });
 
 // POST /api/admin/products
-router.post('/products', uploadProducts.array('images', 5), async (req, res, next) => {
+router.post(
+  '/products',
+  uploadProductMedia.fields([
+    { name: 'images', maxCount: 100 },
+    { name: 'videos', maxCount: 10 },
+  ]),
+  async (req, res, next) => {
   try {
     const { name, description, price, comparePrice, category, subcategory, childCategory, categoryRef, sku, lowStockThreshold, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, isReturnable, returnDays, returnPolicy, shippingCharge, highlights, specifications } = req.body;
 
-    const images = req.files ? req.files.map(file => ({
+    const imageFiles = (req.files && req.files.images) || [];
+    const videoFiles = (req.files && req.files.videos) || [];
+    const images = imageFiles.map((file) => ({
       url: file.path,
       public_id: file.filename,
-    })) : [];
+    }));
+    const videos = videoFiles.map((file) => ({
+      url: file.path,
+      public_id: file.filename,
+    }));
 
     // Parse sizes if it comes as JSON string
     let parsedSizes = sizes;
@@ -126,6 +139,7 @@ router.post('/products', uploadProducts.array('images', 5), async (req, res, nex
       sku,
       lowStockThreshold: lowStockThreshold ? Number(lowStockThreshold) : 5,
       images,
+      videos,
       sizes: parsedSizes,
       colors: parsedColors,
       fabric,
@@ -149,7 +163,13 @@ router.post('/products', uploadProducts.array('images', 5), async (req, res, nex
 });
 
 // PUT /api/admin/products/:id
-router.put('/products/:id', uploadProducts.array('images', 5), async (req, res, next) => {
+router.put(
+  '/products/:id',
+  uploadProductMedia.fields([
+    { name: 'images', maxCount: 100 },
+    { name: 'videos', maxCount: 10 },
+  ]),
+  async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
@@ -184,12 +204,17 @@ router.put('/products/:id', uploadProducts.array('images', 5), async (req, res, 
       product.specifications = typeof req.body.specifications === 'string' ? JSON.parse(req.body.specifications) : req.body.specifications;
     }
 
-    if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(file => ({
+    if (req.files && (req.files.images?.length || req.files.videos?.length)) {
+      const newImages = (req.files.images || []).map((file) => ({
         url: file.path,
         public_id: file.filename,
       }));
-      product.images = [...product.images, ...newImages];
+      const newVideos = (req.files.videos || []).map((file) => ({
+        url: file.path,
+        public_id: file.filename,
+      }));
+      if (newImages.length) product.images = [...product.images, ...newImages];
+      if (newVideos.length) product.videos = [...(product.videos || []), ...newVideos];
     }
 
     // Remove specific images
@@ -199,6 +224,15 @@ router.put('/products/:id', uploadProducts.array('images', 5), async (req, res, 
         await cloudinary.uploader.destroy(publicId);
       }
       product.images = product.images.filter(img => !removeIds.includes(img.public_id));
+    }
+
+    // Remove specific videos
+    if (req.body.removeVideos) {
+      const removeIds = typeof req.body.removeVideos === 'string' ? JSON.parse(req.body.removeVideos) : req.body.removeVideos;
+      for (const publicId of removeIds) {
+        await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+      }
+      product.videos = (product.videos || []).filter((v) => !removeIds.includes(v.public_id));
     }
 
     // Reorder existing images
@@ -213,6 +247,20 @@ router.put('/products/:id', uploadProducts.array('images', 5), async (req, res, 
         if (!orderedSet.has(key)) reordered.push(img);
       });
       product.images = reordered;
+    }
+
+    // Reorder existing videos
+    if (req.body.videoOrder) {
+      const order = typeof req.body.videoOrder === 'string' ? JSON.parse(req.body.videoOrder) : req.body.videoOrder;
+      const vids = product.videos || [];
+      const map = new Map(vids.map((v) => [v.public_id || v.url, v]));
+      const reordered = order.map((id) => map.get(id)).filter(Boolean);
+      const orderedSet = new Set(order);
+      vids.forEach((v) => {
+        const key = v.public_id || v.url;
+        if (!orderedSet.has(key)) reordered.push(v);
+      });
+      product.videos = reordered;
     }
 
     await product.save();
@@ -233,6 +281,13 @@ router.delete('/products/:id', async (req, res, next) => {
     for (const img of product.images) {
       if (img.public_id) {
         await cloudinary.uploader.destroy(img.public_id);
+      }
+    }
+
+    // Delete videos from cloudinary
+    for (const v of (product.videos || [])) {
+      if (v.public_id) {
+        await cloudinary.uploader.destroy(v.public_id, { resource_type: 'video' });
       }
     }
 

@@ -101,8 +101,10 @@ export default function AdminProductsPage() {
     specifications: buildDefaultSpecs(),
   });
   const [images, setImages] = useState([]);
+  const [videos, setVideos] = useState([]);
   const [dragIndex, setDragIndex] = useState(null);
   const [existingImages, setExistingImages] = useState([]);
+  const [existingVideos, setExistingVideos] = useState([]);
 
   const fetchProducts = async () => {
     try {
@@ -191,7 +193,9 @@ export default function AdminProductsPage() {
       specifications: buildDefaultSpecs(),
     });
     setImages([]);
+    setVideos([]);
     setExistingImages([]);
+    setExistingVideos([]);
     setEditingProduct(null);
   };
 
@@ -225,6 +229,7 @@ export default function AdminProductsPage() {
     });
     setEditingProduct(product);
     setExistingImages(product.images ? [...product.images] : []);
+    setExistingVideos(product.videos ? [...product.videos] : []);
     setShowForm(true);
   };
 
@@ -267,11 +272,19 @@ export default function AdminProductsPage() {
     for (const img of images) {
       formData.append('images', img);
     }
+    for (const vid of videos) {
+      formData.append('videos', vid);
+    }
 
     // Send image order for existing images when editing
     if (editingProduct && existingImages.length > 0) {
       const order = existingImages.map(img => img.public_id || img.url);
       formData.append('imageOrder', JSON.stringify(order));
+    }
+    // Send video order for existing videos when editing
+    if (editingProduct && existingVideos.length > 0) {
+      const order = existingVideos.map((v) => v.public_id || v.url);
+      formData.append('videoOrder', JSON.stringify(order));
     }
 
     try {
@@ -523,23 +536,13 @@ export default function AdminProductsPage() {
 
               {/* Images */}
               <div>
-                <label className="block text-sm font-medium mb-1">Images (max 5)</label>
-                <p className="text-xs text-gray-400 mb-1">Recommended: 600×800 px (3:4 ratio). Use portrait orientation for best display.</p>
+                <label className="block text-sm font-medium mb-1">Images</label>
+                <p className="text-xs text-gray-400 mb-1">Recommended: 600×800 px (3:4 ratio). Use portrait orientation for best display. Auto-compressed without quality loss.</p>
                 <input
                   type="file"
                   accept="image/*"
                   multiple
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files);
-                    const existingCount = existingImages.length;
-                    const maxNew = 5 - existingCount;
-                    if (files.length > maxNew) {
-                      toast.error(`You can upload up to ${maxNew} more image${maxNew !== 1 ? 's' : ''} (${existingCount} existing)`);
-                      setImages(files.slice(0, maxNew));
-                    } else {
-                      setImages(files);
-                    }
-                  }}
+                  onChange={(e) => setImages(Array.from(e.target.files))}
                   className="input-field"
                 />
                 <p className="text-xs text-gray-400 mt-1">Drag images to reorder. First image is the main display image.</p>
@@ -602,6 +605,60 @@ export default function AdminProductsPage() {
                           className={`relative w-16 h-20 rounded-lg overflow-hidden border-2 cursor-grab active:cursor-grabbing select-none ${i === 0 ? 'border-brand-green' : 'border-gray-200'} ${dragIndex?.type === 'existing' && dragIndex.index === i ? 'opacity-50' : ''}`}
                         >
                           <img src={img.url} alt="" className="w-full h-full object-cover" />
+                          <span className="absolute top-0 left-0 bg-black/60 text-white text-[10px] px-1">{i + 1}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Videos */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Videos</label>
+                <p className="text-xs text-gray-400 mb-1">Up to 50MB per file. Auto-compressed by Cloudinary while preserving resolution & quality.</p>
+                <input
+                  type="file"
+                  accept="video/*"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files);
+                    const tooBig = files.find((f) => f.size > 50 * 1024 * 1024);
+                    if (tooBig) {
+                      toast.error(`"${tooBig.name}" exceeds the 50MB limit`);
+                      return;
+                    }
+                    setVideos(files);
+                  }}
+                  className="input-field"
+                />
+
+                {videos.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 mb-1">New videos:</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {videos.map((file, i) => (
+                        <div key={i} className="relative w-28 h-20 rounded-lg overflow-hidden border-2 border-gray-200">
+                          <video src={URL.createObjectURL(file)} className="w-full h-full object-cover" muted />
+                          <span className="absolute top-0 left-0 bg-black/60 text-white text-[10px] px-1 truncate max-w-full">{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setVideos(videos.filter((_, idx) => idx !== i))}
+                            className="absolute top-0 right-0 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-bl"
+                          >×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {existingVideos.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 mb-1">{existingVideos.length} existing video{existingVideos.length !== 1 ? 's' : ''}:</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {existingVideos.map((v, i) => (
+                        <div key={v.public_id || v.url} className="relative w-28 h-20 rounded-lg overflow-hidden border-2 border-gray-200">
+                          <video src={v.url} className="w-full h-full object-cover" muted />
                           <span className="absolute top-0 left-0 bg-black/60 text-white text-[10px] px-1">{i + 1}</span>
                         </div>
                       ))}
