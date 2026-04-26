@@ -1,7 +1,7 @@
 const express = require('express');
 const About = require('../models/About');
 const { subAdminAuth } = require('../middleware/auth');
-const upload = require('../utils/upload');
+const upload = require('../utils/upload').about;
 const cloudinary = require('../config/cloudinary');
 const { logActivity } = require('../utils/activityLog');
 

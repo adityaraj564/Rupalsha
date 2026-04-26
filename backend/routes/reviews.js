@@ -3,7 +3,7 @@ const { body } = require('express-validator');
 const Review = require('../models/Review');
 const Order = require('../models/Order');
 const { auth } = require('../middleware/auth');
-const upload = require('../utils/upload');
+const upload = require('../utils/upload').reviews;
 
 const router = express.Router();
 

@@ -10,7 +10,10 @@ const Coupon = require('../models/Coupon');
 const Contact = require('../models/Contact');
 const Banner = require('../models/Banner');
 const ActivityLog = require('../models/ActivityLog');
-const upload = require('../utils/upload');
+const uploaders = require('../utils/upload');
+const uploadProducts = uploaders.products;
+const uploadCategories = uploaders.categories;
+const uploadBanners = uploaders.banners;
 const cloudinary = require('../config/cloudinary');
 const { sendOrderStatusUpdate } = require('../utils/email');
 const cache = require('../utils/cache');
@@ -76,7 +79,7 @@ router.get('/products', async (req, res, next) => {
 });
 
 // POST /api/admin/products
-router.post('/products', upload.array('images', 5), async (req, res, next) => {
+router.post('/products', uploadProducts.array('images', 5), async (req, res, next) => {
   try {
     const { name, description, price, comparePrice, category, subcategory, childCategory, categoryRef, sku, lowStockThreshold, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, isReturnable, returnDays, returnPolicy, shippingCharge, highlights, specifications } = req.body;
 
@@ -146,7 +149,7 @@ router.post('/products', upload.array('images', 5), async (req, res, next) => {
 });
 
 // PUT /api/admin/products/:id
-router.put('/products/:id', upload.array('images', 5), async (req, res, next) => {
+router.put('/products/:id', uploadProducts.array('images', 5), async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });
@@ -603,7 +606,7 @@ router.post('/categories', [
 });
 
 // PUT /api/admin/categories/:id
-router.put('/categories/:id', upload.single('image'), async (req, res, next) => {
+router.put('/categories/:id', uploadCategories.single('image'), async (req, res, next) => {
   try {
     const category = await Category.findById(req.params.id);
     if (!category) return res.status(404).json({ error: 'Category not found' });
@@ -661,7 +664,7 @@ router.get('/banners', async (req, res, next) => {
 });
 
 // POST /api/admin/banners
-router.post('/banners', upload.single('image'), async (req, res, next) => {
+router.post('/banners', uploadBanners.single('image'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Image is required' });
 
