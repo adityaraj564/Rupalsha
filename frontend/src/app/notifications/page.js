@@ -7,12 +7,12 @@
  * (Today / Yesterday / Earlier). Mark single, mark all, delete, clear all.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   FiBell, FiCheck, FiPackage, FiCreditCard, FiTag, FiShield, FiAlertCircle,
-  FiInfo, FiTrash2, FiChevronLeft,
+  FiInfo, FiTrash2, FiArrowLeft,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
 import { notificationsAPI } from '@/lib/api';
@@ -79,61 +79,102 @@ export default function NotificationsPage() {
   const { isAuthenticated, isLoading } = useAuthStore();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('all');
-  const [items, setItems] = useState([]);
-  const [counts, setCounts] = useState({});
-  const [page, setPage] = useState(1);
-  const [pages, setPages] = useState(1);
+  // Per-tab in-memory cache so switching between tabs is instant. Each entry:
+  // { items, counts, page, pages, loaded }
+  const [tabState, setTabState] = useState({});
   const [loading, setLoading] = useState(true);
+  // Track in-flight requests per tab to avoid duplicate fetches on rapid switching.
+  const inflightRef = useRef({});
+
+  const current = tabState[activeTab] || { items: [], counts: {}, page: 1, pages: 1, loaded: false };
+  const items = current.items;
+  const counts = current.counts;
+  const page = current.page;
+  const pages = current.pages;
 
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) router.push('/auth/login');
   }, [isAuthenticated, isLoading, router]);
 
-  // Seed from cache on mount (post-hydration — SSR-safe).
+  // Seed the "all" tab from cache on mount (post-hydration — SSR-safe).
   useEffect(() => {
     const cached = readCachedNotifs();
     if (cached?.items?.length) {
-      setItems(cached.items);
-      setCounts(cached.counts || {});
+      setTabState((s) => ({
+        ...s,
+        all: { items: cached.items, counts: cached.counts || {}, page: 1, pages: 1, loaded: true },
+      }));
       setLoading(false);
     }
   }, []);
 
   const load = useCallback(async (tab, pg = 1, append = false) => {
+    if (inflightRef.current[tab] && !append) return;
+    inflightRef.current[tab] = true;
     try {
       const params = { page: pg, limit: 20 };
       if (tab !== 'all') params.category = tab;
       const res = await notificationsAPI.list(params);
       const next = res.notifications || [];
-      setItems((prev) => (append ? [...prev, ...next] : next));
-      setCounts(res.counts || {});
-      setPage(res.page || 1);
-      setPages(res.pages || 1);
+      const newCounts = res.counts || {};
+      setTabState((s) => {
+        const prev = s[tab] || { items: [] };
+        return {
+          ...s,
+          [tab]: {
+            items: append ? [...prev.items, ...next] : next,
+            counts: newCounts,
+            page: res.page || 1,
+            pages: res.pages || 1,
+            loaded: true,
+          },
+        };
+      });
       // Persist only the unfiltered ("all") view so other tabs stay fresh.
       if (tab === 'all' && !append) {
-        writeCachedNotifs({ items: next, counts: res.counts || {} });
+        writeCachedNotifs({ items: next, counts: newCounts });
       }
     } catch (e) {
-      // Stay silent on error if we already have something rendered — toast
-      // only when there's truly nothing to show.
-      // (We can't easily read state here without re-deps; the list will
-      // simply remain at whatever was last successful.)
+      // Keep whatever we had rendered.
     } finally {
+      inflightRef.current[tab] = false;
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    load(activeTab, 1, false);
+    // If this tab has data already, paint instantly and refresh in background.
+    const existing = tabState[activeTab];
+    if (existing?.loaded) {
+      setLoading(false);
+      load(activeTab, 1, false);
+    } else {
+      setLoading(true);
+      load(activeTab, 1, false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, isAuthenticated, load]);
+
+  // Apply a mutation to every cached tab so counts/items stay consistent
+  // without needing to refetch each tab when the user switches.
+  const updateAllTabs = (mutator) => {
+    setTabState((s) => {
+      const out = {};
+      for (const k of Object.keys(s)) out[k] = mutator(s[k], k);
+      return out;
+    });
+  };
 
   const handleItemClick = async (n) => {
     if (!n.read) {
       try { await notificationsAPI.markRead(n._id); } catch {}
-      setItems((arr) => arr.map((x) => (x._id === n._id ? { ...x, read: true } : x)));
-      setCounts((c) => ({ ...c, unread: Math.max(0, (c.unread || 1) - 1) }));
+      updateAllTabs((tab) => ({
+        ...tab,
+        items: tab.items.map((x) => (x._id === n._id ? { ...x, read: true } : x)),
+        counts: { ...tab.counts, unread: Math.max(0, (tab.counts?.unread || 1) - 1) },
+      }));
     }
     if (n.link) router.push(n.link);
   };
@@ -141,8 +182,14 @@ export default function NotificationsPage() {
   const handleMarkAllRead = async () => {
     try {
       await notificationsAPI.markAllRead(activeTab === 'all' ? undefined : activeTab);
-      setItems((arr) => arr.map((x) => ({ ...x, read: true })));
-      setCounts((c) => ({ ...c, unread: 0 }));
+      const cat = activeTab === 'all' ? null : activeTab;
+      updateAllTabs((tab, key) => {
+        // If marking all in a category, only flip items that match.
+        const items = tab.items.map((x) =>
+          (!cat || x.category === cat) ? { ...x, read: true } : x
+        );
+        return { ...tab, items, counts: { ...tab.counts, unread: cat ? tab.counts?.unread : 0 } };
+      });
       toast.success('All marked as read');
     } catch (e) {
       toast.error('Failed');
@@ -153,7 +200,7 @@ export default function NotificationsPage() {
     e.stopPropagation();
     try {
       await notificationsAPI.remove(id);
-      setItems((arr) => arr.filter((x) => x._id !== id));
+      updateAllTabs((tab) => ({ ...tab, items: tab.items.filter((x) => x._id !== id) }));
     } catch {
       toast.error('Failed to delete');
     }
@@ -163,8 +210,11 @@ export default function NotificationsPage() {
     if (!confirm('Clear all notifications in this view?')) return;
     try {
       await notificationsAPI.clearAll(activeTab === 'all' ? undefined : activeTab);
-      setItems([]);
-      setCounts({ ...counts, [activeTab === 'all' ? 'all' : activeTab]: 0 });
+      const cat = activeTab === 'all' ? null : activeTab;
+      updateAllTabs((tab) => ({
+        ...tab,
+        items: cat ? tab.items.filter((x) => x.category !== cat) : [],
+      }));
       toast.success('Cleared');
     } catch {
       toast.error('Failed');
@@ -182,11 +232,15 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3 min-w-0">
           <button
-            onClick={() => router.back()}
-            className="lg:hidden h-9 w-9 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-700 dark:text-gray-200"
-            aria-label="Back"
+            type="button"
+            onClick={() => {
+              if (typeof window !== 'undefined' && window.history.length > 1) router.back();
+              else router.push('/profile');
+            }}
+            className="h-10 w-10 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0"
+            aria-label="Go back"
           >
-            <FiChevronLeft size={18} />
+            <FiArrowLeft size={20} />
           </button>
           <div className="min-w-0">
             <h1 className="font-serif text-2xl lg:text-3xl font-semibold text-brand-charcoal dark:text-gray-100 truncate">
