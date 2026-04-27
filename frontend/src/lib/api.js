@@ -229,7 +229,8 @@ const request = async (endpoint, options = {}, retries = 2) => {
 
       return data;
     } catch (err) {
-      // Don't retry client errors (4xx) or if it's the last attempt
+      // Don't retry aborts, client errors (4xx), or the last attempt.
+      if (err && (err.name === 'AbortError' || err.code === 20)) throw err;
       if (err instanceof ApiError && err.status >= 400 && err.status < 500) throw err;
       if (attempt === retries) throw err;
       // Wait before retrying: 1s, then 2s
@@ -547,19 +548,43 @@ export const subAdminAPI = {
 
 // Notifications
 export const notificationsAPI = {
-  list: (params = {}) => {
+  /**
+   * List notifications for a tab.
+   *
+   * Performance contract:
+   * - Page 1 calls go through SWR: instant paint from cache, background
+   *   revalidation, `onFresh(value)` fires only when the new payload differs.
+   * - Pagination (`page > 1`) bypasses cache so "Load more" always fetches.
+   * - `signal` lets the caller cancel in-flight requests when switching tabs.
+   */
+  list: (params = {}, { onFresh, signal } = {}) => {
     const query = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== '' && v !== null))
     ).toString();
-    return request(`/notifications${query ? `?${query}` : ''}`);
+    const url = `/notifications${query ? `?${query}` : ''}`;
+    const pg = Number(params.page) || 1;
+    if (pg !== 1) return request(url, { signal });
+    const cat = params.category || 'all';
+    return swr(
+      `notifications:${cat}`,
+      () => request(url, { signal }),
+      CACHE_TTL.short, // 60s — orders/wallet are time-sensitive
+      { alwaysRevalidate: true, onFresh }
+    );
   },
   unreadCount: () => request('/notifications/unread-count'),
-  markRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
+  markRead: (id) =>
+    request(`/notifications/${id}/read`, { method: 'PATCH' })
+      .then((r) => { clearApiCache('notifications:'); return r; }),
   markAllRead: (category) =>
-    request('/notifications/mark-all-read', { method: 'PATCH', body: category ? { category } : {} }),
-  remove: (id) => request(`/notifications/${id}`, { method: 'DELETE' }),
+    request('/notifications/mark-all-read', { method: 'PATCH', body: category ? { category } : {} })
+      .then((r) => { clearApiCache('notifications:'); return r; }),
+  remove: (id) =>
+    request(`/notifications/${id}`, { method: 'DELETE' })
+      .then((r) => { clearApiCache('notifications:'); return r; }),
   clearAll: (category) =>
-    request(`/notifications${category ? `?category=${encodeURIComponent(category)}` : ''}`, { method: 'DELETE' }),
+    request(`/notifications${category ? `?category=${encodeURIComponent(category)}` : ''}`, { method: 'DELETE' })
+      .then((r) => { clearApiCache('notifications:'); return r; }),
   // Admin
   broadcast: (data) => request('/notifications/broadcast', { method: 'POST', body: data }),
   sendToUser: (data) => request('/notifications', { method: 'POST', body: data }),

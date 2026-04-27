@@ -15,7 +15,7 @@ import {
   FiInfo, FiTrash2, FiArrowLeft,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
-import { notificationsAPI } from '@/lib/api';
+import { notificationsAPI, peekCached } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 const TABS = [
@@ -60,31 +60,42 @@ function formatTime(dateStr) {
   return d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
-// Cached snapshot of the last "all"-tab fetch so the page paints instantly
-// on revisits. Other tabs always fetch fresh — they're cheap, scoped queries.
-const NOTIF_CACHE_KEY = 'rupalsha_notifications_cache';
-const readCachedNotifs = () => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(NOTIF_CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-};
-const writeCachedNotifs = (data) => {
-  if (typeof window === 'undefined') return;
-  try { localStorage.setItem(NOTIF_CACHE_KEY, JSON.stringify(data)); } catch {}
+// Cache key used by the SWR layer in `lib/api.js`. Mirrored here so we can
+// hydrate state synchronously via `peekCached` on mount.
+const cacheKeyFor = (tab) => `notifications:${tab}`;
+const hydrateFromCache = (tab) => {
+  const v = peekCached(cacheKeyFor(tab));
+  if (!v) return null;
+  return {
+    items: v.notifications || [],
+    counts: v.counts || {},
+    page: v.page || 1,
+    pages: v.pages || 1,
+    loaded: true,
+  };
 };
 
 export default function NotificationsPage() {
   const { isAuthenticated, isLoading } = useAuthStore();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('all');
-  // Per-tab in-memory cache so switching between tabs is instant. Each entry:
-  // { items, counts, page, pages, loaded }
-  const [tabState, setTabState] = useState({});
-  const [loading, setLoading] = useState(true);
-  // Track in-flight requests per tab to avoid duplicate fetches on rapid switching.
-  const inflightRef = useRef({});
+  // Per-tab in-memory state. Seeded synchronously from the SWR disk cache so
+  // revisits paint with zero flicker. The SWR layer revalidates in the
+  // background and we patch fresh data in via `onFresh`.
+  const [tabState, setTabState] = useState(() => {
+    const initial = {};
+    for (const t of TABS) {
+      const cached = hydrateFromCache(t.id);
+      if (cached) initial[t.id] = cached;
+    }
+    return initial;
+  });
+  const [loading, setLoading] = useState(() => !hydrateFromCache('all'));
+  // AbortController per tab — used to cancel an in-flight request if the user
+  // switches tabs again before it completes.
+  const abortRef = useRef({});
+  // Debounce rapid tab switching so we don't fire a request on every flick.
+  const debounceRef = useRef(null);
 
   const current = tabState[activeTab] || { items: [], counts: {}, page: 1, pages: 1, loaded: false };
   const items = current.items;
@@ -97,65 +108,82 @@ export default function NotificationsPage() {
     if (!isAuthenticated) router.push('/auth/login');
   }, [isAuthenticated, isLoading, router]);
 
-  // Seed the "all" tab from cache on mount (post-hydration — SSR-safe).
-  useEffect(() => {
-    const cached = readCachedNotifs();
-    if (cached?.items?.length) {
-      setTabState((s) => ({
+  // Apply a server response payload to the per-tab cache.
+  const applyResponse = useCallback((tab, res, append = false) => {
+    const next = res?.notifications || [];
+    setTabState((s) => {
+      const prev = s[tab] || { items: [] };
+      return {
         ...s,
-        all: { items: cached.items, counts: cached.counts || {}, page: 1, pages: 1, loaded: true },
-      }));
-      setLoading(false);
-    }
+        [tab]: {
+          items: append ? [...prev.items, ...next] : next,
+          counts: res?.counts || {},
+          page: res?.page || 1,
+          pages: res?.pages || 1,
+          loaded: true,
+        },
+      };
+    });
   }, []);
 
+  /**
+   * Fetch a tab's notifications.
+   *
+   * The api-layer `notificationsAPI.list` uses SWR — it resolves immediately
+   * with cached data (if any) and triggers a background revalidation that
+   * fires `onFresh(value)` when the server response actually differs.
+   *
+   * We additionally:
+   *  - Cancel any in-flight request for this tab via `AbortController`.
+   *  - Skip showing the skeleton when we already have something to render.
+   */
   const load = useCallback(async (tab, pg = 1, append = false) => {
-    if (inflightRef.current[tab] && !append) return;
-    inflightRef.current[tab] = true;
+    // Cancel any prior request for this tab.
+    abortRef.current[tab]?.abort();
+    const ctrl = new AbortController();
+    abortRef.current[tab] = ctrl;
+
+    const params = { page: pg, limit: 20 };
+    if (tab !== 'all') params.category = tab;
+
     try {
-      const params = { page: pg, limit: 20 };
-      if (tab !== 'all') params.category = tab;
-      const res = await notificationsAPI.list(params);
-      const next = res.notifications || [];
-      const newCounts = res.counts || {};
-      setTabState((s) => {
-        const prev = s[tab] || { items: [] };
-        return {
-          ...s,
-          [tab]: {
-            items: append ? [...prev.items, ...next] : next,
-            counts: newCounts,
-            page: res.page || 1,
-            pages: res.pages || 1,
-            loaded: true,
-          },
-        };
+      const res = await notificationsAPI.list(params, {
+        signal: ctrl.signal,
+        // Background revalidation: only patch when payload actually changed.
+        onFresh: (fresh) => {
+          if (ctrl.signal.aborted) return;
+          applyResponse(tab, fresh, false);
+        },
       });
-      // Persist only the unfiltered ("all") view so other tabs stay fresh.
-      if (tab === 'all' && !append) {
-        writeCachedNotifs({ items: next, counts: newCounts });
-      }
-    } catch (e) {
-      // Keep whatever we had rendered.
+      if (ctrl.signal.aborted) return;
+      applyResponse(tab, res, append);
+    } catch (err) {
+      if (err?.name === 'AbortError') return; // expected on tab switch
+      // Silent: keep whatever was last rendered.
     } finally {
-      inflightRef.current[tab] = false;
+      if (abortRef.current[tab] === ctrl) abortRef.current[tab] = null;
       setLoading(false);
     }
-  }, []);
+  }, [applyResponse]);
 
+  // Tab change → load with a tiny debounce so a fast left-right scrub doesn't
+  // queue up a burst of network calls.
   useEffect(() => {
     if (!isAuthenticated) return;
-    // If this tab has data already, paint instantly and refresh in background.
-    const existing = tabState[activeTab];
-    if (existing?.loaded) {
-      setLoading(false);
+    const hasCached = !!tabState[activeTab]?.loaded;
+    if (!hasCached) setLoading(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
       load(activeTab, 1, false);
-    } else {
-      setLoading(true);
-      load(activeTab, 1, false);
-    }
+    }, hasCached ? 60 : 0);
+    return () => clearTimeout(debounceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, isAuthenticated, load]);
+
+  // Cancel any pending request when the page unmounts.
+  useEffect(() => () => {
+    Object.values(abortRef.current).forEach((c) => c?.abort?.());
+  }, []);
 
   // Apply a mutation to every cached tab so counts/items stay consistent
   // without needing to refetch each tab when the user switches.
@@ -398,7 +426,7 @@ export default function NotificationsPage() {
               <div className="text-center mt-8">
                 <button
                   onClick={handleClearAll}
-                  className="text-xs text-gray-400 hover:text-red-500 inline-flex items-center gap-1.5"
+                  className="text-xs font-medium text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 inline-flex items-center gap-1.5"
                 >
                   <FiTrash2 size={12} /> Clear all in this view
                 </button>
