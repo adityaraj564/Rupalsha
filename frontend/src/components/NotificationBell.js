@@ -22,6 +22,17 @@ import { useAuthStore } from '@/lib/store';
 import { notificationsAPI } from '@/lib/api';
 
 const POLL_MS = 60_000;
+const UNREAD_CACHE_KEY = 'rupalsha_unread_count';
+
+const readCachedUnread = () => {
+  if (typeof window === 'undefined') return 0;
+  const v = parseInt(localStorage.getItem(UNREAD_CACHE_KEY) || '0', 10);
+  return Number.isFinite(v) && v >= 0 ? v : 0;
+};
+const writeCachedUnread = (n) => {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(UNREAD_CACHE_KEY, String(n || 0)); } catch {}
+};
 
 // Map category → icon + accent classes
 const CATEGORY_META = {
@@ -50,7 +61,9 @@ export default function NotificationBell() {
   const { isAuthenticated, user } = useAuthStore();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
+  // Hydrate from cache so the badge appears instantly on refresh, before
+  // the network round-trip finishes.
+  const [unread, setUnread] = useState(() => readCachedUnread());
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const dropRef = useRef(null);
@@ -63,7 +76,9 @@ export default function NotificationBell() {
     if (!visible) return;
     try {
       const { unreadCount } = await notificationsAPI.unreadCount();
-      setUnread(unreadCount || 0);
+      const n = unreadCount || 0;
+      setUnread(n);
+      writeCachedUnread(n);
     } catch {}
   }, [visible]);
 
@@ -73,7 +88,9 @@ export default function NotificationBell() {
     try {
       const { notifications, unreadCount } = await notificationsAPI.list({ limit: 8 });
       setItems(notifications || []);
-      setUnread(unreadCount || 0);
+      const n = unreadCount || 0;
+      setUnread(n);
+      writeCachedUnread(n);
     } catch {} finally {
       setLoading(false);
     }
@@ -83,6 +100,7 @@ export default function NotificationBell() {
   useEffect(() => {
     if (!visible) {
       setUnread(0);
+      writeCachedUnread(0);
       setItems([]);
       return;
     }
@@ -119,7 +137,11 @@ export default function NotificationBell() {
     setOpen(false);
     if (!n.read) {
       try { await notificationsAPI.markRead(n._id); } catch {}
-      setUnread((u) => Math.max(0, u - 1));
+      setUnread((u) => {
+        const next = Math.max(0, u - 1);
+        writeCachedUnread(next);
+        return next;
+      });
       setItems((arr) => arr.map((x) => (x._id === n._id ? { ...x, read: true } : x)));
     }
     if (n.link) router.push(n.link);
@@ -128,6 +150,7 @@ export default function NotificationBell() {
   const handleMarkAllRead = async () => {
     try { await notificationsAPI.markAllRead(); } catch { return; }
     setUnread(0);
+    writeCachedUnread(0);
     setItems((arr) => arr.map((x) => ({ ...x, read: true })));
   };
 

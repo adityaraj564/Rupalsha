@@ -86,6 +86,33 @@ app.use('/api/contact', contactLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// ── HTTP cache headers for public read endpoints ──
+// Browsers and CDNs can serve these from their own cache, slashing latency
+// for repeat visits. Only applies to GET requests with no Authorization
+// header (so personalised data is never cached). Mutations skip via method
+// check; routes that handle auth-aware logic should set their own Cache-
+// Control to override (e.g. /products may differ for logged-in vs guest).
+const PUBLIC_CACHEABLE_PATHS = [
+  '/api/products',
+  '/api/categories',
+  '/api/banners',
+  '/api/blogs',
+  '/api/faqs',
+  '/api/pages',
+  '/api/about',
+  '/api/coupons/active',
+];
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next();
+  if (req.headers.authorization) return next();
+  const matches = PUBLIC_CACHEABLE_PATHS.some((p) => req.path === p || req.path.startsWith(p + '/'));
+  if (matches) {
+    // 60s fresh, 5min stale-while-revalidate – matches the client SWR TTLs.
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+  }
+  next();
+});
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/products', require('./routes/products'));

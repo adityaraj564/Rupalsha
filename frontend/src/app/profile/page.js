@@ -25,39 +25,57 @@ export default function ProfilePage() {
     fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
   const [fetchingPincode, setFetchingPincode] = useState(false);
-  const [stats, setStats] = useState({ orders: null, wallet: null, wishlist: null, notifications: null });
+  // Hydrate stats from localStorage so the dashboard cards never show "—" on refresh.
+  const [stats, setStats] = useState(() => {
+    if (typeof window === 'undefined') return { orders: null, wallet: null, wishlist: null, notifications: null };
+    try {
+      const raw = localStorage.getItem('rupalsha_profile_stats');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return { orders: null, wallet: null, wishlist: null, notifications: null };
+  });
+
+  // Sync the editable form whenever the cached/fresh user data changes.
+  useEffect(() => {
+    if (user) setProfileForm({ name: user.name || '', phone: user.phone || '' });
+  }, [user?._id, user?.name, user?.phone]);
 
   useEffect(() => {
-    if (isLoading) return;
-    if (!isAuthenticated) {
+    if (isLoading && !user) return; // wait only if we have no cached user
+    if (!isAuthenticated && !isLoading) {
       router.push('/auth/login');
       return;
     }
-    // Re-fetch user to get latest addresses
+    if (!isAuthenticated) return;
+
+    // Background refresh of user (addresses, etc.) — never blocks render.
     authAPI.getMe().then(({ user: fresh }) => {
       updateUser(fresh);
-      setProfileForm({ name: fresh.name, phone: fresh.phone || '' });
     }).catch(() => {});
 
-    // Fetch dashboard stats in parallel (silently fail)
+    // Fetch dashboard stats in parallel (silently fail). Cache the result so
+    // the next visit / refresh shows numbers immediately.
     Promise.allSettled([
       ordersAPI.getAll({ limit: 1 }),
       walletAPI.get(),
       wishlistAPI.get(),
       notificationsAPI.unreadCount(),
     ]).then(([oRes, wRes, wlRes, nRes]) => {
-      setStats({
+      const next = {
         orders: oRes.status === 'fulfilled' ? (oRes.value?.total ?? oRes.value?.orders?.length ?? 0) : 0,
         wallet: wRes.status === 'fulfilled' ? (wRes.value?.balance ?? 0) : 0,
         wishlist: wlRes.status === 'fulfilled'
           ? (Array.isArray(wlRes.value?.wishlist) ? wlRes.value.wishlist.length : (wlRes.value?.items?.length ?? 0))
           : 0,
         notifications: nRes.status === 'fulfilled' ? (nRes.value?.unreadCount ?? 0) : 0,
-      });
+      };
+      setStats(next);
+      try { localStorage.setItem('rupalsha_profile_stats', JSON.stringify(next)); } catch {}
     });
   }, [isAuthenticated, isLoading, router]);
 
-  if (isLoading || !user) return null;
+  // Render with cached user immediately; only hide the page if we truly have nothing.
+  if (!user) return null;
 
   const handleUpdateProfile = async () => {
     try {

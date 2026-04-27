@@ -19,12 +19,29 @@ const SOURCE_LABELS = {
 
 const QUICK_AMOUNTS = [100, 500, 1000, 2000, 5000];
 
+const WALLET_CACHE_KEY = 'rupalsha_wallet_cache';
+
+// Read cached wallet snapshot for instant render on refresh.
+const readWalletCache = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(WALLET_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+const writeWalletCache = (data) => {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(WALLET_CACHE_KEY, JSON.stringify(data)); } catch {}
+};
+
 export default function WalletPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuthStore();
-  const [balance, setBalance] = useState(0);
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Hydrate from cache so the balance is visible the instant the page paints.
+  const cached = typeof window !== 'undefined' ? readWalletCache() : null;
+  const [balance, setBalance] = useState(cached?.balance ?? 0);
+  const [transactions, setTransactions] = useState(cached?.transactions ?? []);
+  const [loading, setLoading] = useState(!cached); // only show skeleton if no cache
   const [rechargeAmount, setRechargeAmount] = useState('');
   const [processing, setProcessing] = useState(false);
 
@@ -38,13 +55,14 @@ export default function WalletPage() {
   }, [isAuthenticated, isLoading]);
 
   const load = async () => {
-    setLoading(true);
     try {
       const { balance, transactions } = await walletAPI.get();
       setBalance(balance);
       setTransactions(transactions);
+      writeWalletCache({ balance, transactions, ts: Date.now() });
     } catch (err) {
-      toast.error(err.message || 'Failed to load wallet');
+      // Only surface error if we have nothing to show; otherwise stay quiet.
+      if (!cached) toast.error(err.message || 'Failed to load wallet');
     } finally {
       setLoading(false);
     }
@@ -148,7 +166,7 @@ export default function WalletPage() {
         <div className="relative">
           <p className="text-sm font-medium text-amber-900/80">Current balance</p>
           <p className="font-sans text-4xl font-semibold tracking-tight mt-1 text-amber-950 tabular-nums">
-            {loading ? '—' : `₹${balance.toLocaleString('en-IN')}`}
+            {`\u20b9${(balance || 0).toLocaleString('en-IN')}`}
           </p>
           <p className="text-xs text-amber-900/75 mt-2">
             Use your balance at checkout for instant payments.

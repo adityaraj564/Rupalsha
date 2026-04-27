@@ -1,7 +1,32 @@
 import { create } from 'zustand';
 import { authAPI, cartAPI, wishlistAPI } from '../lib/api';
 
+const USER_CACHE_KEY = 'rupalsha_user_cache';
+
+// Read cached user from localStorage (used for instant rehydrate inside init).
+const readCachedUser = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(USER_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedUser = (user) => {
+  if (typeof window === 'undefined') return;
+  try {
+    if (user) localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+    else localStorage.removeItem(USER_CACHE_KEY);
+  } catch {}
+};
+
 // Auth Store
+// Initial state matches between SSR and CSR (no window access). The instant
+// rehydrate happens inside init() which runs synchronously up to the first
+// await — this avoids hydration mismatches while still painting cached data
+// on the very next render.
 export const useAuthStore = create((set, get) => ({
   user: null,
   isLoading: true,
@@ -10,14 +35,25 @@ export const useAuthStore = create((set, get) => ({
   init: async () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('rupalsha_token') : null;
     if (!token) {
-      set({ isLoading: false, isAuthenticated: false });
+      set({ isLoading: false, isAuthenticated: false, user: null });
+      writeCachedUser(null);
       return;
     }
+
+    // ── Synchronous: paint cached user immediately so the UI doesn't flicker.
+    const cached = readCachedUser();
+    if (cached) {
+      set({ user: cached, isAuthenticated: true, isLoading: false });
+    }
+
+    // ── Background: revalidate against /me; update cache when fresh data arrives.
     try {
       const { user } = await authAPI.getMe();
+      writeCachedUser(user);
       set({ user, isAuthenticated: true, isLoading: false });
     } catch {
       localStorage.removeItem('rupalsha_token');
+      writeCachedUser(null);
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
@@ -25,31 +61,45 @@ export const useAuthStore = create((set, get) => ({
   login: async (credentials) => {
     const { token, user } = await authAPI.login(credentials);
     localStorage.setItem('rupalsha_token', token);
-    set({ user, isAuthenticated: true });
+    writeCachedUser(user);
+    set({ user, isAuthenticated: true, isLoading: false });
     return user;
   },
 
   loginWithToken: (token, user) => {
     localStorage.setItem('rupalsha_token', token);
-    set({ user, isAuthenticated: true });
+    writeCachedUser(user);
+    set({ user, isAuthenticated: true, isLoading: false });
     return user;
   },
 
   register: async (data) => {
     const { token, user } = await authAPI.register(data);
     localStorage.setItem('rupalsha_token', token);
-    set({ user, isAuthenticated: true });
+    writeCachedUser(user);
+    set({ user, isAuthenticated: true, isLoading: false });
     return user;
   },
 
   logout: () => {
     localStorage.removeItem('rupalsha_token');
-    set({ user: null, isAuthenticated: false });
+    writeCachedUser(null);
+    // Clear all per-user caches so the next user doesn't see stale data.
+    try {
+      localStorage.removeItem('rupalsha_profile_stats');
+      localStorage.removeItem('rupalsha_wallet_cache');
+      localStorage.removeItem('rupalsha_unread_count');
+    } catch {}
+    set({ user: null, isAuthenticated: false, isLoading: false });
     useCartStore.getState().clearLocal();
   },
 
   updateUser: (userData) => {
-    set((state) => ({ user: { ...state.user, ...userData } }));
+    set((state) => {
+      const merged = { ...state.user, ...userData };
+      writeCachedUser(merged);
+      return { user: merged };
+    });
   },
 }));
 

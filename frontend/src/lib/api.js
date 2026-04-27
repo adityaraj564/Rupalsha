@@ -1,37 +1,168 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-// ── Client-side response cache (SWR-style) ──
+// ──────────────────────────────────────────────────────────────────────────
+// Persistent SWR-style response cache
+// --------------------------------------------------------------------------
+// Two layers:
+//   1. In-memory Map (fast, survives within a tab session)
+//   2. localStorage (survives full page refresh)
+// Behaviour: on read → memory hit → localStorage hit → null. On write → both.
+// Only public, non-personalised endpoints (products, banners, categories,
+// pages, blogs, etc.) opt in. Anything personal (cart, wallet, orders) skips
+// the cache by simply not calling getCached/setCache.
+// ──────────────────────────────────────────────────────────────────────────
 const responseCache = new Map();
+const STORAGE_PREFIX = 'rupalsha_apiCache:';
+const STORAGE_INDEX_KEY = 'rupalsha_apiCacheIndex';
+
 const CACHE_TTL = {
-  short: 60 * 1000,    // 1 min - products, search results
-  medium: 5 * 60 * 1000, // 5 min - categories, about page
-  long: 15 * 60 * 1000,  // 15 min - rarely changing data
+  short: 60 * 1000,            // 1 min  – product lists, search
+  medium: 5 * 60 * 1000,       // 5 min  – categories, banners, pages
+  long: 15 * 60 * 1000,        // 15 min – about, FAQs
 };
 
-const getCached = (key) => {
-  const entry = responseCache.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    responseCache.delete(key);
+// SWR threshold: cached entries older than `ttl` are still returned, but a
+// background revalidation kicks in. They become "hard expired" and discarded
+// after `ttl * STALE_MULTIPLIER`. Bigger multiplier = slower fallback to
+// network on truly stale data, but better instant-paint UX.
+const STALE_MULTIPLIER = 6;
+
+const safeStorage = (() => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const t = '__rs_test__';
+    window.localStorage.setItem(t, '1');
+    window.localStorage.removeItem(t);
+    return window.localStorage;
+  } catch {
     return null;
   }
-  return entry.value;
+})();
+
+const readFromStorage = (key) => {
+  if (!safeStorage) return null;
+  try {
+    const raw = safeStorage.getItem(STORAGE_PREFIX + key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
 };
 
+const writeToStorage = (key, entry) => {
+  if (!safeStorage) return;
+  try {
+    safeStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(entry));
+    // Keep a small index for cache bookkeeping (cap to ~80 entries)
+    const idxRaw = safeStorage.getItem(STORAGE_INDEX_KEY);
+    const idx = idxRaw ? JSON.parse(idxRaw) : [];
+    if (!idx.includes(key)) idx.push(key);
+    while (idx.length > 80) {
+      const evicted = idx.shift();
+      safeStorage.removeItem(STORAGE_PREFIX + evicted);
+    }
+    safeStorage.setItem(STORAGE_INDEX_KEY, JSON.stringify(idx));
+  } catch {
+    // Quota exceeded → clear our cache and bail.
+    try { clearApiCache(); } catch {}
+  }
+};
+
+const removeFromStorage = (key) => {
+  if (!safeStorage) return;
+  try { safeStorage.removeItem(STORAGE_PREFIX + key); } catch {}
+};
+
+/**
+ * Returns the cached value for `key` if it exists, regardless of staleness.
+ * Caller is responsible for deciding whether to revalidate.
+ *
+ * Each entry has shape: { value, savedAt, ttl }
+ */
+const getCached = (key) => {
+  const fromMem = responseCache.get(key);
+  if (fromMem) return fromMem;
+  const fromDisk = readFromStorage(key);
+  if (fromDisk) {
+    responseCache.set(key, fromDisk);
+    return fromDisk;
+  }
+  return null;
+};
+
+const isFresh = (entry, ttl) => entry && (Date.now() - entry.savedAt) < ttl;
+const isHardExpired = (entry, ttl) => !entry || (Date.now() - entry.savedAt) > ttl * STALE_MULTIPLIER;
+
 const setCache = (key, value, ttl = CACHE_TTL.short) => {
-  // Limit cache size to prevent memory issues
-  if (responseCache.size > 100) {
+  // Cap memory map size to avoid runaway growth in long sessions
+  if (responseCache.size > 200) {
     const firstKey = responseCache.keys().next().value;
     responseCache.delete(firstKey);
   }
-  responseCache.set(key, { value, expiresAt: Date.now() + ttl });
+  const entry = { value, savedAt: Date.now(), ttl };
+  responseCache.set(key, entry);
+  writeToStorage(key, entry);
+};
+
+/**
+ * Synchronously peek at a cached API response without triggering a fetch.
+ * Useful as a `useState` initializer to paint the previous result instantly.
+ * Returns the cached value (or null) regardless of staleness — the next call
+ * to the SWR-aware API will quietly revalidate in the background.
+ */
+export const peekCached = (key) => {
+  const entry = getCached(key);
+  return entry ? entry.value : null;
 };
 
 export const clearApiCache = (prefix) => {
-  if (!prefix) { responseCache.clear(); return; }
-  for (const key of responseCache.keys()) {
-    if (key.startsWith(prefix)) responseCache.delete(key);
+  if (!prefix) {
+    responseCache.clear();
+    if (!safeStorage) return;
+    try {
+      const idxRaw = safeStorage.getItem(STORAGE_INDEX_KEY);
+      const idx = idxRaw ? JSON.parse(idxRaw) : [];
+      idx.forEach((k) => safeStorage.removeItem(STORAGE_PREFIX + k));
+      safeStorage.removeItem(STORAGE_INDEX_KEY);
+    } catch {}
+    return;
   }
+  for (const key of Array.from(responseCache.keys())) {
+    if (key.startsWith(prefix)) {
+      responseCache.delete(key);
+      removeFromStorage(key);
+    }
+  }
+};
+
+/**
+ * Stale-While-Revalidate fetcher.
+ *
+ *   const data = await swr('products:featured', () => request('/products?...'), CACHE_TTL.short);
+ *
+ * - If a fresh entry exists → return it; no network.
+ * - If a stale (within hard-expiry) entry exists → return it instantly AND
+ *   trigger a background fetch that updates the cache for the next visit.
+ * - If nothing is cached (or hard-expired) → await the network.
+ *
+ * This is the same pattern used by Vercel's swr / TanStack Query — no UI
+ * flicker, instant paints, and self-healing freshness.
+ */
+const swr = (key, fetcher, ttl = CACHE_TTL.short) => {
+  const entry = getCached(key);
+  // Nothing usable → must fetch.
+  if (!entry || isHardExpired(entry, ttl)) {
+    return fetcher().then((value) => { setCache(key, value, ttl); return value; });
+  }
+  // Fresh → return without revalidation.
+  if (isFresh(entry, ttl)) {
+    return Promise.resolve(entry.value);
+  }
+  // Stale-but-acceptable → return immediately, revalidate in background.
+  fetcher()
+    .then((value) => setCache(key, value, ttl))
+    .catch(() => {});
+  return Promise.resolve(entry.value);
 };
 
 class ApiError extends Error {
@@ -58,10 +189,13 @@ const request = async (endpoint, options = {}, retries = 2) => {
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      // Let GETs leverage browser HTTP cache (controlled by server's
+      // Cache-Control headers). Mutations always bypass it.
+      const isGet = !options.method || options.method === 'GET';
       const res = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers,
-        cache: 'no-store',
+        cache: isGet ? 'default' : 'no-store',
         body: options.body instanceof FormData ? options.body : options.body ? JSON.stringify(options.body) : undefined,
       });
 
@@ -103,50 +237,26 @@ export const authAPI = {
 export const productsAPI = {
   getAll: (params) => {
     const query = new URLSearchParams(params).toString();
-    const cacheKey = `products:${query}`;
-    const cached = getCached(cacheKey);
-    if (cached) return Promise.resolve(cached);
-    return request(`/products?${query}`).then(data => { setCache(cacheKey, data, CACHE_TTL.short); return data; });
+    return swr(`products:${query}`, () => request(`/products?${query}`), CACHE_TTL.short);
   },
-  getBySlug: (slug) => {
-    const cacheKey = `product:${slug}`;
-    const cached = getCached(cacheKey);
-    if (cached) return Promise.resolve(cached);
-    return request(`/products/${slug}`).then(data => { setCache(cacheKey, data, CACHE_TTL.short); return data; });
-  },
-  getSimilar: (slug, limit = 8) => {
-    const cacheKey = `similar:${slug}:${limit}`;
-    const cached = getCached(cacheKey);
-    if (cached) return Promise.resolve(cached);
-    return request(`/products/${slug}/similar?limit=${limit}`).then(data => { setCache(cacheKey, data, CACHE_TTL.medium); return data; });
-  },
-  getCategories: () => {
-    const cached = getCached('productCategories');
-    if (cached) return Promise.resolve(cached);
-    return request('/products/categories').then(data => { setCache('productCategories', data, CACHE_TTL.medium); return data; });
-  },
+  getBySlug: (slug) =>
+    swr(`product:${slug}`, () => request(`/products/${slug}`), CACHE_TTL.short),
+  getSimilar: (slug, limit = 8) =>
+    swr(`similar:${slug}:${limit}`, () => request(`/products/${slug}/similar?limit=${limit}`), CACHE_TTL.medium),
+  getCategories: () =>
+    swr('productCategories', () => request('/products/categories'), CACHE_TTL.medium),
 };
 
 // Categories
 export const categoriesAPI = {
-  getTree: () => {
-    const cached = getCached('categoriesTree');
-    if (cached) return Promise.resolve(cached);
-    return request('/categories').then(data => { setCache('categoriesTree', data, CACHE_TTL.medium); return data; });
-  },
+  getTree: () =>
+    swr('categoriesTree', () => request('/categories'), CACHE_TTL.medium),
   getFlat: (params) => {
     const query = new URLSearchParams(params).toString();
-    const cacheKey = `categoriesFlat:${query}`;
-    const cached = getCached(cacheKey);
-    if (cached) return Promise.resolve(cached);
-    return request(`/categories/flat?${query}`).then(data => { setCache(cacheKey, data, CACHE_TTL.medium); return data; });
+    return swr(`categoriesFlat:${query}`, () => request(`/categories/flat?${query}`), CACHE_TTL.medium);
   },
-  getBySlug: (slug) => {
-    const cacheKey = `category:${slug}`;
-    const cached = getCached(cacheKey);
-    if (cached) return Promise.resolve(cached);
-    return request(`/categories/${slug}`).then(data => { setCache(cacheKey, data, CACHE_TTL.medium); return data; });
-  },
+  getBySlug: (slug) =>
+    swr(`category:${slug}`, () => request(`/categories/${slug}`), CACHE_TTL.medium),
 };
 
 // Cart
@@ -236,11 +346,8 @@ export const paymentAPI = {
 // Coupons
 export const couponsAPI = {
   validate: (code, orderTotal) => request('/coupons/validate', { method: 'POST', body: { code, orderTotal } }),
-  getActive: () => {
-    const cached = getCached('couponsActive');
-    if (cached) return Promise.resolve(cached);
-    return request('/coupons/active', { auth: false }).then(data => { setCache('couponsActive', data, CACHE_TTL.medium); return data; });
-  },
+  getActive: () =>
+    swr('couponsActive', () => request('/coupons/active', { auth: false }), CACHE_TTL.medium),
 };
 
 // Contact
@@ -250,36 +357,24 @@ export const contactAPI = {
 
 // FAQs (public)
 export const faqsAPI = {
-  getAll: () => {
-    const cached = getCached('faqs');
-    if (cached) return Promise.resolve(cached);
-    return request('/faqs').then(data => { setCache('faqs', data, CACHE_TTL.medium); return data; });
-  },
+  getAll: () => swr('faqs', () => request('/faqs'), CACHE_TTL.medium),
 };
 
 // Page Content (public)
 export const pagesAPI = {
-  get: (key) => {
-    const cacheKey = `page:${key}`;
-    const cached = getCached(cacheKey);
-    if (cached) return Promise.resolve(cached);
-    return request(`/pages/${key}`).then(data => { setCache(cacheKey, data, CACHE_TTL.medium); return data; });
-  },
+  get: (key) =>
+    swr(`page:${key}`, () => request(`/pages/${key}`), CACHE_TTL.medium),
 };
 
 // About
 export const aboutAPI = {
-  get: () => {
-    const cached = getCached('about');
-    if (cached) return Promise.resolve(cached);
-    return request('/about').then(data => { setCache('about', data, CACHE_TTL.long); return data; });
-  },
-  update: (data) => request('/about', { method: 'PUT', body: data }),
-  uploadCover: (formData) => request('/about/cover', { method: 'PUT', body: formData }),
-  updateTeamMember: (index, data) => request(`/about/team/${index}`, { method: 'PUT', body: data }),
-  uploadTeamImage: (index, formData) => request(`/about/team/${index}/image`, { method: 'PUT', body: formData }),
-  addTeamMember: (data) => request('/about/team', { method: 'POST', body: data }),
-  removeTeamMember: (index) => request(`/about/team/${index}`, { method: 'DELETE' }),
+  get: () => swr('about', () => request('/about'), CACHE_TTL.long),
+  update: (data) => request('/about', { method: 'PUT', body: data }).then(d => { clearApiCache('about'); return d; }),
+  uploadCover: (formData) => request('/about/cover', { method: 'PUT', body: formData }).then(d => { clearApiCache('about'); return d; }),
+  updateTeamMember: (index, data) => request(`/about/team/${index}`, { method: 'PUT', body: data }).then(d => { clearApiCache('about'); return d; }),
+  uploadTeamImage: (index, formData) => request(`/about/team/${index}/image`, { method: 'PUT', body: formData }).then(d => { clearApiCache('about'); return d; }),
+  addTeamMember: (data) => request('/about/team', { method: 'POST', body: data }).then(d => { clearApiCache('about'); return d; }),
+  removeTeamMember: (index) => request(`/about/team/${index}`, { method: 'DELETE' }).then(d => { clearApiCache('about'); return d; }),
 };
 
 // Admin
@@ -372,33 +467,20 @@ export const settingsAPI = {
 
 // Banners (public)
 export const bannersAPI = {
-  getActive: () => {
-    const cached = getCached('banners:active');
-    if (cached) return Promise.resolve(cached);
-    return request('/banners').then(data => { setCache('banners:active', data, CACHE_TTL.medium); return data; });
-  },
+  getActive: () =>
+    swr('banners:active', () => request('/banners'), CACHE_TTL.medium),
 };
 
 // Blogs (public)
 export const blogsAPI = {
   getAll: (params) => {
     const query = new URLSearchParams(params).toString();
-    const cacheKey = `blogs:${query}`;
-    const cached = getCached(cacheKey);
-    if (cached) return Promise.resolve(cached);
-    return request(`/blogs?${query}`).then(data => { setCache(cacheKey, data, CACHE_TTL.short); return data; });
+    return swr(`blogs:${query}`, () => request(`/blogs?${query}`), CACHE_TTL.short);
   },
-  getBySlug: (slug) => {
-    const cacheKey = `blog:${slug}`;
-    const cached = getCached(cacheKey);
-    if (cached) return Promise.resolve(cached);
-    return request(`/blogs/${slug}`).then(data => { setCache(cacheKey, data, CACHE_TTL.short); return data; });
-  },
-  getCategories: () => {
-    const cached = getCached('blogCategories');
-    if (cached) return Promise.resolve(cached);
-    return request('/blogs/categories').then(data => { setCache('blogCategories', data, CACHE_TTL.medium); return data; });
-  },
+  getBySlug: (slug) =>
+    swr(`blog:${slug}`, () => request(`/blogs/${slug}`), CACHE_TTL.short),
+  getCategories: () =>
+    swr('blogCategories', () => request('/blogs/categories'), CACHE_TTL.medium),
 };
 
 // Content Admin API
