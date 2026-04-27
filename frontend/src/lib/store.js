@@ -89,9 +89,14 @@ export const useAuthStore = create((set, get) => ({
       localStorage.removeItem('rupalsha_profile_stats');
       localStorage.removeItem('rupalsha_wallet_cache');
       localStorage.removeItem('rupalsha_unread_count');
+      localStorage.removeItem('rupalsha_cart_cache');
+      localStorage.removeItem('rupalsha_wishlist_cache');
+      localStorage.removeItem('rupalsha_orders_cache');
+      localStorage.removeItem('rupalsha_notifications_cache');
     } catch {}
     set({ user: null, isAuthenticated: false, isLoading: false });
     useCartStore.getState().clearLocal();
+    useWishlistStore.getState().clearLocal?.();
   },
 
   updateUser: (userData) => {
@@ -104,18 +109,62 @@ export const useAuthStore = create((set, get) => ({
 }));
 
 // Cart Store
+// --------------------------------------------------------------------------
+// Persists items to localStorage so the cart paints instantly on refresh /
+// navigation. fetchCart never flips isLoading=true when items are already in
+// state — that prevents the dreaded "skeleton flash" on every cart visit.
+// Mutations (add/update/remove) are optimistic: state is updated first, the
+// server call confirms (or reverts on error) afterwards.
+const CART_CACHE_KEY = 'rupalsha_cart_cache';
+
+const readCachedCart = () => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(CART_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeCachedCart = (items) => {
+  if (typeof window === 'undefined') return;
+  try {
+    if (items && items.length) localStorage.setItem(CART_CACHE_KEY, JSON.stringify(items));
+    else localStorage.removeItem(CART_CACHE_KEY);
+  } catch {}
+};
+
 export const useCartStore = create((set, get) => ({
   items: [],
   isLoading: false,
+  _hydrated: false,
   _lastFetched: 0,
 
+  // Pulls cached items into state (idempotent). Safe to call from useEffect.
+  hydrate: () => {
+    if (get()._hydrated) return;
+    const cached = readCachedCart();
+    set({ items: cached, _hydrated: true });
+  },
+
   fetchCart: async (force = false) => {
+    // Hydrate from cache first so the UI paints with the previous cart while
+    // the network request resolves.
+    if (!get()._hydrated) get().hydrate();
+
     const now = Date.now();
     if (!force && now - get()._lastFetched < 30000) return;
+
+    // Only show the skeleton on a true cold start (no cached items).
+    const cold = get().items.length === 0;
     try {
-      set({ isLoading: true });
+      if (cold) set({ isLoading: true });
       const { cart } = await cartAPI.get();
-      set({ items: cart.items || [], isLoading: false, _lastFetched: now });
+      const items = cart.items || [];
+      set({ items, isLoading: false, _lastFetched: now });
+      writeCachedCart(items);
     } catch {
       set({ isLoading: false });
     }
@@ -123,25 +172,57 @@ export const useCartStore = create((set, get) => ({
 
   addItem: async (productId, size, quantity = 1) => {
     const { cart } = await cartAPI.add({ productId, size, quantity });
-    set({ items: cart.items || [] });
+    const items = cart.items || [];
+    set({ items });
+    writeCachedCart(items);
   },
 
   updateItem: async (itemId, quantity) => {
-    const { cart } = await cartAPI.update({ itemId, quantity });
-    set({ items: cart.items || [] });
+    // Optimistic: update locally first so the +/- buttons feel instant.
+    const prev = get().items;
+    const optimistic = prev.map((it) => (it._id === itemId ? { ...it, quantity } : it));
+    set({ items: optimistic });
+    writeCachedCart(optimistic);
+    try {
+      const { cart } = await cartAPI.update({ itemId, quantity });
+      const items = cart.items || [];
+      set({ items });
+      writeCachedCart(items);
+    } catch (err) {
+      // Revert on failure.
+      set({ items: prev });
+      writeCachedCart(prev);
+      throw err;
+    }
   },
 
   removeItem: async (itemId) => {
-    const { cart } = await cartAPI.remove(itemId);
-    set({ items: cart.items || [] });
+    const prev = get().items;
+    const optimistic = prev.filter((it) => it._id !== itemId);
+    set({ items: optimistic });
+    writeCachedCart(optimistic);
+    try {
+      const { cart } = await cartAPI.remove(itemId);
+      const items = cart.items || [];
+      set({ items });
+      writeCachedCart(items);
+    } catch (err) {
+      set({ items: prev });
+      writeCachedCart(prev);
+      throw err;
+    }
   },
 
   clearCart: async () => {
     await cartAPI.clear();
     set({ items: [] });
+    writeCachedCart([]);
   },
 
-  clearLocal: () => set({ items: [] }),
+  clearLocal: () => {
+    set({ items: [], _hydrated: false });
+    writeCachedCart([]);
+  },
 
   getTotal: () => {
     return get().items.reduce((sum, item) => {
@@ -155,35 +236,96 @@ export const useCartStore = create((set, get) => ({
 }));
 
 // Wishlist Store
+// --------------------------------------------------------------------------
+// Same instant-paint pattern as the cart: cached items in localStorage,
+// optimistic mutations. The heart icon flips the moment the user clicks it,
+// the server call follows, and we revert if it fails.
+const WISHLIST_CACHE_KEY = 'rupalsha_wishlist_cache';
+
+const readCachedWishlist = () => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(WISHLIST_CACHE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeCachedWishlist = (items) => {
+  if (typeof window === 'undefined') return;
+  try {
+    if (items && items.length) localStorage.setItem(WISHLIST_CACHE_KEY, JSON.stringify(items));
+    else localStorage.removeItem(WISHLIST_CACHE_KEY);
+  } catch {}
+};
+
 export const useWishlistStore = create((set, get) => ({
   items: [],
+  _hydrated: false,
   _lastFetched: 0,
 
+  hydrate: () => {
+    if (get()._hydrated) return;
+    set({ items: readCachedWishlist(), _hydrated: true });
+  },
+
   fetchWishlist: async (force = false) => {
+    if (!get()._hydrated) get().hydrate();
     const now = Date.now();
     if (!force && now - get()._lastFetched < 30000) return;
     try {
       const { wishlist } = await wishlistAPI.get();
-      set({ items: wishlist || [], _lastFetched: now });
+      const items = wishlist || [];
+      set({ items, _lastFetched: now });
+      writeCachedWishlist(items);
     } catch {
-      // ignore
+      // ignore — keep showing cached items
     }
   },
 
+  // Optimistic add: stamp a placeholder with just `_id` into items so
+  // `isInWishlist` returns true immediately (instant heart fill). The full
+  // product object arrives once the wishlist refetch completes.
   addItem: async (productId) => {
-    await wishlistAPI.add(productId);
-    await get().fetchWishlist(true);
+    const prev = get().items;
+    if (prev.some((it) => it._id === productId)) return; // already in
+    const optimistic = [...prev, { _id: productId, _optimistic: true }];
+    set({ items: optimistic });
+    writeCachedWishlist(optimistic);
+    try {
+      await wishlistAPI.add(productId);
+      // Background refresh hydrates the optimistic item with full data.
+      get().fetchWishlist(true);
+    } catch (err) {
+      set({ items: prev });
+      writeCachedWishlist(prev);
+      throw err;
+    }
   },
 
   removeItem: async (productId) => {
-    await wishlistAPI.remove(productId);
-    set((state) => ({
-      items: state.items.filter((item) => item._id !== productId),
-    }));
+    const prev = get().items;
+    const optimistic = prev.filter((item) => item._id !== productId);
+    set({ items: optimistic });
+    writeCachedWishlist(optimistic);
+    try {
+      await wishlistAPI.remove(productId);
+    } catch (err) {
+      set({ items: prev });
+      writeCachedWishlist(prev);
+      throw err;
+    }
   },
 
   isInWishlist: (productId) => {
     return get().items.some((item) => item._id === productId);
+  },
+
+  clearLocal: () => {
+    set({ items: [], _hydrated: false });
+    writeCachedWishlist([]);
   },
 }));
 

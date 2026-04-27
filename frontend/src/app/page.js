@@ -85,9 +85,15 @@ export default function HomePage() {
     const extra = !isAuthenticated ? { hideOutOfStock: 'true' } : {};
     const loadProducts = async () => {
       try {
+        // Background-revalidating fetch with onFresh hook so stock changes
+        // surface within one round-trip without any extra refresh logic.
         const [featuredData, trendingData] = await Promise.all([
-          productsAPI.getAll({ featured: 'true', limit: 8, ...extra }),
-          productsAPI.getAll({ trending: 'true', limit: 8, ...extra }),
+          productsAPI.getAll({ featured: 'true', limit: 8, ...extra }, {
+            onFresh: (data) => { if (data?.products) setFeatured(data.products); },
+          }),
+          productsAPI.getAll({ trending: 'true', limit: 8, ...extra }, {
+            onFresh: (data) => { if (data?.products) setTrending(data.products); },
+          }),
         ]);
         setFeatured(featuredData.products);
         setTrending(trendingData.products);

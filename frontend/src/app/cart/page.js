@@ -9,15 +9,20 @@ import { CartSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
 export default function CartPage() {
-  const { items, isLoading, fetchCart, updateItem, removeItem } = useCartStore();
+  const { items, isLoading, fetchCart, hydrate, updateItem, removeItem } = useCartStore();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authLoading = useAuthStore((s) => s.isLoading);
 
   useEffect(() => {
+    // Synchronously paint the cached cart, then revalidate against the
+    // server. fetchCart only flips isLoading=true on a true cold start.
+    hydrate();
     if (isAuthenticated) fetchCart(true);
-  }, [isAuthenticated, fetchCart]);
+  }, [isAuthenticated, fetchCart, hydrate]);
 
-  if (authLoading || isLoading) return <CartSkeleton />;
+  // Show skeleton only when we have nothing to render yet — never when we
+  // already have cached items waiting on a background refresh.
+  if ((authLoading || isLoading) && items.length === 0) return <CartSkeleton />;
 
   if (!isAuthenticated) {
     return (

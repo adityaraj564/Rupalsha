@@ -55,14 +55,24 @@ export default function ProductDetailPage() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const { product: p } = await productsAPI.getBySlug(slug);
+        // Fetch product. The SWR helper paints the cached version (if any)
+        // instantly and re-invokes onFresh once a background revalidation
+        // pulls a newer version — that way stock / price changes can never
+        // linger more than one network round-trip.
+        const { product: p } = await productsAPI.getBySlug(slug, {
+          onFresh: (data) => {
+            if (data?.product) setProduct(data.product);
+          },
+        });
         setProduct(p);
         if (p.sizes.length === 1) setSelectedSize(p.sizes[0].size);
 
         // Fetch reviews and similar products in parallel
         const [reviewData] = await Promise.all([
           reviewsAPI.getByProduct(p._id, { limit: 2, page: 1 }),
-          productsAPI.getSimilar(slug, 20).then(({ products: similar }) => {
+          productsAPI.getSimilar(slug, 20, {
+            onFresh: (data) => { if (data?.products) setSuggestedProducts(data.products); },
+          }).then(({ products: similar }) => {
             setSuggestedProducts(similar);
           }).catch(() => {}),
         ]);

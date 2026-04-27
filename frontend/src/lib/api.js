@@ -140,27 +140,49 @@ export const clearApiCache = (prefix) => {
  *
  *   const data = await swr('products:featured', () => request('/products?...'), CACHE_TTL.short);
  *
- * - If a fresh entry exists → return it; no network.
+ * - If a fresh entry exists → return it; no network (default).
  * - If a stale (within hard-expiry) entry exists → return it instantly AND
  *   trigger a background fetch that updates the cache for the next visit.
  * - If nothing is cached (or hard-expired) → await the network.
  *
+ * Options:
+ *   alwaysRevalidate: fire a background refetch on every call regardless of
+ *     freshness. Use this for stock-sensitive endpoints (product detail,
+ *     product lists, cart) so users never see stale stock or pricing for
+ *     more than a network round-trip.
+ *   onFresh(value): callback invoked with the freshly-fetched value when a
+ *     background revalidation actually completes AND the new value differs
+ *     from the cached one. Lets pages re-render with up-to-date data without
+ *     polling.
+ *
  * This is the same pattern used by Vercel's swr / TanStack Query — no UI
  * flicker, instant paints, and self-healing freshness.
  */
-const swr = (key, fetcher, ttl = CACHE_TTL.short) => {
+const swr = (key, fetcher, ttl = CACHE_TTL.short, { alwaysRevalidate = false, onFresh = null } = {}) => {
   const entry = getCached(key);
   // Nothing usable → must fetch.
   if (!entry || isHardExpired(entry, ttl)) {
     return fetcher().then((value) => { setCache(key, value, ttl); return value; });
   }
-  // Fresh → return without revalidation.
-  if (isFresh(entry, ttl)) {
+  const fresh = isFresh(entry, ttl);
+  // Fresh AND no force-revalidate → return without revalidation.
+  if (fresh && !alwaysRevalidate) {
     return Promise.resolve(entry.value);
   }
-  // Stale-but-acceptable → return immediately, revalidate in background.
+  // Stale (or always-revalidate) → return immediately, refetch in background.
   fetcher()
-    .then((value) => setCache(key, value, ttl))
+    .then((value) => {
+      setCache(key, value, ttl);
+      if (onFresh) {
+        // Cheap deep-equality check via JSON stringify. Skips the callback
+        // when the response is byte-identical, sparing a re-render.
+        let changed = true;
+        try { changed = JSON.stringify(value) !== JSON.stringify(entry.value); } catch {}
+        if (changed) {
+          try { onFresh(value); } catch {}
+        }
+      }
+    })
     .catch(() => {});
   return Promise.resolve(entry.value);
 };
@@ -234,15 +256,19 @@ export const authAPI = {
 };
 
 // Products
+// Stock and price are time-sensitive, so these endpoints always revalidate
+// in the background even when the cached entry is "fresh". Users see the
+// previous response instantly, then any inventory change reaches them within
+// one round-trip via the optional `onFresh` callback.
 export const productsAPI = {
-  getAll: (params) => {
+  getAll: (params, { onFresh } = {}) => {
     const query = new URLSearchParams(params).toString();
-    return swr(`products:${query}`, () => request(`/products?${query}`), CACHE_TTL.short);
+    return swr(`products:${query}`, () => request(`/products?${query}`), CACHE_TTL.short, { alwaysRevalidate: true, onFresh });
   },
-  getBySlug: (slug) =>
-    swr(`product:${slug}`, () => request(`/products/${slug}`), CACHE_TTL.short),
-  getSimilar: (slug, limit = 8) =>
-    swr(`similar:${slug}:${limit}`, () => request(`/products/${slug}/similar?limit=${limit}`), CACHE_TTL.medium),
+  getBySlug: (slug, { onFresh } = {}) =>
+    swr(`product:${slug}`, () => request(`/products/${slug}`), CACHE_TTL.short, { alwaysRevalidate: true, onFresh }),
+  getSimilar: (slug, limit = 8, { onFresh } = {}) =>
+    swr(`similar:${slug}:${limit}`, () => request(`/products/${slug}/similar?limit=${limit}`), CACHE_TTL.medium, { alwaysRevalidate: true, onFresh }),
   getCategories: () =>
     swr('productCategories', () => request('/products/categories'), CACHE_TTL.medium),
 };

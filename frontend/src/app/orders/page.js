@@ -40,6 +40,22 @@ const RETURN_STATUS_COLORS = {
   closed: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
 };
 
+// Cached snapshot of the last orders+returns response. Lets the page paint
+// instantly on revisits while we revalidate against the server in the
+// background. Status badges remain accurate within one round-trip.
+const ORDERS_CACHE_KEY = 'rupalsha_orders_cache';
+const readCachedOrders = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(ORDERS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+const writeCachedOrders = (data) => {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify(data)); } catch {}
+};
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [returns, setReturns] = useState([]);
@@ -57,16 +73,29 @@ export default function OrdersPage() {
       router.push('/auth/login');
       return;
     }
-    Promise.all([
-      ordersAPI.getAll({ limit: 50 }).then((d) => d.orders).catch(() => []),
-      returnsAPI.getMine().then((d) => d.returns || []).catch(() => []),
-    ]).then(([ord, rets]) => {
-      setOrders(ord);
-      setReturns(rets);
-    }).finally(() => setLoading(false));
-  }, [isAuthenticated, router]);
 
-  if (loading) return <OrdersSkeleton />;
+    // Paint cached orders synchronously, then revalidate.
+    const cached = readCachedOrders();
+    if (cached) {
+      setOrders(cached.orders || []);
+      setReturns(cached.returns || []);
+      setLoading(false);
+    }
+
+    Promise.all([
+      ordersAPI.getAll({ limit: 50 }).then((d) => d.orders).catch(() => null),
+      returnsAPI.getMine().then((d) => d.returns || []).catch(() => null),
+    ]).then(([ord, rets]) => {
+      // Only overwrite state on success; null means keep cached data.
+      const nextOrders = ord ?? cached?.orders ?? [];
+      const nextReturns = rets ?? cached?.returns ?? [];
+      setOrders(nextOrders);
+      setReturns(nextReturns);
+      writeCachedOrders({ orders: nextOrders, returns: nextReturns });
+    }).finally(() => setLoading(false));
+  }, [isAuthenticated, isLoading, router]);
+
+  if (loading && orders.length === 0) return <OrdersSkeleton />;
 
   // Filter and sort
   let filtered = orders;

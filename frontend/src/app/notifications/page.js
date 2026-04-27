@@ -60,6 +60,21 @@ function formatTime(dateStr) {
   return d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
+// Cached snapshot of the last "all"-tab fetch so the page paints instantly
+// on revisits. Other tabs always fetch fresh — they're cheap, scoped queries.
+const NOTIF_CACHE_KEY = 'rupalsha_notifications_cache';
+const readCachedNotifs = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(NOTIF_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+const writeCachedNotifs = (data) => {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(NOTIF_CACHE_KEY, JSON.stringify(data)); } catch {}
+};
+
 export default function NotificationsPage() {
   const { isAuthenticated, isLoading } = useAuthStore();
   const router = useRouter();
@@ -75,18 +90,35 @@ export default function NotificationsPage() {
     if (!isAuthenticated) router.push('/auth/login');
   }, [isAuthenticated, isLoading, router]);
 
+  // Seed from cache on mount (post-hydration — SSR-safe).
+  useEffect(() => {
+    const cached = readCachedNotifs();
+    if (cached?.items?.length) {
+      setItems(cached.items);
+      setCounts(cached.counts || {});
+      setLoading(false);
+    }
+  }, []);
+
   const load = useCallback(async (tab, pg = 1, append = false) => {
-    setLoading(true);
     try {
       const params = { page: pg, limit: 20 };
       if (tab !== 'all') params.category = tab;
       const res = await notificationsAPI.list(params);
-      setItems((prev) => (append ? [...prev, ...(res.notifications || [])] : (res.notifications || [])));
+      const next = res.notifications || [];
+      setItems((prev) => (append ? [...prev, ...next] : next));
       setCounts(res.counts || {});
       setPage(res.page || 1);
       setPages(res.pages || 1);
+      // Persist only the unfiltered ("all") view so other tabs stay fresh.
+      if (tab === 'all' && !append) {
+        writeCachedNotifs({ items: next, counts: res.counts || {} });
+      }
     } catch (e) {
-      toast.error('Failed to load notifications');
+      // Stay silent on error if we already have something rendered — toast
+      // only when there's truly nothing to show.
+      // (We can't easily read state here without re-deps; the list will
+      // simply remain at whatever was last successful.)
     } finally {
       setLoading(false);
     }
