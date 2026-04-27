@@ -349,8 +349,8 @@ export default function CheckoutPage() {
           control inside (radios, inputs, buttons), giving us a single
           source of truth alongside the per-button `disabled={locked}`. */}
       <fieldset disabled={locked} className={`contents ${locked ? '[&_*]:cursor-progress' : ''}`}>
-      <div className={`grid lg:grid-cols-3 gap-8 transition-opacity ${locked ? 'opacity-70 pointer-events-none' : ''}`}>
-        <div className="lg:col-span-2 space-y-6">
+      <div className={`grid grid-cols-1 lg:grid-cols-3 gap-8 transition-opacity ${locked ? 'opacity-70 pointer-events-none' : ''}`}>
+        <div className="lg:col-span-2 space-y-6 min-w-0">
           {/* Delivery Address */}
           <div className="card p-6">
             <h2 className="font-serif text-xl font-semibold mb-4 flex items-center gap-2">
@@ -373,12 +373,12 @@ export default function CheckoutPage() {
                       onChange={() => setSelectedAddress(addr)}
                       className="sr-only"
                     />
-                    <p className="font-medium">{addr.fullName}</p>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="font-medium break-words">{addr.fullName}</p>
+                    <p className="text-sm text-gray-600 mt-1 break-words">
                       {addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}<br />
                       {addr.city}, {addr.state} - {addr.pincode}
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">{addr.phone}</p>
+                    <p className="text-sm text-gray-500 mt-1 break-words">{addr.phone}</p>
                   </label>
                 ))}
               </div>
@@ -467,16 +467,16 @@ export default function CheckoutPage() {
             {/* Wallet toggle */}
             {walletBalance > 0 ? (
               <label className="flex items-center justify-between gap-3 p-4 mb-3 border rounded-xl cursor-pointer bg-green-50/40 dark:bg-gradient-to-br dark:from-yellow-400 dark:via-amber-400 dark:to-yellow-500 border-green-600/40 dark:border-amber-600/40 dark:text-gray-900">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <input
                     type="checkbox"
                     checked={useWallet}
                     onChange={(e) => setUseWallet(e.target.checked)}
-                    className="accent-brand-green w-4 h-4"
+                    className="accent-brand-green w-4 h-4 flex-shrink-0"
                   />
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium">Use Rupalsha Wallet</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-900/80">
+                    <p className="text-sm text-gray-500 dark:text-gray-900/80 break-words">
                       Balance: ₹{walletBalance.toLocaleString('en-IN')}
                       {useWallet && walletApplied > 0 && ` • Applying ₹${walletApplied.toLocaleString('en-IN')}`}
                     </p>
@@ -485,13 +485,13 @@ export default function CheckoutPage() {
               </label>
             ) : (
               <div className="flex items-center justify-between gap-3 p-4 mb-3 border rounded-xl bg-gray-50 dark:bg-gray-800/60 dark:border-gray-700">
-                <div>
+                <div className="min-w-0">
                   <p className="font-medium text-sm">Rupalsha Wallet</p>
                   <p className="text-xs text-gray-500">Your wallet balance is ₹0. Recharge to use it for payments.</p>
                 </div>
                 <a
                   href="/wallet"
-                  className="text-xs font-medium text-brand-green dark:text-yellow-300 hover:underline whitespace-nowrap"
+                  className="text-xs font-medium text-brand-green dark:text-yellow-300 hover:underline whitespace-nowrap flex-shrink-0"
                 >
                   Recharge →
                 </a>
@@ -517,11 +517,11 @@ export default function CheckoutPage() {
                     value="razorpay"
                     checked={paymentMethod === 'razorpay'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="accent-brand-green"
+                    className="accent-brand-green flex-shrink-0"
                   />
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium">Pay Online</p>
-                    <p className="text-sm text-gray-500">UPI, Cards, Net Banking via Razorpay</p>
+                    <p className="text-sm text-gray-500 break-words">UPI, Cards, Net Banking via Razorpay</p>
                   </div>
                 </label>
                 <label
@@ -538,11 +538,11 @@ export default function CheckoutPage() {
                     checked={paymentMethod === 'cod'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     disabled={!codEnabled}
-                    className="accent-brand-green"
+                    className="accent-brand-green flex-shrink-0"
                   />
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium">Cash on Delivery</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 break-words">
                       {codEnabled ? 'Pay when you receive your order' : 'Currently unavailable'}
                     </p>
                   </div>
@@ -553,7 +553,7 @@ export default function CheckoutPage() {
         </div>
 
         {/* Order Summary */}
-        <div>
+        <div className="min-w-0">
           <div className="card p-6 sticky top-28">
             <h2 className="font-serif text-xl font-semibold mb-6">Order Summary</h2>
 
@@ -574,7 +574,7 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="truncate font-medium">{item.product?.name}</p>
-                    <p className="text-gray-400">{item.size}</p>
+                    <p className="text-gray-400 truncate">{item.size}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <button
                         disabled={locked}
@@ -674,16 +674,16 @@ export default function CheckoutPage() {
                         couponApplied === c.code ? 'border-brand-green bg-green-50 dark:bg-green-900/30 ring-1 ring-brand-green' : couponCode === c.code ? 'border-brand-green bg-green-50/50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-brand-green'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-brand-green">{c.code}</span>
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-brand-green break-all">{c.code}</span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           {couponApplied === c.code && <span className="text-green-600 font-medium">Applied ✓</span>}
-                          <span className="text-gray-500">
+                          <span className="text-gray-500 whitespace-nowrap">
                             {c.discountType === 'percentage' ? `${c.discountValue}% off` : `₹${c.discountValue} off`}
                           </span>
                         </div>
                       </div>
-                      {c.description && <p className="text-gray-400 mt-0.5">{c.description}</p>}
+                      {c.description && <p className="text-gray-400 mt-0.5 break-words">{c.description}</p>}
                       {c.minOrderAmount > 0 && <p className="text-gray-400 mt-0.5">Min order: ₹{c.minOrderAmount}</p>}
                     </button>
                   ))}
