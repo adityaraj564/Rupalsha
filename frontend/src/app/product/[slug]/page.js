@@ -55,17 +55,28 @@ export default function ProductDetailPage() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        // Fetch product. The SWR helper paints the cached version (if any)
-        // instantly and re-invokes onFresh once a background revalidation
-        // pulls a newer version — that way stock / price changes can never
-        // linger more than one network round-trip.
-        const { product: p } = await productsAPI.getBySlug(slug, {
+        // Strategy:
+        //  - First paint: SWR returns cached data instantly + revalidates
+        //    in the background via `onFresh`.
+        //  - If the (cached) total stock is dangerously low (<= 3), we kick
+        //    off an immediate `fresh: true` fetch in parallel that bypasses
+        //    cache. Whichever finishes second wins via `onFresh`. This
+        //    guarantees scarcity is never displayed based on stale data.
+        const swrPromise = productsAPI.getBySlug(slug, {
           onFresh: (data) => {
             if (data?.product) setProduct(data.product);
           },
         });
+        const { product: p } = await swrPromise;
         setProduct(p);
         if (p.sizes.length === 1) setSelectedSize(p.sizes[0].size);
+
+        const totalStock = (p.sizes || []).reduce((s, x) => s + (x.stock || 0), 0);
+        if (totalStock <= 3) {
+          productsAPI.getBySlug(slug, { fresh: true })
+            .then((data) => { if (data?.product) setProduct(data.product); })
+            .catch(() => {});
+        }
 
         // Fetch reviews and similar products in parallel
         const [reviewData] = await Promise.all([

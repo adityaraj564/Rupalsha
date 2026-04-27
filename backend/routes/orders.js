@@ -10,6 +10,7 @@ const { auth } = require('../middleware/auth');
 const { sendOrderConfirmation, sendOrderCancellation, sendReturnConfirmation } = require('../utils/email');
 const { applyWalletTransaction } = require('../utils/wallet');
 const { createNotification } = require('../utils/notification');
+const { orderMetrics } = require('../utils/orderMetrics');
 
 const router = express.Router();
 
@@ -54,15 +55,101 @@ async function ensureRefundBackfill(order) {
   return order;
 }
 
+// POST /api/orders/validate
+// Strict pre-payment validation. Re-reads every cart item from the source
+// of truth (Product collection) and checks: existence, isActive, size,
+// stock, price drift. NEVER mutates anything. Bypasses any caching so the
+// caller sees the truth at this exact instant.
+//
+// Frontend calls this on the checkout page mount AND right before placing
+// the order. If anything has changed, the user is shown the failing item
+// and the order is not placed.
+router.post('/validate', auth, async (req, res, next) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+    const cart = await Cart.findOne({ user: req.user._id }).populate('items.product');
+    if (!cart || cart.items.length === 0) {
+      return res.json({ ok: false, reason: 'cart_empty', issues: [] });
+    }
+    const issues = [];
+    for (const item of cart.items) {
+      const product = item.product;
+      if (!product || !product.isActive) {
+        issues.push({
+          productId: item.product?._id,
+          name: product?.name || 'Unknown',
+          size: item.size,
+          reason: 'unavailable',
+          message: `${product?.name || 'A product'} is no longer available`,
+        });
+        continue;
+      }
+      const sizeInfo = product.sizes.find((s) => s.size === item.size);
+      if (!sizeInfo) {
+        issues.push({
+          productId: product._id,
+          name: product.name,
+          size: item.size,
+          reason: 'size_unavailable',
+          message: `${product.name}: size ${item.size} is no longer offered`,
+        });
+        continue;
+      }
+      if (sizeInfo.stock < item.quantity) {
+        issues.push({
+          productId: product._id,
+          name: product.name,
+          size: item.size,
+          reason: 'insufficient_stock',
+          available: sizeInfo.stock,
+          requested: item.quantity,
+          message: sizeInfo.stock === 0
+            ? `${product.name} (${item.size}) just went out of stock`
+            : `Only ${sizeInfo.stock} left of ${product.name} (${item.size})`,
+        });
+      }
+      // Surface price drift so the UI can re-confirm with the user.
+      if (item.priceAtAdd && product.price !== item.priceAtAdd) {
+        issues.push({
+          productId: product._id,
+          name: product.name,
+          size: item.size,
+          reason: 'price_changed',
+          oldPrice: item.priceAtAdd,
+          newPrice: product.price,
+          message: `Price for ${product.name} changed from \u20B9${item.priceAtAdd} to \u20B9${product.price}`,
+        });
+      }
+    }
+    res.json({ ok: issues.length === 0, issues });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/orders - Create order
 router.post('/', auth, [
   body('shippingAddress').isObject(),
   body('paymentMethod').isIn(['razorpay', 'cod', 'wallet']),
 ], async (req, res, next) => {
   try {
+    orderMetrics.attempt(req.user._id);
     const { shippingAddress, paymentMethod, couponCode } = req.body;
     const useWallet = Boolean(req.body.useWallet);        // apply wallet as partial payment
     const walletAmountRequested = Math.max(0, Math.round(Number(req.body.walletAmount) || 0));
+
+    // ---- Idempotency ----------------------------------------------------
+    // Accept the key from a header (preferred) or body. If the same user
+    // re-sends a request with the same key (network retry, double-click
+    // through a flaky connection, etc.), return the previously-created
+    // order instead of creating a duplicate.
+    const idempotencyKey = (req.get('Idempotency-Key') || req.body.idempotencyKey || '').toString().trim().slice(0, 100) || null;
+    if (idempotencyKey) {
+      const existing = await Order.findOne({ user: req.user._id, idempotencyKey });
+      if (existing) {
+        return res.status(200).json({ order: existing, idempotent: true });
+      }
+    }
 
     // Block COD if it's disabled in site settings
     if (paymentMethod === 'cod') {
@@ -77,19 +164,20 @@ router.post('/', auth, [
       return res.status(400).json({ error: 'Cart is empty' });
     }
 
-    // Validate stock and build order items
+    // ---- Build order line items (no stock mutation yet) -----------------
+    // We do a soft pre-check here purely to short-circuit obviously-broken
+    // orders. The authoritative stock check is the atomic conditional
+    // decrement performed below.
     const orderItems = [];
     for (const item of cart.items) {
       const product = item.product;
       if (!product || !product.isActive) {
         return res.status(400).json({ error: `Product ${item.product?.name || 'unknown'} is no longer available` });
       }
-
-      const sizeInfo = product.sizes.find(s => s.size === item.size);
-      if (!sizeInfo || sizeInfo.stock < item.quantity) {
-        return res.status(400).json({ error: `Insufficient stock for ${product.name} (${item.size})` });
+      const sizeInfo = product.sizes.find((s) => s.size === item.size);
+      if (!sizeInfo) {
+        return res.status(400).json({ error: `${product.name}: size ${item.size} is no longer offered` });
       }
-
       orderItems.push({
         product: product._id,
         name: product.name,
@@ -107,6 +195,7 @@ router.post('/', auth, [
     let discount = 0;
 
     // Apply coupon
+    let couponDoc = null;
     if (couponCode) {
       const coupon = await Coupon.findOne({
         code: couponCode.toUpperCase(),
@@ -126,22 +215,19 @@ router.post('/', auth, [
           discount = coupon.discountValue;
         }
 
-        coupon.usedCount += 1;
-        await coupon.save();
+        couponDoc = coupon;
       }
     }
 
     const totalAmount = itemsTotal + shippingCharge - discount;
 
-    // Determine how much to pull from wallet.
-    // If paymentMethod === 'wallet'  => pay the entire total from wallet (else reject).
-    // Else if useWallet              => use min(balance, requested OR total) as partial, rest via razorpay/cod.
+    // Determine wallet usage (logic unchanged)
     let walletAmount = 0;
     if (paymentMethod === 'wallet' || useWallet) {
       const wallet = await Wallet.findOrCreate(req.user._id);
       if (paymentMethod === 'wallet') {
         if (wallet.balance < totalAmount) {
-          return res.status(400).json({ error: `Wallet balance (₹${wallet.balance}) is less than total (₹${totalAmount}).` });
+          return res.status(400).json({ error: `Wallet balance (\u20B9${wallet.balance}) is less than total (\u20B9${totalAmount}).` });
         }
         walletAmount = totalAmount;
       } else {
@@ -151,18 +237,74 @@ router.post('/', auth, [
     }
 
     const remainingToPay = totalAmount - walletAmount;
-    // Sanity: can't use useWallet + cod/razorpay with zero remaining unless paymentMethod is 'wallet'
-    if (paymentMethod !== 'wallet' && remainingToPay === 0) {
-      // Effectively a full-wallet payment even though user chose cod/razorpay
-      // Treat it as paymentMethod=wallet for consistency.
-    }
-
     const effectivePaymentMethod = remainingToPay === 0 ? 'wallet' : paymentMethod === 'wallet' ? 'wallet' : paymentMethod;
 
-    // Debit wallet FIRST (atomically) before creating the order.
-    // This guarantees the user can't place multiple orders exceeding their balance
-    // via concurrent requests — the conditional $inc in applyWalletTransaction
-    // fails if the balance is insufficient.
+    // ---- ATOMIC STOCK RESERVATION --------------------------------------
+    // For each line item, do a conditional `findOneAndUpdate` that only
+    // succeeds if there is enough stock for that size. Two concurrent
+    // orders for the last unit cannot both win: MongoDB serializes the
+    // matching predicate + $inc as a single document operation.
+    //
+    // We track each successful decrement so we can roll them back if any
+    // later step (subsequent item, wallet debit, order creation) fails.
+    const reserved = []; // { productId, size, quantity }
+    const rollbackStock = async () => {
+      for (const r of reserved) {
+        try {
+          await Product.updateOne(
+            { _id: r.productId, 'sizes.size': r.size },
+            { $inc: { 'sizes.$.stock': r.quantity } }
+          );
+        } catch (err) {
+          console.error('Stock rollback failed', { item: r, err: err.message });
+        }
+      }
+    };
+
+    for (const item of orderItems) {
+      const updated = await Product.findOneAndUpdate(
+        {
+          _id: item.product,
+          isActive: true,
+          sizes: { $elemMatch: { size: item.size, stock: { $gte: item.quantity } } },
+        },
+        { $inc: { 'sizes.$.stock': -item.quantity } },
+        { new: true }
+      );
+      if (!updated) {
+        await rollbackStock();
+        // Read latest to give the user a precise message.
+        const product = await Product.findById(item.product, 'name sizes isActive').lean();
+        const sizeInfo = product?.sizes?.find((s) => s.size === item.size);
+        const available = sizeInfo?.stock ?? 0;
+        const message = !product?.isActive
+          ? `${item.name} is no longer available`
+          : available === 0
+            ? `${item.name} (${item.size}) just went out of stock`
+            : `Only ${available} left of ${item.name} (${item.size})`;
+        orderMetrics.failure({
+          userId: req.user._id,
+          step: 'stock',
+          reason: 'insufficient_stock',
+          statusCode: 409,
+          productId: item.product,
+          size: item.size,
+          requested: item.quantity,
+          available,
+          message,
+        });
+        return res.status(409).json({
+          error: message,
+          reason: 'insufficient_stock',
+          productId: item.product,
+          size: item.size,
+          available,
+        });
+      }
+      reserved.push({ productId: item.product, size: item.size, quantity: item.quantity });
+    }
+
+    // ---- Wallet debit (atomic with $gte guard inside applyWalletTransaction)
     let walletTxId = null;
     if (walletAmount > 0) {
       try {
@@ -175,9 +317,28 @@ router.post('/', auth, [
         });
         walletTxId = transaction._id;
       } catch (err) {
+        await rollbackStock();
+        orderMetrics.failure({
+          userId: req.user._id,
+          step: 'wallet',
+          reason: 'wallet_debit_failed',
+          statusCode: err.statusCode || 400,
+          message: err.message,
+        });
         return res.status(err.statusCode || 400).json({
           error: err.message || 'Wallet debit failed. Please check your balance.',
         });
+      }
+    }
+
+    // ---- Persist coupon usage (after stock+wallet succeed) -------------
+    if (couponDoc) {
+      try {
+        couponDoc.usedCount += 1;
+        await couponDoc.save();
+      } catch (err) {
+        // Non-fatal — coupon over-use will self-limit on next request.
+        console.error('Coupon usage save failed', err.message);
       }
     }
 
@@ -194,13 +355,15 @@ router.post('/', auth, [
         walletAmount,
         couponCode: couponCode?.toUpperCase(),
         totalAmount,
+        idempotencyKey,
         // Fully wallet-paid orders are immediately paid & confirmed.
         isPaid: effectivePaymentMethod === 'wallet' ? true : false,
         paidAt: effectivePaymentMethod === 'wallet' ? new Date() : undefined,
         status: effectivePaymentMethod === 'cod' || effectivePaymentMethod === 'wallet' ? 'confirmed' : 'pending',
       });
     } catch (err) {
-      // Order creation failed — refund the wallet to restore balance.
+      // Order creation failed — refund wallet AND restore stock.
+      await rollbackStock();
       if (walletAmount > 0) {
         try {
           await applyWalletTransaction({
@@ -210,8 +373,22 @@ router.post('/', auth, [
             amount: walletAmount,
             description: 'Auto-refund: order creation failed',
           });
-        } catch {}
+        } catch (e) {
+          console.error('Wallet refund after order-create fail also failed', e.message);
+        }
       }
+      // Duplicate idempotency key race — return the winner if present.
+      if (err && err.code === 11000 && idempotencyKey) {
+        const existing = await Order.findOne({ user: req.user._id, idempotencyKey });
+        if (existing) return res.status(200).json({ order: existing, idempotent: true });
+      }
+      orderMetrics.failure({
+        userId: req.user._id,
+        step: 'create',
+        reason: 'order_create_failed',
+        statusCode: 500,
+        message: err.message,
+      });
       throw err;
     }
 
@@ -226,18 +403,10 @@ router.post('/', auth, [
       } catch {}
     }
 
-    // Reduce stock
-    for (const item of orderItems) {
-      await Product.updateOne(
-        { _id: item.product, 'sizes.size': item.size },
-        { $inc: { 'sizes.$.stock': -item.quantity } }
-      );
-    }
-
     // Clear cart
     await Cart.findOneAndDelete({ user: req.user._id });
 
-    // Send email
+    // Send email (non-blocking)
     sendOrderConfirmation(order, req.user.email);
 
     // Notification — order placed
@@ -245,17 +414,24 @@ router.post('/', auth, [
       user: req.user._id,
       category: 'order',
       type: 'order.placed',
-      title: `Order placed · ${order.orderNumber}`,
+      title: `Order placed \u00B7 ${order.orderNumber}`,
       message: effectivePaymentMethod === 'cod'
-        ? `Your order of ₹${order.totalAmount.toLocaleString('en-IN')} has been placed. Pay on delivery.`
+        ? `Your order of \u20B9${order.totalAmount.toLocaleString('en-IN')} has been placed. Pay on delivery.`
         : effectivePaymentMethod === 'wallet'
-          ? `Your order of ₹${order.totalAmount.toLocaleString('en-IN')} has been placed and paid via wallet.`
-          : `Your order has been placed. Complete payment of ₹${Math.max(0, (order.totalAmount || 0) - (order.walletAmount || 0)).toLocaleString('en-IN')} to confirm.`,
+          ? `Your order of \u20B9${order.totalAmount.toLocaleString('en-IN')} has been placed and paid via wallet.`
+          : `Your order has been placed. Complete payment of \u20B9${Math.max(0, (order.totalAmount || 0) - (order.walletAmount || 0)).toLocaleString('en-IN')} to confirm.`,
       link: `/orders/${order._id}`,
       meta: { orderId: order._id, orderNumber: order.orderNumber, totalAmount: order.totalAmount },
     });
 
     res.status(201).json({ order });
+    orderMetrics.success({
+      userId: req.user._id,
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      totalAmount: order.totalAmount,
+      paymentMethod: effectivePaymentMethod,
+    });
   } catch (error) {
     next(error);
   }

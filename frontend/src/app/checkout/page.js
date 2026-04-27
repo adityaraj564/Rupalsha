@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiMapPin, FiPlus, FiCreditCard, FiTruck, FiMinus, FiTrash2, FiTag } from 'react-icons/fi';
 import { useAuthStore, useCartStore } from '@/lib/store';
@@ -8,12 +8,20 @@ import { ordersAPI, couponsAPI, paymentAPI, authAPI, walletAPI, settingsAPI } fr
 import { CartSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
+// Generate a per-attempt UUID. Used as the `Idempotency-Key` so that retried
+// `POST /orders` calls (network blip, double click, race with Razorpay
+// callback) cannot create duplicate orders.
+function newIdempotencyKey() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'idem_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
-  const { items, clearCart, updateItem, removeItem } = useCartStore();
+  const { items, clearCart, updateItem, removeItem, fetchCart } = useCartStore();
   const updateUser = useAuthStore((s) => s.updateUser);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('razorpay');
@@ -26,10 +34,20 @@ export default function CheckoutPage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [useWallet, setUseWallet] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [stockIssues, setStockIssues] = useState([]); // [{ name, size, message, ... }]
   const [newAddress, setNewAddress] = useState({
     fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
   const [fetchingPincode, setFetchingPincode] = useState(false);
+
+  // Stable across the lifetime of this checkout attempt. A successful order
+  // (or a hard navigation away) ends the attempt. We rotate it after a
+  // confirmed failure that the user can retry from a clean slate.
+  const idemKeyRef = useRef(null);
+  if (idemKeyRef.current === null) idemKeyRef.current = newIdempotencyKey();
+  // Hard guard against double submit even if `processing` state hasn't
+  // updated yet (React 18 batches state).
+  const inflightRef = useRef(false);
 
   const handlePincodeLookup = async (value) => {
     const pin = value.replace(/\D/g, '').slice(0, 6);
@@ -62,6 +80,16 @@ export default function CheckoutPage() {
       .then((data) => setCodEnabled(!!data.codEnabled))
       .catch(() => {});
     walletAPI.get().then(({ balance }) => setWalletBalance(balance || 0)).catch(() => {});
+    // Force a fresh cart pull on checkout entry. We never want to commit a
+    // user to payment based on a stale `items` snapshot.
+    if (typeof fetchCart === 'function') {
+      try { fetchCart(true); } catch {}
+    }
+    // Run the strict server-side validate so any out-of-stock / removed
+    // items surface BEFORE the user starts entering payment details.
+    ordersAPI.validate()
+      .then((r) => setStockIssues(r?.ok ? [] : (r?.issues || [])))
+      .catch(() => {});
   }, [isAuthenticated, isLoading]);
 
   useEffect(() => {
@@ -78,6 +106,24 @@ export default function CheckoutPage() {
   }, [isAuthenticated, items.length, router, user]);
 
   if (!user || items.length === 0) return <CartSkeleton />;
+
+  // Build a quick lookup so we can render an inline message under the
+  // exact cart row that has a problem (rather than only a global toast).
+  const issueByItem = (() => {
+    const map = new Map();
+    for (const it of stockIssues) {
+      const key = `${it.productId}::${it.size}`;
+      // Last issue wins — stock issues outrank price drift in copy.
+      map.set(key, it);
+    }
+    return map;
+  })();
+  const itemIssue = (item) => issueByItem.get(`${item.product?._id}::${item.size}`);
+
+  // Lock the entire checkout while the order request is in-flight so the
+  // user can't change address / qty / payment mid-attempt and confuse
+  // themselves about which state they actually paid for.
+  const locked = processing;
 
   const subtotal = items.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
   const maxProductShipping = Math.max(...items.map(item => item.product?.shippingCharge || 0), 0);
@@ -130,17 +176,79 @@ export default function CheckoutPage() {
       toast.error('Please select a delivery address');
       return;
     }
-
+    // Hard double-submit guard — multiple synchronous clicks before React
+    // flushes `processing` state would otherwise slip through.
+    if (inflightRef.current) return;
+    inflightRef.current = true;
     setProcessing(true);
     try {
+      // ---- Final pre-payment validation -----------------------------
+      // Re-confirms stock/price for every cart item against the source of
+      // truth. If anything has changed we surface it to the user and
+      // abort BEFORE any payment is initiated.
+      try {
+        const v = await ordersAPI.validate();
+        if (v && v.ok === false) {
+          setStockIssues(v.issues || []);
+          const msg = v.issues?.[0]?.message || 'Some items in your cart are no longer available';
+          toast.error(msg);
+          // Refresh the cart so the UI reflects what's still buyable.
+          try { fetchCart && fetchCart(true); } catch {}
+          return;
+        }
+      } catch {
+        // Validation endpoint failed — fall through. The atomic stock
+        // check on POST /orders is still authoritative.
+      }
+
       const effectivePaymentMethod = walletCoversAll ? 'wallet' : paymentMethod;
-      const { order } = await ordersAPI.create({
-        shippingAddress: selectedAddress,
-        paymentMethod: effectivePaymentMethod,
-        couponCode: couponApplied || undefined,
-        useWallet: useWallet && !walletCoversAll,
-        walletAmount: useWallet && !walletCoversAll ? walletApplied : undefined,
-      });
+      let order;
+      try {
+        const res = await ordersAPI.create({
+          shippingAddress: selectedAddress,
+          paymentMethod: effectivePaymentMethod,
+          couponCode: couponApplied || undefined,
+          useWallet: useWallet && !walletCoversAll,
+          walletAmount: useWallet && !walletCoversAll ? walletApplied : undefined,
+        }, { idempotencyKey: idemKeyRef.current });
+        order = res.order;
+      } catch (err) {
+        // Server lost the race — stock change between validate() and
+        // create(). Show the precise message and refresh cart.
+        if (err && (err.status === 409 || err.reason === 'insufficient_stock')) {
+          const issue = {
+            productId: err.productId,
+            size: err.size,
+            available: err.available,
+            requested: err.requested,
+            reason: err.reason || 'insufficient_stock',
+            message: err.message || 'An item just went out of stock',
+          };
+          setStockIssues((prev) => {
+            const key = `${issue.productId}::${issue.size}`;
+            const others = prev.filter((p) => `${p.productId}::${p.size}` !== key);
+            return [issue, ...others];
+          });
+          toast.error(issue.message);
+          try { fetchCart && fetchCart(true); } catch {}
+          // Re-run the validator to pick up any sibling issues (e.g. a
+          // second item that also went out of stock in the meantime).
+          try {
+            const v = await ordersAPI.validate();
+            if (v && Array.isArray(v.issues) && v.issues.length) {
+              setStockIssues((prev) => {
+                const dedup = new Map();
+                for (const x of [...prev, ...v.issues]) dedup.set(`${x.productId}::${x.size}`, x);
+                return [...dedup.values()];
+              });
+            }
+          } catch {}
+          // Rotate the idempotency key so the user can retry from clean.
+          idemKeyRef.current = newIdempotencyKey();
+          return;
+        }
+        throw err;
+      }
 
       if (effectivePaymentMethod === 'wallet' || order.isPaid) {
         toast.success('Order placed successfully!');
@@ -217,6 +325,7 @@ export default function CheckoutPage() {
       toast.error(err.message || 'Something went wrong');
     } finally {
       setProcessing(false);
+      inflightRef.current = false;
     }
   };
 
@@ -224,7 +333,23 @@ export default function CheckoutPage() {
     <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12 animate-fade-in">
       <h1 className="font-serif text-3xl font-bold text-brand-charcoal mb-8">Checkout</h1>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      {stockIssues.length > 0 && (
+        <div className="mb-6 rounded-2xl border border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20 p-4">
+          <p className="font-semibold text-red-800 dark:text-red-300 mb-1">Some items need attention</p>
+          <ul className="text-sm text-red-700 dark:text-red-300 space-y-0.5 list-disc list-inside">
+            {stockIssues.map((it, idx) => (
+              <li key={`${it.productId}-${it.size}-${idx}`}>{it.message}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Lock the entire form while a placement attempt is in-flight.
+          <fieldset disabled> propagates the disabled state to every form
+          control inside (radios, inputs, buttons), giving us a single
+          source of truth alongside the per-button `disabled={locked}`. */}
+      <fieldset disabled={locked} className={`contents ${locked ? '[&_*]:cursor-progress' : ''}`}>
+      <div className={`grid lg:grid-cols-3 gap-8 transition-opacity ${locked ? 'opacity-70 pointer-events-none' : ''}`}>
         <div className="lg:col-span-2 space-y-6">
           {/* Delivery Address */}
           <div className="card p-6">
@@ -433,8 +558,17 @@ export default function CheckoutPage() {
             <h2 className="font-serif text-xl font-semibold mb-6">Order Summary</h2>
 
             <div className="space-y-3 mb-6 max-h-64 overflow-y-auto">
-              {items.map((item) => (
-                <div key={item._id} className="flex items-center gap-3 text-sm">
+              {items.map((item) => {
+                const issue = itemIssue(item);
+                const overQty = issue?.reason === 'insufficient_stock' && typeof issue.available === 'number';
+                return (
+                <div
+                  key={item._id}
+                  className={`flex flex-col gap-1 text-sm rounded-lg p-2 -mx-2 ${
+                    issue ? 'bg-red-50 dark:bg-red-900/15 ring-1 ring-red-200 dark:ring-red-800/40' : ''
+                  }`}
+                >
+                <div className="flex items-center gap-3">
                   <div className="relative w-12 h-14 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                     <img src={item.product?.images?.[0]?.url} alt="" className="object-cover w-full h-full" />
                   </div>
@@ -443,6 +577,7 @@ export default function CheckoutPage() {
                     <p className="text-gray-400">{item.size}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <button
+                        disabled={locked}
                         onClick={async () => {
                           if (item.quantity <= 1) {
                             await removeItem(item._id);
@@ -451,14 +586,15 @@ export default function CheckoutPage() {
                             await updateItem(item._id, item.quantity - 1);
                           }
                         }}
-                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:border-brand-green hover:text-brand-green transition-colors"
+                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:border-brand-green hover:text-brand-green transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {item.quantity <= 1 ? <FiTrash2 size={12} /> : <FiMinus size={12} />}
                       </button>
                       <span className="text-sm font-medium w-5 text-center">{item.quantity}</span>
                       <button
+                        disabled={locked}
                         onClick={() => updateItem(item._id, item.quantity + 1)}
-                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:border-brand-green hover:text-brand-green transition-colors"
+                        className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:border-brand-green hover:text-brand-green transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <FiPlus size={12} />
                       </button>
@@ -467,17 +603,62 @@ export default function CheckoutPage() {
                   <div className="text-right flex-shrink-0">
                     <span className="font-medium">₹{((item.product?.price || 0) * item.quantity).toLocaleString()}</span>
                     <button
+                      disabled={locked}
                       onClick={async () => {
                         await removeItem(item._id);
                         toast.success('Item removed');
                       }}
-                      className="block text-xs text-red-400 hover:text-red-600 mt-1"
+                      className="block text-xs text-red-400 hover:text-red-600 mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Remove
                     </button>
                   </div>
                 </div>
-              ))}
+                {issue && (
+                  <div className="flex items-center justify-between gap-2 px-1">
+                    <p className="text-[11px] font-medium text-red-700 dark:text-red-300 leading-snug">
+                      {issue.message}
+                    </p>
+                    {overQty && issue.available > 0 && item.quantity > issue.available && (
+                      <button
+                        type="button"
+                        disabled={locked}
+                        onClick={async () => {
+                          try {
+                            await updateItem(item._id, issue.available);
+                            // Drop this issue — user has reconciled it.
+                            setStockIssues((prev) => prev.filter((p) =>
+                              !(p.productId === issue.productId && p.size === issue.size)
+                            ));
+                          } catch {}
+                        }}
+                        className="text-[11px] font-semibold text-brand-green dark:text-emerald-300 hover:underline whitespace-nowrap disabled:opacity-50"
+                      >
+                        Use {issue.available}
+                      </button>
+                    )}
+                    {overQty && issue.available === 0 && (
+                      <button
+                        type="button"
+                        disabled={locked}
+                        onClick={async () => {
+                          try {
+                            await removeItem(item._id);
+                            setStockIssues((prev) => prev.filter((p) =>
+                              !(p.productId === issue.productId && p.size === issue.size)
+                            ));
+                          } catch {}
+                        }}
+                        className="text-[11px] font-semibold text-red-600 hover:underline whitespace-nowrap disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                )}
+                </div>
+              );
+              })}
             </div>
 
             {/* Available Coupons */}
@@ -562,11 +743,13 @@ export default function CheckoutPage() {
 
             <button
               onClick={handlePlaceOrder}
-              disabled={processing || !selectedAddress}
-              className="btn-primary w-full mt-6"
+              disabled={processing || !selectedAddress || stockIssues.length > 0}
+              className="btn-primary w-full mt-6 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {processing
-                ? 'Processing...'
+                ? 'Securing your items…'
+                : stockIssues.length > 0
+                ? 'Resolve issues to continue'
                 : walletCoversAll
                 ? 'Pay from Wallet & Place Order'
                 : paymentMethod === 'cod'
@@ -576,6 +759,7 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+      </fieldset>
     </div>
   );
 }

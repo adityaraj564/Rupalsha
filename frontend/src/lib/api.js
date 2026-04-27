@@ -230,19 +230,26 @@ const request = async (endpoint, options = {}, retries = 2) => {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       // Let GETs leverage browser HTTP cache (controlled by server's
-      // Cache-Control headers). Mutations always bypass it.
+      // Cache-Control headers). Mutations always bypass it. Callers can
+      // also force `cache: 'no-store'` (e.g. checkout pages) via options.
       const isGet = !options.method || options.method === 'GET';
+      const cacheMode = options.cache || (isGet ? 'default' : 'no-store');
       const res = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers,
-        cache: isGet ? 'default' : 'no-store',
+        cache: cacheMode,
+        signal: options.signal,
         body: options.body instanceof FormData ? options.body : options.body ? JSON.stringify(options.body) : undefined,
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new ApiError(data.error || data.errors?.[0]?.msg || 'Something went wrong', res.status);
+        const err = new ApiError(data.error || data.errors?.[0]?.msg || 'Something went wrong', res.status);
+        // Surface structured details (e.g. { reason, productId, available })
+        // so callers can render a precise error message.
+        Object.assign(err, data);
+        throw err;
       }
 
       return data;
@@ -284,8 +291,23 @@ export const productsAPI = {
     const query = new URLSearchParams(params).toString();
     return swr(`products:${query}`, () => request(`/products?${query}`), CACHE_TTL.short, { alwaysRevalidate: true, onFresh });
   },
-  getBySlug: (slug, { onFresh } = {}) =>
-    swr(`product:${slug}`, () => request(`/products/${slug}`), CACHE_TTL.short, { alwaysRevalidate: true, onFresh }),
+  /**
+   * Fetch a product by slug.
+   *
+   * Options:
+   *  - onFresh(value): SWR background revalidation callback.
+   *  - fresh: when `true`, bypass the cache entirely and hit the network.
+   *    Used by checkout / low-stock flows where freshness > speed.
+   */
+  getBySlug: (slug, { onFresh, fresh = false } = {}) => {
+    if (fresh) {
+      const p = request(`/products/${slug}`, { cache: 'no-store' });
+      // Still warm the SWR cache so subsequent non-fresh reads benefit.
+      p.then((value) => writeApiCache(`product:${slug}`, value, CACHE_TTL.short)).catch(() => {});
+      return p;
+    }
+    return swr(`product:${slug}`, () => request(`/products/${slug}`), CACHE_TTL.short, { alwaysRevalidate: true, onFresh });
+  },
   getSimilar: (slug, limit = 8, { onFresh } = {}) =>
     swr(`similar:${slug}:${limit}`, () => request(`/products/${slug}/similar?limit=${limit}`), CACHE_TTL.medium, { alwaysRevalidate: true, onFresh }),
   getCategories: () =>
@@ -315,7 +337,26 @@ export const cartAPI = {
 
 // Orders
 export const ordersAPI = {
-  create: (data) => request('/orders', { method: 'POST', body: data }),
+  /**
+   * Place an order.
+   *
+   * Pass `idempotencyKey` to make this safe to retry. The server will
+   * return the previously-created order on duplicates instead of creating
+   * another one. Callers should generate a fresh UUID on the checkout
+   * page mount and reuse it across retries of the same logical attempt.
+   */
+  create: (data, { idempotencyKey } = {}) =>
+    request('/orders', {
+      method: 'POST',
+      body: data,
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {},
+    }),
+  /**
+   * Strict pre-payment validation. Always hits the network (no cache) and
+   * returns `{ ok, issues }` describing any cart items that became
+   * unavailable, out of stock, or changed price since they were added.
+   */
+  validate: () => request('/orders/validate', { method: 'POST', cache: 'no-store' }),
   getAll: (params) => {
     const query = new URLSearchParams(params).toString();
     return request(`/orders?${query}`);

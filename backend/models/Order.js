@@ -76,6 +76,10 @@ const orderSchema = new mongoose.Schema({
   },
   returnReason: String,
   notes: String,
+  // Idempotency key (per-user) to make POST /orders safe to retry. Two
+  // requests from the same user with the same key always resolve to the
+  // same order — preventing duplicate orders on network retries.
+  idempotencyKey: { type: String, index: true },
 }, {
   timestamps: true,
 });
@@ -90,5 +94,11 @@ orderSchema.pre('save', function (next) {
 
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
+// Per-user uniqueness on idempotency key. `sparse` so existing orders with
+// no key (legacy) don't collide.
+orderSchema.index(
+  { user: 1, idempotencyKey: 1 },
+  { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
+);
 
 module.exports = mongoose.model('Order', orderSchema);

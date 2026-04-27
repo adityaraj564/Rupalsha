@@ -855,4 +855,11 @@ router.get('/activity-log', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/admin/order-metrics — in-process counters (resets on server restart)
+const { orderMetrics } = require('../utils/orderMetrics');
+router.get('/order-metrics', adminAuth, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(orderMetrics.snapshot());
+});
+
 module.exports = router;
