@@ -16,6 +16,7 @@ const uploadCategories = uploaders.categories;
 const uploadBanners = uploaders.banners;
 const cloudinary = require('../config/cloudinary');
 const { sendOrderStatusUpdate } = require('../utils/email');
+const { createNotification } = require('../utils/notification');
 const cache = require('../utils/cache');
 
 const router = express.Router();
@@ -415,6 +416,31 @@ router.put('/orders/:id/status', [
     const populatedOrder = await Order.findById(order._id).populate('user', 'email');
     if (populatedOrder.user?.email) {
       sendOrderStatusUpdate(populatedOrder, populatedOrder.user.email);
+    }
+
+    // In-app notification with friendly status copy
+    {
+      const statusCopy = {
+        confirmed: { title: `Order confirmed · ${order.orderNumber}`, msg: 'Your order has been confirmed and is being prepared.' },
+        processing: { title: `Order being prepared · ${order.orderNumber}`, msg: 'We are packing your order with care.' },
+        shipped: { title: `Order shipped · ${order.orderNumber}`, msg: order.trackingNumber ? `Tracking: ${order.trackingNumber}. Your order is on the way.` : 'Your order is on the way!' },
+        delivered: { title: `Delivered · ${order.orderNumber}`, msg: 'Your order has been delivered. We hope you love it!' },
+        cancelled: { title: `Order cancelled · ${order.orderNumber}`, msg: 'Your order has been cancelled.' },
+        returned: { title: `Return completed · ${order.orderNumber}`, msg: 'Your return has been processed.' },
+      };
+      const copy = statusCopy[req.body.status];
+      if (copy) {
+        createNotification({
+          user: order.user,
+          category: 'order',
+          type: `order.${req.body.status}`,
+          title: copy.title,
+          message: copy.msg,
+          link: `/orders/${order._id}`,
+          priority: 1,
+          meta: { orderId: order._id, orderNumber: order.orderNumber, status: req.body.status, trackingNumber: order.trackingNumber || '' },
+        });
+      }
     }
 
     res.json({ order });

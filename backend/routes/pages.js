@@ -2,6 +2,7 @@ const express = require('express');
 const PageContent = require('../models/PageContent');
 const { subAdminAuth } = require('../middleware/auth');
 const { logActivity } = require('../utils/activityLog');
+const { broadcastToAllUsers } = require('../utils/notification');
 
 const router = express.Router();
 
@@ -97,6 +98,26 @@ router.put('/admin/:key', subAdminAuth, async (req, res, next) => {
       { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
     );
     logActivity({ action: 'update', section: 'page', description: `Updated page: ${key}`, user: req.user });
+
+    // Broadcast policy changes (only for legally meaningful pages, and only
+    // when the actual title or content changed — not contact details, etc.)
+    const policyKeys = {
+      shipping: { title: 'Shipping policy updated', body: 'We\u2019ve updated our shipping policy. Tap to review the latest delivery timelines and charges.' },
+      returns:  { title: 'Returns policy updated',  body: 'We\u2019ve updated our returns & exchange policy. Tap to read the new terms.' },
+      privacy:  { title: 'Privacy policy updated',  body: 'Our privacy policy has been updated. Please review how we handle your data.' },
+      terms:    { title: 'Terms of service updated', body: 'Our terms of service have been updated. Tap to review the changes.' },
+    };
+    if (policyKeys[key] && (update.title !== undefined || update.content !== undefined)) {
+      broadcastToAllUsers({
+        category: 'alert',
+        type: `policy.${key}`,
+        title: policyKeys[key].title,
+        message: policyKeys[key].body,
+        link: key === 'shipping' ? '/help' : key === 'returns' ? '/help' : `/${key}`,
+        meta: { pageKey: key },
+      });
+    }
+
     res.json({ page });
   } catch (error) {
     next(error);

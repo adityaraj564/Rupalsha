@@ -5,6 +5,7 @@ const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const { auth, generateToken } = require('../middleware/auth');
 const { sendPasswordReset, sendWelcomeEmail, sendPasswordChangeConfirmation, sendLoginOtp } = require('../utils/email');
+const { createNotification } = require('../utils/notification');
 
 const router = express.Router();
 
@@ -74,6 +75,23 @@ router.post('/login', [
     }
 
     const token = generateToken(user._id);
+
+    // Security notification — new login (fire-and-forget)
+    try {
+      const ua = req.headers['user-agent'] || 'Unknown device';
+      const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim();
+      const ts = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+      createNotification({
+        user: user._id,
+        category: 'security',
+        type: 'security.login',
+        title: 'New sign-in to your account',
+        message: `Signed in on ${ts}${ip ? ` from ${ip}` : ''}. If this wasn't you, please change your password.`,
+        link: '/profile',
+        priority: 3,
+        meta: { ip, userAgent: ua },
+      });
+    } catch {}
 
     res.json({
       token,
@@ -156,6 +174,17 @@ router.put('/change-password', auth, [
     await user.save();
 
     sendPasswordChangeConfirmation(user.name, user.email);
+
+    // Security notification
+    createNotification({
+      user: user._id,
+      category: 'security',
+      type: 'security.password_changed',
+      title: 'Password updated',
+      message: 'Your account password was changed. If this wasn\u2019t you, reset it immediately.',
+      link: '/profile',
+      priority: 3,
+    });
 
     res.json({ message: 'Password updated successfully' });
   } catch (error) {

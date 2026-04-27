@@ -9,6 +9,7 @@ const SiteSettings = require('../models/SiteSettings');
 const { auth } = require('../middleware/auth');
 const { sendOrderConfirmation, sendOrderCancellation, sendReturnConfirmation } = require('../utils/email');
 const { applyWalletTransaction } = require('../utils/wallet');
+const { createNotification } = require('../utils/notification');
 
 const router = express.Router();
 
@@ -239,6 +240,21 @@ router.post('/', auth, [
     // Send email
     sendOrderConfirmation(order, req.user.email);
 
+    // Notification — order placed
+    createNotification({
+      user: req.user._id,
+      category: 'order',
+      type: 'order.placed',
+      title: `Order placed · ${order.orderNumber}`,
+      message: effectivePaymentMethod === 'cod'
+        ? `Your order of ₹${order.totalAmount.toLocaleString('en-IN')} has been placed. Pay on delivery.`
+        : effectivePaymentMethod === 'wallet'
+          ? `Your order of ₹${order.totalAmount.toLocaleString('en-IN')} has been placed and paid via wallet.`
+          : `Your order has been placed. Complete payment of ₹${Math.max(0, (order.totalAmount || 0) - (order.walletAmount || 0)).toLocaleString('en-IN')} to confirm.`,
+      link: `/orders/${order._id}`,
+      meta: { orderId: order._id, orderNumber: order.orderNumber, totalAmount: order.totalAmount },
+    });
+
     res.status(201).json({ order });
   } catch (error) {
     next(error);
@@ -376,6 +392,19 @@ router.put('/:id/cancel', auth, [
     // Send cancellation email
     sendOrderCancellation(order, req.user.email, req.body.reason);
 
+    // Notification — order cancelled
+    createNotification({
+      user: order.user,
+      category: 'order',
+      type: 'order.cancelled',
+      title: `Order cancelled · ${order.orderNumber}`,
+      message: refundAmount > 0
+        ? `Your order has been cancelled. ₹${refundAmount.toLocaleString('en-IN')} refunded to your wallet${cancellationFee > 0 ? ` (₹${cancellationFee} fee deducted)` : ''}.`
+        : `Your order has been cancelled.`,
+      link: `/orders/${order._id}`,
+      meta: { orderId: order._id, orderNumber: order.orderNumber, refundAmount, cancellationFee },
+    });
+
     // Restore stock
     for (const item of order.items) {
       await Product.updateOne(
@@ -426,6 +455,17 @@ router.put('/:id/return', auth, [
 
     // Send return confirmation email
     sendReturnConfirmation(order, req.user.email, req.body.reason);
+
+    // Notification — return requested
+    createNotification({
+      user: order.user,
+      category: 'order',
+      type: 'order.return_requested',
+      title: `Return requested · ${order.orderNumber}`,
+      message: `Your return request has been received. We'll keep you posted.`,
+      link: `/orders/${order._id}`,
+      meta: { orderId: order._id, orderNumber: order.orderNumber },
+    });
 
     res.json({ order });
   } catch (error) {

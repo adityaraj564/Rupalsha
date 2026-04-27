@@ -1,5 +1,6 @@
 const Wallet = require('../models/Wallet');
 const WalletTransaction = require('../models/WalletTransaction');
+const { createNotification } = require('./notification');
 
 /**
  * Apply a credit/debit to the user's wallet atomically-ish.
@@ -82,6 +83,41 @@ async function applyWalletTransaction({
     performedBy,
     status,
   });
+
+  // Fire-and-forget notification for completed transactions only.
+  // Pending recharges and failed transactions don't notify the user.
+  if (status === 'completed') {
+    const formatted = `₹${amt.toLocaleString('en-IN')}`;
+    let title;
+    let message;
+    if (type === 'credit') {
+      if (source === 'refund' || source === 'order_refund') {
+        title = `Refund of ${formatted} credited to wallet`;
+        message = description || `Your refund has been processed and credited to your Rupalsha wallet. New balance: ₹${newBalance.toLocaleString('en-IN')}.`;
+      } else if (source === 'recharge') {
+        title = `Wallet recharged with ${formatted}`;
+        message = description || `Your wallet has been topped up. New balance: ₹${newBalance.toLocaleString('en-IN')}.`;
+      } else if (source === 'cashback') {
+        title = `Cashback of ${formatted} credited`;
+        message = description || `Cashback added to your wallet. New balance: ₹${newBalance.toLocaleString('en-IN')}.`;
+      } else {
+        title = `${formatted} credited to wallet`;
+        message = description || `New balance: ₹${newBalance.toLocaleString('en-IN')}.`;
+      }
+    } else {
+      title = `${formatted} debited from wallet`;
+      message = description || `Used towards a purchase. New balance: ₹${newBalance.toLocaleString('en-IN')}.`;
+    }
+    createNotification({
+      user: userId,
+      category: 'wallet',
+      type: `wallet.${type}`,
+      title,
+      message,
+      link: '/wallet',
+      meta: { amount: amt, balanceAfter: newBalance, source, transactionId: tx._id },
+    });
+  }
 
   return { wallet, transaction: tx };
 }

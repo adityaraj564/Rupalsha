@@ -6,10 +6,10 @@ import Link from 'next/link';
 import {
   FiUser, FiPackage, FiHeart, FiMapPin, FiLock, FiLogOut, FiEdit2, FiTrash2,
   FiCreditCard, FiMail, FiPhone, FiCalendar, FiShield, FiChevronRight, FiPlus,
-  FiCheckCircle, FiHome, FiSmartphone,
+  FiCheckCircle, FiHome, FiSmartphone, FiBell,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
-import { authAPI, walletAPI, ordersAPI, wishlistAPI } from '@/lib/api';
+import { authAPI, walletAPI, ordersAPI, wishlistAPI, notificationsAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
@@ -25,7 +25,7 @@ export default function ProfilePage() {
     fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
   const [fetchingPincode, setFetchingPincode] = useState(false);
-  const [stats, setStats] = useState({ orders: null, wallet: null, wishlist: null });
+  const [stats, setStats] = useState({ orders: null, wallet: null, wishlist: null, notifications: null });
 
   useEffect(() => {
     if (isLoading) return;
@@ -44,13 +44,15 @@ export default function ProfilePage() {
       ordersAPI.getAll({ limit: 1 }),
       walletAPI.get(),
       wishlistAPI.get(),
-    ]).then(([oRes, wRes, wlRes]) => {
+      notificationsAPI.unreadCount(),
+    ]).then(([oRes, wRes, wlRes, nRes]) => {
       setStats({
         orders: oRes.status === 'fulfilled' ? (oRes.value?.total ?? oRes.value?.orders?.length ?? 0) : 0,
         wallet: wRes.status === 'fulfilled' ? (wRes.value?.balance ?? 0) : 0,
         wishlist: wlRes.status === 'fulfilled'
           ? (Array.isArray(wlRes.value?.wishlist) ? wlRes.value.wishlist.length : (wlRes.value?.items?.length ?? 0))
           : 0,
+        notifications: nRes.status === 'fulfilled' ? (nRes.value?.unreadCount ?? 0) : 0,
       });
     });
   }, [isAuthenticated, isLoading, router]);
@@ -260,9 +262,10 @@ export default function ProfilePage() {
           value={stats.wishlist === null ? '—' : stats.wishlist}
         />
         <StatCard
-          icon={FiMapPin}
-          label="Addresses"
-          value={user.addresses?.length || 0}
+          href="/notifications"
+          icon={FiBell}
+          label={stats.notifications > 0 ? 'Unread alerts' : 'Notifications'}
+          value={stats.notifications === null ? '—' : stats.notifications}
         />
       </div>
 
@@ -270,41 +273,74 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Sidebar nav */}
         <aside className="lg:col-span-4 xl:col-span-3">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-2 lg:sticky lg:top-24">
-            {/* Mobile: horizontal scroll */}
-            <div className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible">
+          {/* ===== Mobile: modern segmented pill (no scroll, fits 3 tabs) ===== */}
+          <div className="lg:hidden relative p-1.5 rounded-2xl bg-gray-100 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-700 shadow-inner">
+            <div className="grid grid-cols-3 gap-1 relative">
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                // Shorter label for narrow mobile screens
+                const shortLabel = tab.id === 'profile' ? 'Profile' : tab.id === 'addresses' ? 'Address' : 'Password';
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`relative flex flex-col items-center justify-center gap-1.5 py-3 px-1 rounded-xl transition-all duration-300 ${
+                      isActive
+                        ? 'bg-gradient-to-br from-brand-green to-emerald-600 text-white shadow-lg shadow-brand-green/30 ring-1 ring-white/20 dark:from-gray-900 dark:to-black dark:!text-white dark:shadow-black/40 dark:ring-white/10 scale-[1.04]'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 active:scale-95'
+                    }`}
+                  >
+                    <span
+                      className={`h-8 w-8 rounded-lg flex items-center justify-center transition-all ${
+                        isActive
+                          ? 'bg-white/25 text-white dark:bg-white/15 dark:!text-white'
+                          : 'bg-white text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                      }`}
+                    >
+                      <tab.icon size={15} />
+                    </span>
+                    <span className={`text-[11px] font-semibold tracking-tight ${isActive ? 'dark:!text-white' : ''}`}>
+                      {shortLabel}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ===== Desktop: vertical sidebar ===== */}
+          <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-2 lg:sticky lg:top-24">
+            <div className="flex flex-col gap-1">
               {tabs.map((tab) => {
                 const isActive = activeTab === tab.id;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`group flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all whitespace-nowrap lg:whitespace-normal flex-shrink-0 lg:flex-shrink ${
+                    className={`group flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all ${
                       isActive
-                        ? 'bg-brand-green text-white shadow-md dark:bg-[#F8F0E8] dark:!text-gray-900'
+                        ? 'bg-brand-green text-white shadow-md dark:bg-gray-900 dark:!text-white dark:ring-1 dark:ring-white/10'
                         : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                     }`}
                   >
                     <span className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
                       isActive
-                        ? 'bg-white/20 text-white dark:bg-gray-900/10 dark:!text-gray-900'
-                        : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-white dark:group-hover:bg-gray-600'
+                        ? 'bg-white/20 text-white dark:bg-white/15 dark:!text-white'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 group-hover:bg-white dark:group-hover:bg-gray-600'
                     }`}>
                       <tab.icon size={16} />
                     </span>
-                    <div className="flex-1 min-w-0 hidden lg:block">
-                      <p className={`text-sm font-semibold leading-tight ${isActive ? 'dark:!text-gray-900' : ''}`}>{tab.label}</p>
-                      <p className={`text-xs mt-0.5 ${isActive ? 'text-white/70 dark:!text-gray-700' : 'text-gray-400 dark:text-gray-500'}`}>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold leading-tight ${isActive ? 'dark:!text-white' : ''}`}>{tab.label}</p>
+                      <p className={`text-xs mt-0.5 ${isActive ? 'text-white/70 dark:!text-white/60' : 'text-gray-400 dark:text-gray-500'}`}>
                         {tab.desc}
                       </p>
                     </div>
-                    <span className={`lg:hidden text-sm font-medium ${isActive ? 'dark:!text-gray-900' : ''}`}>{tab.label}</span>
-                    <FiChevronRight className={`hidden lg:block flex-shrink-0 transition-transform ${isActive ? 'translate-x-0.5 dark:!text-gray-900' : 'opacity-0 group-hover:opacity-100'}`} size={16} />
+                    <FiChevronRight className={`flex-shrink-0 transition-transform ${isActive ? 'translate-x-0.5 dark:!text-white' : 'opacity-0 group-hover:opacity-100'}`} size={16} />
                   </button>
                 );
               })}
             </div>
-
           </div>
         </aside>
 

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon, FiLogOut, FiCreditCard } from 'react-icons/fi';
 import { useAuthStore, useCartStore, useWishlistStore, useThemeStore } from '@/lib/store';
+import NotificationBell from './NotificationBell';
 import { couponsAPI } from '@/lib/api';
 
 const NAV_LINKS = [
@@ -317,6 +318,11 @@ export default function Header() {
                   )}
                 </Link>
               )}
+
+              {/* Notification bell (renders only for logged-in customers) */}
+              <div className="relative">
+                <NotificationBell />
+              </div>
 
               <Link
                 href="/cart"

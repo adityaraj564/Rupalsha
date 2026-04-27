@@ -436,3 +436,23 @@ export const subAdminAPI = {
   addTeamMember: (data) => request('/about/team', { method: 'POST', body: data }),
   removeTeamMember: (index) => request(`/about/team/${index}`, { method: 'DELETE' }),
 };
+
+// Notifications
+export const notificationsAPI = {
+  list: (params = {}) => {
+    const query = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== '' && v !== null))
+    ).toString();
+    return request(`/notifications${query ? `?${query}` : ''}`);
+  },
+  unreadCount: () => request('/notifications/unread-count'),
+  markRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
+  markAllRead: (category) =>
+    request('/notifications/mark-all-read', { method: 'PATCH', body: category ? { category } : {} }),
+  remove: (id) => request(`/notifications/${id}`, { method: 'DELETE' }),
+  clearAll: (category) =>
+    request(`/notifications${category ? `?category=${encodeURIComponent(category)}` : ''}`, { method: 'DELETE' }),
+  // Admin
+  broadcast: (data) => request('/notifications/broadcast', { method: 'POST', body: data }),
+  sendToUser: (data) => request('/notifications', { method: 'POST', body: data }),
+};

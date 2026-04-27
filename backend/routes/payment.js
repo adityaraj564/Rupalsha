@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const { auth } = require('../middleware/auth');
+const { createNotification } = require('../utils/notification');
 
 const router = express.Router();
 
@@ -118,6 +119,18 @@ router.post('/verify', auth, async (req, res, next) => {
       status: 'completed',
     };
     await order.save();
+
+    // Notification — payment success
+    createNotification({
+      user: order.user,
+      category: 'order',
+      type: 'order.payment_success',
+      title: `Payment successful · ${order.orderNumber}`,
+      message: `Your payment of ₹${(order.totalAmount - (order.walletAmount || 0)).toLocaleString('en-IN')} was received. Order confirmed.`,
+      link: `/orders/${order._id}`,
+      priority: 1,
+      meta: { orderId: order._id, orderNumber: order.orderNumber, paymentId: razorpay_payment_id },
+    });
 
     res.json({ message: 'Payment verified successfully', order });
   } catch (error) {

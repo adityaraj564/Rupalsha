@@ -7,6 +7,7 @@ const Product = require('../models/Product');
 const { auth, adminAuth } = require('../middleware/auth');
 const returnUpload = require('../utils/returnUpload');
 const { applyWalletTransaction } = require('../utils/wallet');
+const { createNotification } = require('../utils/notification');
 const {
   sendReturnRequestReceived,
   sendReturnStatusUpdate,
@@ -310,6 +311,32 @@ router.patch('/:id/status', adminAuth, async (req, res, next) => {
       }
     } catch (e) {
       console.error('Return status email error:', e.message);
+    }
+
+    // In-app notification for return status change
+    {
+      const statusCopy = {
+        approved: { title: `Return approved · ${rr.returnNumber}`, msg: 'Your return has been approved. Pickup details will be shared shortly.' },
+        scheduled: { title: `Pickup scheduled · ${rr.returnNumber}`, msg: rr.pickupDate ? `Pickup scheduled for ${new Date(rr.pickupDate).toLocaleDateString('en-IN')}.` : 'Pickup has been scheduled.' },
+        picked_up: { title: `Item picked up · ${rr.returnNumber}`, msg: 'Your item has been collected for return.' },
+        received: { title: `Return received · ${rr.returnNumber}`, msg: 'We have received your return and are inspecting the item.' },
+        refunded: { title: `Refund processed · ${rr.returnNumber}`, msg: rr.refundMethod === 'wallet' ? `₹${(rr.refundAmount || 0).toLocaleString('en-IN')} refunded to your Rupalsha wallet (instant).` : `₹${(rr.refundAmount || 0).toLocaleString('en-IN')} refund initiated to original payment method (5–7 business days).` },
+        rejected: { title: `Return rejected · ${rr.returnNumber}`, msg: rejectionReason || 'Your return request has been rejected. Tap for details.' },
+        closed: { title: `Return closed · ${rr.returnNumber}`, msg: 'This return request has been closed.' },
+      };
+      const copy = statusCopy[status];
+      if (copy) {
+        createNotification({
+          user: rr.user,
+          category: 'order',
+          type: `return.${status}`,
+          title: copy.title,
+          message: copy.msg,
+          link: `/orders/${rr.order}`,
+          priority: status === 'refunded' ? 1 : 2,
+          meta: { returnId: rr._id, returnNumber: rr.returnNumber, orderId: rr.order, status, refundAmount: rr.refundAmount, refundMethod: rr.refundMethod },
+        });
+      }
     }
 
     res.json({ return: rr });

@@ -6,6 +6,7 @@ const upload = require('../utils/upload').blogs;
 const cloudinary = require('../config/cloudinary');
 const cache = require('../utils/cache');
 const { logActivity } = require('../utils/activityLog');
+const { broadcastToAllUsers } = require('../utils/notification');
 
 const router = express.Router();
 
@@ -192,6 +193,19 @@ router.post('/admin', subAdminAuth, upload.single('featuredImage'), async (req, 
     await blog.save();
     cache.clear();
     logActivity({ action: 'create', section: 'blog', description: `Created blog: ${blog.title}`, user: req.user });
+
+    // Broadcast — only when initially published
+    if (blog.status === 'published') {
+      broadcastToAllUsers({
+        category: 'alert',
+        type: 'blog.published',
+        title: `New blog: ${blog.title}`,
+        message: blog.shortDescription || 'A new article has been published on Rupalsha. Tap to read.',
+        link: `/blog/${blog.slug}`,
+        meta: { blogId: blog._id, slug: blog.slug, category: blog.category },
+      });
+    }
+
     res.status(201).json({ blog });
   } catch (error) {
     next(error);
@@ -203,6 +217,7 @@ router.put('/admin/:id', subAdminAuth, upload.single('featuredImage'), async (re
   try {
     const blog = await Blog.findById(req.params.id);
     if (!blog) return res.status(404).json({ error: 'Blog not found' });
+    const previousStatus = blog.status;
 
     const {
       title, slug, shortDescription, content, category, tags,
@@ -242,6 +257,19 @@ router.put('/admin/:id', subAdminAuth, upload.single('featuredImage'), async (re
     await blog.save();
     cache.clear();
     logActivity({ action: 'update', section: 'blog', description: `Updated blog: ${blog.title}`, user: req.user });
+
+    // Broadcast only on draft -> published transition (not on edits to already-published posts)
+    if (previousStatus !== 'published' && blog.status === 'published') {
+      broadcastToAllUsers({
+        category: 'alert',
+        type: 'blog.published',
+        title: `New blog: ${blog.title}`,
+        message: blog.shortDescription || 'A new article has been published on Rupalsha. Tap to read.',
+        link: `/blog/${blog.slug}`,
+        meta: { blogId: blog._id, slug: blog.slug, category: blog.category },
+      });
+    }
+
     res.json({ blog });
   } catch (error) {
     next(error);
