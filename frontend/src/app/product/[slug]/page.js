@@ -395,11 +395,11 @@ export default function ProductDetailPage() {
                     aria-label={isVideoPlaying ? 'Pause video' : 'Play video'}
                     className="absolute inset-0 z-20 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-colors group"
                   >
-                    <span className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/90 group-hover:bg-white shadow-xl flex items-center justify-center transition-transform group-hover:scale-110">
+                    <span className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/90 group-hover:bg-white dark:bg-gray-900/90 dark:group-hover:bg-gray-900 shadow-xl flex items-center justify-center transition-transform group-hover:scale-110">
                       {isVideoPlaying ? (
-                        <FiPause className="text-brand-charcoal" size={32} fill="currentColor" />
+                        <FiPause className="text-brand-charcoal dark:text-white" size={32} fill="currentColor" />
                       ) : (
-                        <FiPlay className="text-brand-charcoal ml-1" size={32} fill="currentColor" />
+                        <FiPlay className="text-brand-charcoal dark:text-white ml-1" size={32} fill="currentColor" />
                       )}
                     </span>
                   </button>

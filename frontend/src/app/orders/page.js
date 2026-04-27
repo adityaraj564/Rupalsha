@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { FiPackage, FiChevronRight, FiSearch, FiChevronDown, FiRotateCcw } from 'react-icons/fi';
+import { FiPackage, FiChevronRight, FiSearch, FiChevronDown, FiRotateCcw, FiArrowLeft } from 'react-icons/fi';
 import { ordersAPI, returnsAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { OrdersSkeleton } from '@/components/Skeleton';
@@ -103,7 +103,20 @@ export default function OrdersPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 animate-fade-in">
-      <h1 className="font-serif text-3xl font-bold text-brand-charcoal mb-6">My Orders</h1>
+      <div className="flex items-center gap-3 mb-6">
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.history.length > 1) router.back();
+            else router.push('/profile');
+          }}
+          aria-label="Go back"
+          className="h-10 w-10 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        >
+          <FiArrowLeft size={20} />
+        </button>
+        <h1 className="font-serif text-3xl font-bold text-brand-charcoal dark:text-gray-100">My Orders</h1>
+      </div>
 
       {orders.length === 0 ? (
         <div className="text-center py-20">

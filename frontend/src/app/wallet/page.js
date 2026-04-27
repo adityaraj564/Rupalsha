@@ -107,7 +107,7 @@ export default function WalletPage() {
           email: user?.email || '',
           contact: user?.phone || '',
         },
-        theme: { color: '#1F3A2F' },
+        theme: { color: '#F59E0B' },
       };
 
       const rzp = new window.Razorpay(options);
@@ -125,24 +125,32 @@ export default function WalletPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/profile" className="text-gray-500 hover:text-brand-green">
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.history.length > 1) router.back();
+            else router.push('/profile');
+          }}
+          aria-label="Go back"
+          className="h-10 w-10 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        >
           <FiArrowLeft size={20} />
-        </Link>
+        </button>
         <h1 className="font-serif text-2xl md:text-3xl font-bold text-brand-charcoal dark:text-white">
           Rupalsha Wallet
         </h1>
       </div>
 
       {/* Balance */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-brand-green via-emerald-700 to-green-900 dark:from-yellow-400 dark:via-amber-400 dark:to-yellow-500 text-white dark:text-gray-900 rounded-2xl p-6 mb-6 shadow-lg dark:shadow-amber-900/40">
-        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 dark:bg-gray-900/10 blur-2xl" />
-        <div className="absolute -bottom-12 -left-8 w-32 h-32 rounded-full bg-white/10 dark:bg-gray-900/10 blur-2xl" />
+      <div className="relative overflow-hidden bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-500 dark:from-amber-300 dark:via-yellow-400 dark:to-amber-500 text-amber-950 rounded-2xl p-6 mb-6 shadow-lg shadow-amber-500/20 dark:shadow-amber-900/40">
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/30 blur-2xl" />
+        <div className="absolute -bottom-12 -left-8 w-32 h-32 rounded-full bg-white/20 blur-2xl" />
         <div className="relative">
-          <p className="text-sm text-white/80 dark:text-gray-900/80">Current balance</p>
-          <p className="font-serif text-4xl font-bold mt-1">
+          <p className="text-sm font-medium text-amber-900/80">Current balance</p>
+          <p className="font-sans text-4xl font-semibold tracking-tight mt-1 text-amber-950 tabular-nums">
             {loading ? '—' : `₹${balance.toLocaleString('en-IN')}`}
           </p>
-          <p className="text-xs text-white/70 dark:text-gray-900/70 mt-2">
+          <p className="text-xs text-amber-900/75 mt-2">
             Use your balance at checkout for instant payments.
           </p>
         </div>
@@ -162,8 +170,8 @@ export default function WalletPage() {
                   onClick={() => setRechargeAmount(String(a))}
                   className={`px-4 py-2 border rounded-lg text-sm transition-colors ${
                     active
-                      ? 'border-brand-green bg-brand-green/10 text-brand-green dark:border-yellow-400 dark:bg-yellow-400 dark:text-gray-900'
-                      : 'hover:border-brand-green hover:text-brand-green dark:border-gray-700 dark:hover:border-yellow-400 dark:hover:text-yellow-300'
+                      ? 'border-amber-500 bg-amber-100 text-amber-900 dark:border-amber-400 dark:bg-amber-400 dark:text-amber-950'
+                      : 'hover:border-amber-500 hover:text-amber-700 dark:border-gray-700 dark:hover:border-amber-400 dark:hover:text-amber-300'
                   }`}
                 >
                   ₹{a}
@@ -186,7 +194,7 @@ export default function WalletPage() {
             <button
               type="submit"
               disabled={processing || !rechargeAmount}
-              className="px-5 py-2.5 bg-brand-green text-white rounded-lg text-sm font-medium hover:bg-green-800 disabled:opacity-60 inline-flex items-center gap-2 dark:bg-gradient-to-r dark:from-yellow-400 dark:to-amber-500 dark:text-gray-900 dark:hover:from-yellow-300 dark:hover:to-amber-400 dark:shadow-lg dark:shadow-amber-900/30"
+              className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-amber-950 font-medium rounded-lg text-sm shadow-md shadow-amber-500/20 disabled:opacity-60 inline-flex items-center gap-2"
             >
               <FiPlus size={16} />
               {processing ? 'Processing...' : 'Recharge'}

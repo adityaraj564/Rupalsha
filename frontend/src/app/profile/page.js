@@ -3,9 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiUser, FiPackage, FiHeart, FiMapPin, FiLock, FiLogOut, FiEdit2, FiTrash2, FiCreditCard } from 'react-icons/fi';
+import {
+  FiUser, FiPackage, FiHeart, FiMapPin, FiLock, FiLogOut, FiEdit2, FiTrash2,
+  FiCreditCard, FiMail, FiPhone, FiCalendar, FiShield, FiChevronRight, FiPlus,
+  FiCheckCircle, FiHome, FiSmartphone,
+} from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
-import { authAPI } from '@/lib/api';
+import { authAPI, walletAPI, ordersAPI, wishlistAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
@@ -21,6 +25,7 @@ export default function ProfilePage() {
     fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
   const [fetchingPincode, setFetchingPincode] = useState(false);
+  const [stats, setStats] = useState({ orders: null, wallet: null, wishlist: null });
 
   useEffect(() => {
     if (isLoading) return;
@@ -33,6 +38,21 @@ export default function ProfilePage() {
       updateUser(fresh);
       setProfileForm({ name: fresh.name, phone: fresh.phone || '' });
     }).catch(() => {});
+
+    // Fetch dashboard stats in parallel (silently fail)
+    Promise.allSettled([
+      ordersAPI.getAll({ limit: 1 }),
+      walletAPI.get(),
+      wishlistAPI.get(),
+    ]).then(([oRes, wRes, wlRes]) => {
+      setStats({
+        orders: oRes.status === 'fulfilled' ? (oRes.value?.total ?? oRes.value?.orders?.length ?? 0) : 0,
+        wallet: wRes.status === 'fulfilled' ? (wRes.value?.balance ?? 0) : 0,
+        wishlist: wlRes.status === 'fulfilled'
+          ? (Array.isArray(wlRes.value?.wishlist) ? wlRes.value.wishlist.length : (wlRes.value?.items?.length ?? 0))
+          : 0,
+      });
+    });
   }, [isAuthenticated, isLoading, router]);
 
   if (isLoading || !user) return null;
@@ -54,7 +74,6 @@ export default function ProfilePage() {
       toast.error('Passwords do not match');
       return;
     }
-    // For users without a password (Google-only), allow setting one without currentPassword
     const needsCurrent = !!user?.hasPassword;
     if (needsCurrent && passwordForm.newPassword === passwordForm.currentPassword) {
       toast.error('New password must be different from current password');
@@ -66,7 +85,6 @@ export default function ProfilePage() {
         newPassword: passwordForm.newPassword,
       });
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      // Reflect that the user now has a password locally
       updateUser({ hasPassword: true, authProvider: user?.googleLinked ? 'hybrid' : 'local' });
       toast.success(needsCurrent ? 'Password changed' : 'Password set successfully');
     } catch (err) {
@@ -102,6 +120,7 @@ export default function ProfilePage() {
 
   const handleEditAddress = (addr) => {
     setEditingAddress(addr._id);
+    setAddingAddress(false);
     setAddressForm({
       fullName: addr.fullName || '',
       phone: addr.phone || '',
@@ -148,326 +167,475 @@ export default function ProfilePage() {
   };
 
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: FiUser },
-    { id: 'addresses', label: 'Addresses', icon: FiMapPin },
-    { id: 'password', label: user?.hasPassword ? 'Password' : 'Set Password', icon: FiLock },
+    { id: 'profile', label: 'Personal Info', icon: FiUser, desc: 'Name, email & phone' },
+    { id: 'addresses', label: 'Addresses', icon: FiMapPin, desc: 'Saved delivery addresses' },
+    { id: 'password', label: user?.hasPassword ? 'Password' : 'Set Password', icon: FiLock, desc: 'Security & sign-in' },
   ];
 
-  return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 animate-fade-in">
-      <h1 className="font-serif text-3xl font-bold text-brand-charcoal mb-8">My Account</h1>
+  // Initials for avatar
+  const initials = (user.name || user.email || 'U')
+    .split(' ')
+    .map((s) => s[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 
-      {/* Quick Links */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <Link href="/orders" className="card p-4 text-center hover:shadow-md transition-shadow">
-          <FiPackage className="mx-auto mb-2 text-brand-green dark:text-[#F8F0E8]" size={24} />
-          <span className="text-sm font-medium">My Orders</span>
-        </Link>
-        <Link href="/wallet" className="card p-4 text-center hover:shadow-md transition-shadow relative overflow-hidden dark:bg-gradient-to-br dark:from-yellow-400 dark:via-amber-400 dark:to-yellow-500 dark:border-amber-600/40">
-          <FiCreditCard className="mx-auto mb-2 text-brand-green dark:text-gray-900" size={24} />
-          <span className="text-sm font-medium dark:text-gray-900">Wallet</span>
-        </Link>
-        <Link href="/wishlist" className="card p-4 text-center hover:shadow-md transition-shadow">
-          <FiHeart className="mx-auto mb-2 text-brand-green dark:text-[#F8F0E8]" size={24} />
-          <span className="text-sm font-medium">Wishlist</span>
-        </Link>
-        <button onClick={handleLogout} className="card p-4 text-center hover:shadow-md transition-shadow">
-          <FiLogOut className="mx-auto mb-2 text-red-500" size={24} />
-          <span className="text-sm font-medium text-red-500">Logout</span>
+  // Deterministic colorful gradient (each user gets their own consistent palette)
+  const avatarGradients = [
+    'from-pink-500 via-rose-500 to-orange-400',
+    'from-fuchsia-500 via-purple-500 to-indigo-500',
+    'from-blue-500 via-cyan-500 to-teal-400',
+    'from-emerald-500 via-teal-500 to-cyan-500',
+    'from-amber-500 via-orange-500 to-rose-500',
+    'from-violet-500 via-purple-500 to-pink-500',
+    'from-sky-500 via-blue-500 to-indigo-600',
+    'from-lime-500 via-green-500 to-emerald-600',
+    'from-red-500 via-pink-500 to-fuchsia-500',
+    'from-indigo-500 via-blue-500 to-cyan-500',
+  ];
+  const seed = (user._id || user.email || user.name || 'U').toString();
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  const avatarGradient = avatarGradients[hash % avatarGradients.length];
+
+  const memberSince = user.createdAt
+    ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+    : '';
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 animate-fade-in">
+      {/* ===== Clean Header ===== */}
+      <div className="flex items-center justify-between gap-4 mb-8 md:mb-10">
+        <div className="flex items-center gap-4 min-w-0">
+          {/* Avatar */}
+          <div className="relative flex-shrink-0">
+            <div className={`h-14 w-14 md:h-16 md:w-16 rounded-full bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-lg md:text-xl font-bold text-white shadow-md ring-2 ring-white dark:ring-gray-900`}>
+              {initials}
+            </div>
+            {user?.googleLinked && (
+              <span className="absolute -bottom-0.5 -right-0.5 bg-white dark:bg-gray-900 rounded-full h-5 w-5 flex items-center justify-center ring-2 ring-white dark:ring-gray-900 shadow-sm">
+                <FiCheckCircle size={12} className="text-emerald-500" />
+              </span>
+            )}
+          </div>
+
+          {/* Name + email */}
+          <div className="min-w-0">
+            <h1 className="font-serif text-2xl md:text-3xl font-bold text-brand-charcoal dark:text-gray-100 truncate">
+              {user.name || 'My Account'}
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate mt-0.5">{user.email}</p>
+          </div>
+        </div>
+
+        {/* Sign out */}
+        <button
+          onClick={handleLogout}
+          className="hidden sm:inline-flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+        >
+          <FiLogOut size={16} /> Sign out
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-white dark:bg-gray-800 rounded-xl p-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === tab.id ? 'bg-brand-green text-white' : 'text-gray-500 hover:bg-gray-50'
-            }`}
-          >
-            <tab.icon size={16} />
-            {tab.label}
-          </button>
-        ))}
+      {/* ===== Stat Cards (clean, flat, monochrome accents) ===== */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
+        <StatCard
+          href="/orders"
+          icon={FiPackage}
+          label="Orders"
+          value={stats.orders === null ? '—' : stats.orders}
+        />
+        <StatCard
+          href="/wallet"
+          icon={FiCreditCard}
+          label="Wallet balance"
+          value={stats.wallet === null ? '—' : `₹${Number(stats.wallet).toLocaleString('en-IN')}`}
+          accent
+        />
+        <StatCard
+          href="/wishlist"
+          icon={FiHeart}
+          label="Wishlist"
+          value={stats.wishlist === null ? '—' : stats.wishlist}
+        />
+        <StatCard
+          icon={FiMapPin}
+          label="Addresses"
+          value={user.addresses?.length || 0}
+        />
       </div>
 
-      {/* Profile Tab */}
-      {activeTab === 'profile' && (
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-serif text-xl font-semibold">Personal Information</h2>
-            <button
-              onClick={() => setEditingProfile(!editingProfile)}
-              className="text-brand-green dark:text-[#F8F0E8] text-sm hover:underline flex items-center gap-1"
-            >
-              <FiEdit2 size={14} /> Edit
-            </button>
-          </div>
-
-          {editingProfile ? (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input
-                  type="text"
-                  value={profileForm.name}
-                  onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                <input
-                  type="tel"
-                  value={profileForm.phone}
-                  onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                  className="input-field"
-                  placeholder="9876543210"
-                />
-              </div>
-              <div className="flex gap-3">
-                <button onClick={handleUpdateProfile} className="btn-primary text-sm py-2">Save</button>
-                <button onClick={() => setEditingProfile(false)} className="text-sm text-gray-500">Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div>
-                <span className="text-sm text-gray-500">Name</span>
-                <p className="font-medium">{user.name}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500">Email</span>
-                <p className="font-medium">{user.email}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500">Phone</span>
-                <p className="font-medium">{user.phone || 'Not set'}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500">Member since</span>
-                <p className="font-medium">{new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Addresses Tab */}
-      {activeTab === 'addresses' && (
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-serif text-xl font-semibold">Saved Addresses</h2>
-            {!addingAddress && (
-              <button
-                onClick={() => {
-                  setAddingAddress(true);
-                  setEditingAddress(null);
-                  setAddressForm({ fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '' });
-                }}
-                className="btn-primary text-sm py-2 px-4"
-              >
-                + Add Address
-              </button>
-            )}
-          </div>
-
-          {/* Add New Address Form */}
-          {addingAddress && (
-            <div className="border border-brand-green rounded-xl p-4 mb-4 bg-green-50/30 dark:bg-green-900/20">
-              <h3 className="font-medium text-sm mb-3">New Address</h3>
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input type="text" placeholder="Full Name *" value={addressForm.fullName} onChange={(e) => setAddressForm({ ...addressForm, fullName: e.target.value })} className="input-field" />
-                  <input type="tel" placeholder="Phone *" value={addressForm.phone} onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })} className="input-field" />
-                </div>
-                <input type="text" placeholder="Address Line 1 *" value={addressForm.addressLine1} onChange={(e) => setAddressForm({ ...addressForm, addressLine1: e.target.value })} className="input-field" />
-                <input type="text" placeholder="Address Line 2 (optional)" value={addressForm.addressLine2} onChange={(e) => setAddressForm({ ...addressForm, addressLine2: e.target.value })} className="input-field" />
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <input type="text" placeholder="Pincode *" value={addressForm.pincode} onChange={(e) => handleAddressPincode(e.target.value)} className="input-field" maxLength={6} />
-                  <div className="relative">
-                    <input type="text" placeholder="City *" value={addressForm.city} onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })} className="input-field" />
-                    {fetchingPincode && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">...</span>}
-                  </div>
-                  <input type="text" placeholder="State *" value={addressForm.state} onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })} className="input-field" />
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={handleAddAddress} className="btn-primary text-sm py-2">Save Address</button>
-                  <button onClick={() => setAddingAddress(false)} className="text-sm text-gray-500">Cancel</button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {user.addresses?.length === 0 && !addingAddress ? (
-            <p className="text-gray-500">No addresses saved yet. Click &quot;Add Address&quot; to add one.</p>
-          ) : (
-            <div className="space-y-4">
-              {user.addresses?.map((addr) => (
-                <div key={addr._id} className="border border-gray-200 dark:border-gray-600 rounded-xl p-4">
-                  {editingAddress === addr._id ? (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          type="text"
-                          placeholder="Full Name"
-                          value={addressForm.fullName}
-                          onChange={(e) => setAddressForm({ ...addressForm, fullName: e.target.value })}
-                          className="input-field"
-                        />
-                        <input
-                          type="tel"
-                          placeholder="Phone"
-                          value={addressForm.phone}
-                          onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
-                          className="input-field"
-                        />
-                      </div>
-                      <input
-                        type="text"
-                        placeholder="Address Line 1"
-                        value={addressForm.addressLine1}
-                        onChange={(e) => setAddressForm({ ...addressForm, addressLine1: e.target.value })}
-                        className="input-field"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Address Line 2 (optional)"
-                        value={addressForm.addressLine2}
-                        onChange={(e) => setAddressForm({ ...addressForm, addressLine2: e.target.value })}
-                        className="input-field"
-                      />
-                      <div className="grid grid-cols-3 gap-3">
-                        <input
-                          type="text"
-                          placeholder="Pincode"
-                          value={addressForm.pincode}
-                          onChange={(e) => handleAddressPincode(e.target.value)}
-                          className="input-field"
-                          maxLength={6}
-                        />
-                        <div className="relative">
-                          <input
-                            type="text"
-                            placeholder="City"
-                            value={addressForm.city}
-                            onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                            className="input-field"
-                          />
-                          {fetchingPincode && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">...</span>}
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="State"
-                          value={addressForm.state}
-                          onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
-                          className="input-field"
-                        />
-                      </div>
-                      <div className="flex gap-3">
-                        <button onClick={handleUpdateAddress} className="btn-primary text-sm py-2">Save</button>
-                        <button onClick={() => setEditingAddress(null)} className="text-sm text-gray-500">Cancel</button>
-                      </div>
+      {/* ===== Layout: Sidebar + Content ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Sidebar nav */}
+        <aside className="lg:col-span-4 xl:col-span-3">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-2 lg:sticky lg:top-24">
+            {/* Mobile: horizontal scroll */}
+            <div className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible">
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`group flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all whitespace-nowrap lg:whitespace-normal flex-shrink-0 lg:flex-shrink ${
+                      isActive
+                        ? 'bg-brand-green text-white shadow-md dark:bg-[#F8F0E8] dark:!text-gray-900'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <span className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      isActive
+                        ? 'bg-white/20 text-white dark:bg-gray-900/10 dark:!text-gray-900'
+                        : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-white dark:group-hover:bg-gray-600'
+                    }`}>
+                      <tab.icon size={16} />
+                    </span>
+                    <div className="flex-1 min-w-0 hidden lg:block">
+                      <p className={`text-sm font-semibold leading-tight ${isActive ? 'dark:!text-gray-900' : ''}`}>{tab.label}</p>
+                      <p className={`text-xs mt-0.5 ${isActive ? 'text-white/70 dark:!text-gray-700' : 'text-gray-400 dark:text-gray-500'}`}>
+                        {tab.desc}
+                      </p>
                     </div>
-                  ) : (
-                    <div className="flex justify-between">
-                      <div>
-                        <p className="font-medium">{addr.fullName} {addr.isDefault && <span className="text-xs bg-brand-green text-white px-2 py-0.5 rounded-full ml-2">Default</span>}</p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}<br />
-                          {addr.city}, {addr.state} - {addr.pincode}
-                        </p>
-                        <p className="text-sm text-gray-500 mt-1">{addr.phone}</p>
+                    <span className={`lg:hidden text-sm font-medium ${isActive ? 'dark:!text-gray-900' : ''}`}>{tab.label}</span>
+                    <FiChevronRight className={`hidden lg:block flex-shrink-0 transition-transform ${isActive ? 'translate-x-0.5 dark:!text-gray-900' : 'opacity-0 group-hover:opacity-100'}`} size={16} />
+                  </button>
+                );
+              })}
+            </div>
+
+          </div>
+        </aside>
+
+        {/* Main content */}
+        <main className="lg:col-span-8 xl:col-span-9 space-y-6">
+          {/* ===== Profile Tab ===== */}
+          {activeTab === 'profile' && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in">
+              <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <div>
+                  <h2 className="font-serif text-xl font-semibold text-brand-charcoal dark:text-gray-100">Personal Information</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Manage how your account appears across Rupalsha</p>
+                </div>
+                {!editingProfile && (
+                  <button
+                    onClick={() => setEditingProfile(true)}
+                    className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-green dark:text-[#F8F0E8] hover:bg-brand-green/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    <FiEdit2 size={14} /> Edit
+                  </button>
+                )}
+              </div>
+
+              <div className="p-6">
+                {editingProfile ? (
+                  <div className="space-y-4 max-w-lg">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Full name</label>
+                      <input
+                        type="text"
+                        value={profileForm.name}
+                        onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                        className="input-field"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone</label>
+                      <input
+                        type="tel"
+                        value={profileForm.phone}
+                        onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                        className="input-field"
+                        placeholder="9876543210"
+                      />
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button onClick={handleUpdateProfile} className="btn-primary text-sm py-2.5 px-6">Save changes</button>
+                      <button onClick={() => setEditingProfile(false)} className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-2">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <InfoRow icon={FiUser} label="Full name" value={user.name} />
+                    <InfoRow icon={FiMail} label="Email" value={user.email} />
+                    <InfoRow icon={FiSmartphone} label="Phone" value={user.phone || 'Not set'} muted={!user.phone} />
+                    <InfoRow icon={FiCalendar} label="Member since" value={memberSince} />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ===== Addresses Tab ===== */}
+          {activeTab === 'addresses' && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in">
+              <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <div>
+                  <h2 className="font-serif text-xl font-semibold text-brand-charcoal dark:text-gray-100">Saved Addresses</h2>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Faster checkout with pre-filled delivery details</p>
+                </div>
+                {!addingAddress && (
+                  <button
+                    onClick={() => {
+                      setAddingAddress(true);
+                      setEditingAddress(null);
+                      setAddressForm({ fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '' });
+                    }}
+                    className="inline-flex items-center gap-1.5 bg-brand-green text-white text-sm font-medium px-4 py-2 rounded-full hover:opacity-90 transition-opacity"
+                  >
+                    <FiPlus size={14} /> Add new
+                  </button>
+                )}
+              </div>
+
+              <div className="p-6 space-y-4">
+                {/* Add New Address Form */}
+                {addingAddress && (
+                  <div className="rounded-2xl p-5 bg-gradient-to-br from-brand-green/5 to-brand-gold/5 dark:from-brand-green/10 dark:to-brand-gold/10 border border-brand-green/20 dark:border-brand-green/30">
+                    <h3 className="font-serif text-base font-semibold text-brand-charcoal dark:text-gray-100 mb-4">New address</h3>
+                    <AddressFields form={addressForm} setForm={setAddressForm} fetchingPincode={fetchingPincode} onPincode={handleAddressPincode} />
+                    <div className="flex gap-3 mt-4">
+                      <button onClick={handleAddAddress} className="btn-primary text-sm py-2.5">Save address</button>
+                      <button onClick={() => setAddingAddress(false)} className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-2">Cancel</button>
+                    </div>
+                  </div>
+                )}
+
+                {user.addresses?.length === 0 && !addingAddress ? (
+                  <div className="text-center py-12">
+                    <div className="mx-auto h-16 w-16 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-3">
+                      <FiMapPin size={28} className="text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <p className="font-medium text-brand-charcoal dark:text-gray-100">No addresses yet</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Add a delivery address for faster checkout.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {user.addresses?.map((addr) => (
+                      <div
+                        key={addr._id}
+                        className={`relative rounded-2xl p-5 border transition-all ${
+                          addr.isDefault
+                            ? 'border-brand-green/40 bg-brand-green/5 dark:bg-brand-green/10'
+                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600'
+                        }`}
+                      >
+                        {editingAddress === addr._id ? (
+                          <>
+                            <h3 className="font-serif text-base font-semibold text-brand-charcoal dark:text-gray-100 mb-4">Edit address</h3>
+                            <AddressFields form={addressForm} setForm={setAddressForm} fetchingPincode={fetchingPincode} onPincode={handleAddressPincode} />
+                            <div className="flex gap-3 mt-4">
+                              <button onClick={handleUpdateAddress} className="btn-primary text-sm py-2.5">Save</button>
+                              <button onClick={() => setEditingAddress(null)} className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-2">Cancel</button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 min-w-0">
+                                <div className="h-10 w-10 rounded-xl bg-brand-green/10 dark:bg-brand-green/20 text-brand-green dark:text-[#F8F0E8] flex items-center justify-center flex-shrink-0">
+                                  <FiHome size={16} />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="font-semibold text-brand-charcoal dark:text-gray-100 truncate">{addr.fullName}</p>
+                                    {addr.isDefault && (
+                                      <span className="text-[10px] uppercase tracking-wider font-bold bg-orange-500 text-white dark:bg-orange-400 dark:text-orange-950 px-2 py-0.5 rounded-full shadow-sm">Default</span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1.5 leading-relaxed">
+                                    {addr.addressLine1}{addr.addressLine2 ? `, ${addr.addressLine2}` : ''}<br />
+                                    {addr.city}, {addr.state} - <span className="font-medium">{addr.pincode}</span>
+                                  </p>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 inline-flex items-center gap-1.5">
+                                    <FiPhone size={12} /> {addr.phone}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-1 flex-shrink-0">
+                                <button onClick={() => handleEditAddress(addr)} className="h-8 w-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-brand-green hover:bg-brand-green/10 dark:hover:text-[#F8F0E8] dark:hover:bg-white/5 transition-colors">
+                                  <FiEdit2 size={14} />
+                                </button>
+                                <button onClick={() => handleDeleteAddress(addr._id)} className="h-8 w-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                  <FiTrash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => handleEditAddress(addr)} className="text-gray-400 hover:text-brand-green dark:hover:text-[#F8F0E8]">
-                          <FiEdit2 size={16} />
-                        </button>
-                        <button onClick={() => handleDeleteAddress(addr._id)} className="text-gray-400 hover:text-red-500">
-                          <FiTrash2 size={16} />
-                        </button>
-                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ===== Password Tab ===== */}
+          {activeTab === 'password' && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden animate-fade-in">
+              <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700">
+                <h2 className="font-serif text-xl font-semibold text-brand-charcoal dark:text-gray-100">
+                  {user?.hasPassword ? 'Change Password' : 'Set a Password'}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Use a strong password with at least 6 characters</p>
+              </div>
+
+              <div className="p-6">
+                {user?.googleLinked && (
+                  <div className="mb-5 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-100 dark:border-blue-900/40 text-sm text-gray-700 dark:text-gray-300 flex gap-3">
+                    <FiShield size={18} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                    <p>
+                      {user?.hasPassword
+                        ? 'Your account is linked to Google. You can sign in with Google or with this password.'
+                        : 'You are signed in via Google. Setting a password is optional — useful for devices where Google is unavailable.'}
+                    </p>
+                  </div>
+                )}
+
+                <form onSubmit={handleChangePassword} className="space-y-4 max-w-lg">
+                  {user?.hasPassword && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Current password</label>
+                      <input
+                        type="password"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                        className="input-field"
+                        required
+                      />
                     </div>
                   )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Password Tab */}
-      {activeTab === 'password' && (
-        <div className="card p-6">
-          <h2 className="font-serif text-xl font-semibold mb-4">
-            {user?.hasPassword ? 'Change Password' : 'Set a Password'}
-          </h2>
-
-          {user?.googleLinked && (
-            <div className="mb-4 p-3 rounded-lg bg-brand-cream/60 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300">
-              {user?.hasPassword
-                ? 'Your account is linked to Google. You can sign in with Google or with this password.'
-                : 'You are logged in via Google. Setting a password is optional — you can use it to sign in on devices where Google is unavailable.'}
-            </div>
-          )}
-
-          <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
-            {user?.hasPassword && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-                <input
-                  type="password"
-                  value={passwordForm.currentPassword}
-                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                  className="input-field"
-                  required
-                />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      {user?.hasPassword ? 'New password' : 'Password'}
+                    </label>
+                    <input
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                      className="input-field"
+                      required
+                      minLength={6}
+                    />
+                    {user?.hasPassword && passwordForm.newPassword && passwordForm.currentPassword && passwordForm.newPassword === passwordForm.currentPassword && (
+                      <p className="text-red-500 text-xs mt-1.5">New password must be different from current password</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Confirm password</label>
+                    <input
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                      className="input-field"
+                      required
+                      minLength={6}
+                    />
+                    {passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword && (
+                      <p className="text-red-500 text-xs mt-1.5">Passwords do not match</p>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    className="btn-primary text-sm py-2.5 px-6"
+                    disabled={
+                      !passwordForm.newPassword ||
+                      passwordForm.newPassword !== passwordForm.confirmPassword ||
+                      (user?.hasPassword && (!passwordForm.currentPassword || passwordForm.newPassword === passwordForm.currentPassword))
+                    }
+                  >
+                    {user?.hasPassword ? 'Update password' : 'Set password'}
+                  </button>
+                </form>
               </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {user?.hasPassword ? 'New Password' : 'Password'}
-              </label>
-              <input
-                type="password"
-                value={passwordForm.newPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                className="input-field"
-                required
-                minLength={6}
-              />
-              {user?.hasPassword && passwordForm.newPassword && passwordForm.currentPassword && passwordForm.newPassword === passwordForm.currentPassword && (
-                <p className="text-red-500 text-xs mt-1">New password must be different from current password</p>
-              )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-              <input
-                type="password"
-                value={passwordForm.confirmPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                className="input-field"
-                required
-                minLength={6}
-              />
-              {passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword && (
-                <p className="text-red-500 text-xs mt-1">Passwords do not match</p>
-              )}
-            </div>
-            <button
-              type="submit"
-              className="btn-primary text-sm py-2"
-              disabled={
-                !passwordForm.newPassword ||
-                passwordForm.newPassword !== passwordForm.confirmPassword ||
-                (user?.hasPassword && (!passwordForm.currentPassword || passwordForm.newPassword === passwordForm.currentPassword))
-              }
-            >{user?.hasPassword ? 'Update Password' : 'Set Password'}</button>
-          </form>
+          )}
+        </main>
+      </div>
+
+      {/* Mobile sign-out — pinned to bottom of page */}
+      <div className="sm:hidden mt-8">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white dark:bg-gray-800 border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 font-medium text-sm hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+        >
+          <FiLogOut size={16} /> Sign out
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Helper components ---------------- */
+
+function StatCard({ href, icon: Icon, label, value, accent }) {
+  const inner = (
+    <>
+      <div className="flex items-center justify-between">
+        <span className={`text-xs font-medium tracking-wide ${accent ? 'text-amber-900/80' : 'text-gray-500 dark:text-gray-400'}`}>
+          {label}
+        </span>
+        <Icon size={16} className={accent ? 'text-amber-900/70' : 'text-gray-400 dark:text-gray-500'} />
+      </div>
+      <p className={`mt-3 text-2xl md:text-[26px] font-semibold tracking-tight ${
+        accent ? 'text-amber-950' : 'text-brand-charcoal dark:text-gray-100'
+      }`}>
+        {value}
+      </p>
+    </>
+  );
+
+  const baseClass = `relative rounded-2xl p-4 md:p-5 transition-all ${
+    accent
+      ? 'bg-gradient-to-br from-amber-300 to-amber-400 dark:from-amber-300 dark:to-amber-500 hover:shadow-md'
+      : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/70 hover:border-gray-200 dark:hover:border-gray-600 hover:shadow-sm'
+  }`;
+
+  if (href) {
+    return (
+      <Link href={href} className={`${baseClass} block group`}>
+        {inner}
+      </Link>
+    );
+  }
+  return <div className={baseClass}>{inner}</div>;
+}
+
+function InfoRow({ icon: Icon, label, value, muted }) {
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40">
+      <div className="h-9 w-9 rounded-lg bg-white dark:bg-gray-800 text-brand-green dark:text-[#F8F0E8] flex items-center justify-center flex-shrink-0 shadow-sm">
+        <Icon size={16} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
+        <p className={`font-medium mt-0.5 truncate ${muted ? 'text-gray-400 dark:text-gray-500' : 'text-brand-charcoal dark:text-gray-100'}`}>
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function AddressFields({ form, setForm, fetchingPincode, onPincode }) {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <input type="text" placeholder="Full Name *" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="input-field" />
+        <input type="tel" placeholder="Phone *" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" />
+      </div>
+      <input type="text" placeholder="Address Line 1 *" value={form.addressLine1} onChange={(e) => setForm({ ...form, addressLine1: e.target.value })} className="input-field" />
+      <input type="text" placeholder="Address Line 2 (optional)" value={form.addressLine2} onChange={(e) => setForm({ ...form, addressLine2: e.target.value })} className="input-field" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <input type="text" placeholder="Pincode *" value={form.pincode} onChange={(e) => onPincode(e.target.value)} className="input-field" maxLength={6} />
+        <div className="relative">
+          <input type="text" placeholder="City *" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} className="input-field" />
+          {fetchingPincode && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">…</span>}
         </div>
-      )}
+        <input type="text" placeholder="State *" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} className="input-field" />
+      </div>
     </div>
   );
 }

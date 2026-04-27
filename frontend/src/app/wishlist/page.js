@@ -2,12 +2,14 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
-import { FiHeart, FiTrash2 } from 'react-icons/fi';
+import { useRouter } from 'next/navigation';
+import { FiHeart, FiTrash2, FiArrowLeft } from 'react-icons/fi';
 import { useAuthStore, useWishlistStore } from '@/lib/store';
 import ProductCard from '@/components/ProductCard';
 import { ProductGridSkeleton } from '@/components/Skeleton';
 
 export default function WishlistPage() {
+  const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authLoading = useAuthStore((s) => s.isLoading);
   const { items, fetchWishlist } = useWishlistStore();
@@ -36,9 +38,22 @@ export default function WishlistPage() {
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12 animate-fade-in">
-      <h1 className="font-serif text-3xl font-bold text-brand-charcoal mb-8">
-        My Wishlist ({items.length})
-      </h1>
+      <div className="flex items-center gap-3 mb-8">
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.history.length > 1) router.back();
+            else router.push('/profile');
+          }}
+          aria-label="Go back"
+          className="h-10 w-10 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        >
+          <FiArrowLeft size={20} />
+        </button>
+        <h1 className="font-serif text-3xl font-bold text-brand-charcoal dark:text-gray-100">
+          My Wishlist ({items.length})
+        </h1>
+      </div>
 
       {items.length === 0 ? (
         <div className="text-center py-20">
