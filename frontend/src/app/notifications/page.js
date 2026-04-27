@@ -3,11 +3,26 @@
 /**
  * Notifications page
  * --------------------------------------------------------------------------
- * Full-page list with category tabs (Flipkart-style) and time grouping
- * (Today / Yesterday / Earlier). Mark single, mark all, delete, clear all.
+ * Production-grade tabbed notification list.
+ *
+ * Architecture:
+ *  - Single endpoint (GET /notifications) with category filter.
+ *  - Stale-While-Revalidate caching (delegated to `lib/api.js`).
+ *  - **Normalized store**: a single `byId` map is the source of truth, each
+ *    tab keeps an ordered `ids[]`. Marking one notification read updates
+ *    every view at once — no duplicate, drifting copies across tabs.
+ *  - **Dynamic TTL** per category: orders/wallet/security = 15s, alerts/all
+ *    = 30s, offers = 2m. Critical data refreshes more aggressively.
+ *  - **Prefetch**: after "All" lands, Orders + Wallet are warmed in the
+ *    background so the user's first switch into them is instant.
+ *  - **Surgical cache patching**: optimistic mutations write directly into
+ *    the SWR disk cache for only the affected tabs; unrelated tabs keep
+ *    their warm cache.
+ *  - **AbortController + debounce**: rapid tab scrubbing cancels in-flight
+ *    requests and never queues a burst of network calls.
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -15,7 +30,7 @@ import {
   FiInfo, FiTrash2, FiArrowLeft,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
-import { notificationsAPI, peekCached } from '@/lib/api';
+import { notificationsAPI, peekCached, writeApiCache } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 const TABS = [
@@ -61,66 +76,126 @@ function formatTime(dateStr) {
 }
 
 // Cache key used by the SWR layer in `lib/api.js`. Mirrored here so we can
-// hydrate state synchronously via `peekCached` on mount.
+// hydrate state synchronously via `peekCached` on mount and patch entries
+// surgically on optimistic mutations.
 const cacheKeyFor = (tab) => `notifications:${tab}`;
-const hydrateFromCache = (tab) => {
+
+// Dynamic TTL per category. Critical money/order events refresh fast;
+// promotional offers can sit longer. The SWR layer still revalidates in the
+// background on every visit — these values just control when a cached
+// payload is considered "fresh enough" to skip the background fetch.
+const TTL_BY_CATEGORY = {
+  all:      30 * 1000,
+  order:    15 * 1000,
+  wallet:   15 * 1000,
+  security: 30 * 1000,
+  alert:    30 * 1000,
+  offer:    120 * 1000,
+};
+const ttlFor = (tab) => TTL_BY_CATEGORY[tab] ?? 60 * 1000;
+
+// Tabs that are pre-warmed after the initial "All" load. Picked because they
+// represent the most commonly-checked categories.
+const PREFETCH_TABS = ['order', 'wallet'];
+
+// ---------------------------------------------------------------------------
+// Normalization helpers
+// ---------------------------------------------------------------------------
+// Each tab's cache entry contains: { notifications, counts, page, pages }
+// We project that into our normalized state shape:
+//   { byId: { [_id]: notification }, tabs: { [tab]: { ids, counts, page, pages, loaded } } }
+const normalizeTabFromCache = (tab) => {
   const v = peekCached(cacheKeyFor(tab));
-  if (!v) return null;
-  return {
-    items: v.notifications || [],
-    counts: v.counts || {},
-    page: v.page || 1,
-    pages: v.pages || 1,
-    loaded: true,
-  };
+  if (!v?.notifications) return null;
+  const ids = [];
+  const byId = {};
+  for (const n of v.notifications) {
+    if (!n?._id) continue;
+    ids.push(n._id);
+    byId[n._id] = n;
+  }
+  return { ids, byId, counts: v.counts || {}, page: v.page || 1, pages: v.pages || 1 };
+};
+
+// Build the initial normalized state from any tabs already in the SWR cache.
+const hydrateInitialState = () => {
+  const byId = {};
+  const tabs = {};
+  for (const t of TABS) {
+    const norm = normalizeTabFromCache(t.id);
+    if (!norm) continue;
+    Object.assign(byId, norm.byId);
+    tabs[t.id] = { ids: norm.ids, counts: norm.counts, page: norm.page, pages: norm.pages, loaded: true };
+  }
+  return { byId, tabs };
 };
 
 export default function NotificationsPage() {
   const { isAuthenticated, isLoading } = useAuthStore();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('all');
-  // Per-tab in-memory state. Seeded synchronously from the SWR disk cache so
-  // revisits paint with zero flicker. The SWR layer revalidates in the
-  // background and we patch fresh data in via `onFresh`.
-  const [tabState, setTabState] = useState(() => {
-    const initial = {};
-    for (const t of TABS) {
-      const cached = hydrateFromCache(t.id);
-      if (cached) initial[t.id] = cached;
-    }
-    return initial;
-  });
-  const [loading, setLoading] = useState(() => !hydrateFromCache('all'));
+
+  // Normalized store — single source of truth.
+  const [store, setStore] = useState(hydrateInitialState);
+  const [loading, setLoading] = useState(() => !store.tabs.all?.loaded);
+
   // AbortController per tab — used to cancel an in-flight request if the user
   // switches tabs again before it completes.
   const abortRef = useRef({});
   // Debounce rapid tab switching so we don't fire a request on every flick.
   const debounceRef = useRef(null);
+  // Track which tabs we've already kicked off a prefetch for in this session
+  // so we don't repeat the work on every render.
+  const prefetchedRef = useRef(new Set());
 
-  const current = tabState[activeTab] || { items: [], counts: {}, page: 1, pages: 1, loaded: false };
-  const items = current.items;
-  const counts = current.counts;
-  const page = current.page;
-  const pages = current.pages;
+  // Derive the rendered list for the active tab.
+  const current = store.tabs[activeTab];
+  const items = useMemo(() => {
+    if (!current) return [];
+    const out = [];
+    for (const id of current.ids) {
+      const n = store.byId[id];
+      if (n) out.push(n);
+    }
+    return out;
+  }, [current, store.byId]);
+  const counts = current?.counts || {};
+  const pageNum = current?.page || 1;
+  const pages = current?.pages || 1;
 
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated) router.push('/auth/login');
   }, [isAuthenticated, isLoading, router]);
 
-  // Apply a server response payload to the per-tab cache.
+  // Merge a server response into the normalized store for a given tab.
   const applyResponse = useCallback((tab, res, append = false) => {
-    const next = res?.notifications || [];
-    setTabState((s) => {
-      const prev = s[tab] || { items: [] };
+    const list = res?.notifications || [];
+    setStore((prev) => {
+      const byId = { ...prev.byId };
+      for (const n of list) {
+        if (!n?._id) continue;
+        // Server is authoritative for fields it returns; preserve any local
+        // optimistic state that it doesn't (none today, but future-proof).
+        byId[n._id] = { ...byId[n._id], ...n };
+      }
+      const newIds = list.map((n) => n._id).filter(Boolean);
+      const prevTab = prev.tabs[tab] || { ids: [] };
+      const ids = append
+        // De-dup when paginating.
+        ? Array.from(new Set([...prevTab.ids, ...newIds]))
+        : newIds;
       return {
-        ...s,
-        [tab]: {
-          items: append ? [...prev.items, ...next] : next,
-          counts: res?.counts || {},
-          page: res?.page || 1,
-          pages: res?.pages || 1,
-          loaded: true,
+        byId,
+        tabs: {
+          ...prev.tabs,
+          [tab]: {
+            ids,
+            counts: res?.counts || prevTab.counts || {},
+            page: res?.page || 1,
+            pages: res?.pages || 1,
+            loaded: true,
+          },
         },
       };
     });
@@ -135,10 +210,10 @@ export default function NotificationsPage() {
    *
    * We additionally:
    *  - Cancel any in-flight request for this tab via `AbortController`.
+   *  - Use a category-aware TTL so critical data refreshes faster.
    *  - Skip showing the skeleton when we already have something to render.
    */
-  const load = useCallback(async (tab, pg = 1, append = false) => {
-    // Cancel any prior request for this tab.
+  const load = useCallback(async (tab, pg = 1, append = false, { silent = false } = {}) => {
     abortRef.current[tab]?.abort();
     const ctrl = new AbortController();
     abortRef.current[tab] = ctrl;
@@ -149,7 +224,7 @@ export default function NotificationsPage() {
     try {
       const res = await notificationsAPI.list(params, {
         signal: ctrl.signal,
-        // Background revalidation: only patch when payload actually changed.
+        ttl: ttlFor(tab),
         onFresh: (fresh) => {
           if (ctrl.signal.aborted) return;
           applyResponse(tab, fresh, false);
@@ -158,11 +233,11 @@ export default function NotificationsPage() {
       if (ctrl.signal.aborted) return;
       applyResponse(tab, res, append);
     } catch (err) {
-      if (err?.name === 'AbortError') return; // expected on tab switch
+      if (err?.name === 'AbortError') return;
       // Silent: keep whatever was last rendered.
     } finally {
       if (abortRef.current[tab] === ctrl) abortRef.current[tab] = null;
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [applyResponse]);
 
@@ -170,7 +245,7 @@ export default function NotificationsPage() {
   // queue up a burst of network calls.
   useEffect(() => {
     if (!isAuthenticated) return;
-    const hasCached = !!tabState[activeTab]?.loaded;
+    const hasCached = !!store.tabs[activeTab]?.loaded;
     if (!hasCached) setLoading(true);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
@@ -180,73 +255,185 @@ export default function NotificationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, isAuthenticated, load]);
 
+  // Prefetch high-value tabs once "All" is loaded so the user's first switch
+  // into them is instant. Uses requestIdleCallback to stay out of the way.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (!store.tabs.all?.loaded) return;
+    const idle = (cb) => {
+      if (typeof window !== 'undefined' && window.requestIdleCallback) {
+        return window.requestIdleCallback(cb, { timeout: 1500 });
+      }
+      return setTimeout(cb, 300);
+    };
+    const handles = [];
+    for (const tab of PREFETCH_TABS) {
+      if (prefetchedRef.current.has(tab)) continue;
+      if (store.tabs[tab]?.loaded) { prefetchedRef.current.add(tab); continue; }
+      prefetchedRef.current.add(tab);
+      handles.push(idle(() => load(tab, 1, false, { silent: true })));
+    }
+    return () => {
+      handles.forEach((h) => {
+        if (typeof window !== 'undefined' && window.cancelIdleCallback) {
+          try { window.cancelIdleCallback(h); } catch {}
+        } else {
+          clearTimeout(h);
+        }
+      });
+    };
+  }, [isAuthenticated, store.tabs.all?.loaded, load]);
+
   // Cancel any pending request when the page unmounts.
   useEffect(() => () => {
     Object.values(abortRef.current).forEach((c) => c?.abort?.());
   }, []);
 
-  // Apply a mutation to every cached tab so counts/items stay consistent
-  // without needing to refetch each tab when the user switches.
-  const updateAllTabs = (mutator) => {
-    setTabState((s) => {
-      const out = {};
-      for (const k of Object.keys(s)) out[k] = mutator(s[k], k);
-      return out;
-    });
-  };
+  // -------------------------------------------------------------------------
+  // Surgical cache patching for optimistic mutations.
+  // -------------------------------------------------------------------------
+  // Updates only the affected tabs' on-disk SWR cache so a hard reload sees
+  // the same state as the in-memory store. Other tabs keep their warm cache.
+  const patchSwrCache = useCallback((tab, mutator) => {
+    const v = peekCached(cacheKeyFor(tab));
+    if (!v) return;
+    const next = mutator(v);
+    if (!next) return;
+    writeApiCache(cacheKeyFor(tab), next, ttlFor(tab));
+  }, []);
+
+  // The set of tabs a notification appears in: always 'all' + its category.
+  const tabsForNotification = (n) => (n?.category ? ['all', n.category] : ['all']);
 
   const handleItemClick = async (n) => {
     if (!n.read) {
-      try { await notificationsAPI.markRead(n._id); } catch {}
-      updateAllTabs((tab) => ({
-        ...tab,
-        items: tab.items.map((x) => (x._id === n._id ? { ...x, read: true } : x)),
-        counts: { ...tab.counts, unread: Math.max(0, (tab.counts?.unread || 1) - 1) },
+      // Optimistic: flip read=true everywhere instantly.
+      setStore((prev) => ({
+        byId: { ...prev.byId, [n._id]: { ...prev.byId[n._id], ...n, read: true } },
+        tabs: Object.fromEntries(
+          Object.entries(prev.tabs).map(([k, t]) => [
+            k,
+            t.ids.includes(n._id)
+              ? { ...t, counts: { ...t.counts, unread: Math.max(0, (t.counts?.unread || 1) - 1) } }
+              : t,
+          ])
+        ),
       }));
+      // Patch on-disk caches for the two affected tabs.
+      for (const tab of tabsForNotification(n)) {
+        patchSwrCache(tab, (v) => ({
+          ...v,
+          notifications: (v.notifications || []).map((x) => (x._id === n._id ? { ...x, read: true } : x)),
+          counts: { ...(v.counts || {}), unread: Math.max(0, (v.counts?.unread || 1) - 1) },
+        }));
+      }
+      try { await notificationsAPI.markRead(n._id); } catch { /* server will reconcile on next revalidate */ }
     }
     if (n.link) router.push(n.link);
   };
 
   const handleMarkAllRead = async () => {
-    try {
-      await notificationsAPI.markAllRead(activeTab === 'all' ? undefined : activeTab);
-      const cat = activeTab === 'all' ? null : activeTab;
-      updateAllTabs((tab, key) => {
-        // If marking all in a category, only flip items that match.
-        const items = tab.items.map((x) =>
+    const cat = activeTab === 'all' ? null : activeTab;
+    // Optimistic: flip read=true on all matching items in byId; counts update per-tab.
+    setStore((prev) => {
+      const byId = { ...prev.byId };
+      for (const id of Object.keys(byId)) {
+        const n = byId[id];
+        if (!cat || n?.category === cat) byId[id] = { ...n, read: true };
+      }
+      const tabs = {};
+      for (const [k, t] of Object.entries(prev.tabs)) {
+        // Recompute unread for this tab against the new byId.
+        let unread = 0;
+        for (const id of t.ids) if (byId[id] && !byId[id].read) unread += 1;
+        tabs[k] = { ...t, counts: { ...t.counts, unread } };
+      }
+      return { byId, tabs };
+    });
+    // Patch SWR caches.
+    for (const t of TABS) {
+      patchSwrCache(t.id, (v) => ({
+        ...v,
+        notifications: (v.notifications || []).map((x) =>
           (!cat || x.category === cat) ? { ...x, read: true } : x
-        );
-        return { ...tab, items, counts: { ...tab.counts, unread: cat ? tab.counts?.unread : 0 } };
-      });
+        ),
+        counts: {
+          ...(v.counts || {}),
+          unread: cat
+            ? (v.notifications || []).filter((x) => !x.read && x.category !== cat).length
+            : 0,
+        },
+      }));
+    }
+    try {
+      await notificationsAPI.markAllRead(cat || undefined);
       toast.success('All marked as read');
-    } catch (e) {
+    } catch {
       toast.error('Failed');
     }
   };
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
-    try {
-      await notificationsAPI.remove(id);
-      updateAllTabs((tab) => ({ ...tab, items: tab.items.filter((x) => x._id !== id) }));
-    } catch {
-      toast.error('Failed to delete');
+    const target = store.byId[id];
+    // Optimistic remove from byId + every tab's ids.
+    setStore((prev) => {
+      const { [id]: removed, ...byId } = prev.byId;
+      const tabs = {};
+      for (const [k, t] of Object.entries(prev.tabs)) {
+        if (!t.ids.includes(id)) { tabs[k] = t; continue; }
+        const ids = t.ids.filter((x) => x !== id);
+        const wasUnread = removed && !removed.read;
+        tabs[k] = {
+          ...t,
+          ids,
+          counts: {
+            ...t.counts,
+            unread: wasUnread ? Math.max(0, (t.counts?.unread || 1) - 1) : t.counts?.unread,
+          },
+        };
+      }
+      return { byId, tabs };
+    });
+    for (const tab of tabsForNotification(target)) {
+      patchSwrCache(tab, (v) => ({
+        ...v,
+        notifications: (v.notifications || []).filter((x) => x._id !== id),
+      }));
     }
+    try { await notificationsAPI.remove(id); }
+    catch { toast.error('Failed to delete'); }
   };
 
   const handleClearAll = async () => {
     if (!confirm('Clear all notifications in this view?')) return;
-    try {
-      await notificationsAPI.clearAll(activeTab === 'all' ? undefined : activeTab);
-      const cat = activeTab === 'all' ? null : activeTab;
-      updateAllTabs((tab) => ({
-        ...tab,
-        items: cat ? tab.items.filter((x) => x.category !== cat) : [],
+    const cat = activeTab === 'all' ? null : activeTab;
+    // Optimistic.
+    setStore((prev) => {
+      const byId = { ...prev.byId };
+      const tabs = {};
+      // Determine ids being deleted.
+      const removedIds = new Set();
+      for (const id of Object.keys(byId)) {
+        if (!cat || byId[id]?.category === cat) removedIds.add(id);
+      }
+      for (const id of removedIds) delete byId[id];
+      for (const [k, t] of Object.entries(prev.tabs)) {
+        const ids = t.ids.filter((x) => !removedIds.has(x));
+        tabs[k] = { ...t, ids };
+      }
+      return { byId, tabs };
+    });
+    for (const t of TABS) {
+      patchSwrCache(t.id, (v) => ({
+        ...v,
+        notifications: (v.notifications || []).filter((x) => !(!cat || x.category === cat)),
       }));
-      toast.success('Cleared');
-    } catch {
-      toast.error('Failed');
     }
+    try {
+      await notificationsAPI.clearAll(cat || undefined);
+      toast.success('Cleared');
+    } catch { toast.error('Failed'); }
   };
 
   const groups = groupByDay(items);
@@ -410,10 +597,10 @@ export default function NotificationsPage() {
               );
             })}
 
-            {page < pages && (
+            {pageNum < pages && (
               <div className="text-center mt-4">
                 <button
-                  onClick={() => load(activeTab, page + 1, true)}
+                  onClick={() => load(activeTab, pageNum + 1, true)}
                   className="text-sm font-medium text-brand-green dark:text-emerald-300 hover:bg-brand-green/10 dark:hover:bg-emerald-300/10 px-4 py-2 rounded-full transition-colors"
                   disabled={loading}
                 >

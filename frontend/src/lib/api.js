@@ -115,6 +115,24 @@ export const peekCached = (key) => {
   return entry ? entry.value : null;
 };
 
+/**
+ * Surgically write a value into the SWR cache. Used by callers that perform
+ * optimistic mutations — they patch the relevant cache entry directly so
+ * other tabs/views see consistent data without a full refetch.
+ *
+ *   writeApiCache('notifications:order', updatedRes, 15 * 1000);
+ *
+ * Pass `null` as the value to remove the entry.
+ */
+export const writeApiCache = (key, value, ttl = CACHE_TTL.short) => {
+  if (value === null) {
+    responseCache.delete(key);
+    removeFromStorage(key);
+    return;
+  }
+  setCache(key, value, ttl);
+};
+
 export const clearApiCache = (prefix) => {
   if (!prefix) {
     responseCache.clear();
@@ -556,8 +574,10 @@ export const notificationsAPI = {
    *   revalidation, `onFresh(value)` fires only when the new payload differs.
    * - Pagination (`page > 1`) bypasses cache so "Load more" always fetches.
    * - `signal` lets the caller cancel in-flight requests when switching tabs.
+   * - `ttl` lets the caller use a category-aware freshness window
+   *   (e.g. 15s for orders, 2m for offers). Defaults to `CACHE_TTL.short`.
    */
-  list: (params = {}, { onFresh, signal } = {}) => {
+  list: (params = {}, { onFresh, signal, ttl } = {}) => {
     const query = new URLSearchParams(
       Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== '' && v !== null))
     ).toString();
@@ -568,23 +588,20 @@ export const notificationsAPI = {
     return swr(
       `notifications:${cat}`,
       () => request(url, { signal }),
-      CACHE_TTL.short, // 60s — orders/wallet are time-sensitive
+      ttl ?? CACHE_TTL.short,
       { alwaysRevalidate: true, onFresh }
     );
   },
   unreadCount: () => request('/notifications/unread-count'),
-  markRead: (id) =>
-    request(`/notifications/${id}/read`, { method: 'PATCH' })
-      .then((r) => { clearApiCache('notifications:'); return r; }),
+  // NOTE: mutations no longer clear the SWR cache. The page performs
+  // surgical, per-tab optimistic patches via `writeApiCache` so unrelated
+  // tabs keep their warm cache.
+  markRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
   markAllRead: (category) =>
-    request('/notifications/mark-all-read', { method: 'PATCH', body: category ? { category } : {} })
-      .then((r) => { clearApiCache('notifications:'); return r; }),
-  remove: (id) =>
-    request(`/notifications/${id}`, { method: 'DELETE' })
-      .then((r) => { clearApiCache('notifications:'); return r; }),
+    request('/notifications/mark-all-read', { method: 'PATCH', body: category ? { category } : {} }),
+  remove: (id) => request(`/notifications/${id}`, { method: 'DELETE' }),
   clearAll: (category) =>
-    request(`/notifications${category ? `?category=${encodeURIComponent(category)}` : ''}`, { method: 'DELETE' })
-      .then((r) => { clearApiCache('notifications:'); return r; }),
+    request(`/notifications${category ? `?category=${encodeURIComponent(category)}` : ''}`, { method: 'DELETE' }),
   // Admin
   broadcast: (data) => request('/notifications/broadcast', { method: 'POST', body: data }),
   sendToUser: (data) => request('/notifications', { method: 'POST', body: data }),
