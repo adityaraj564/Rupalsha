@@ -70,14 +70,175 @@ const productMedia = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB per file
 });
 
+// =====================================================================
+// BANNER UPLOAD PIPELINE (optimized for hero banners on the home page)
+// =====================================================================
+// Strategy:
+//  - multer-storage-cloudinary streams the file straight to Cloudinary
+//    (no double upload, no temp disk, stateless / horizontally scalable).
+//  - Eager transformation 1920x600 with c_fill + g_auto produces a
+//    correctly-cropped banner regardless of the source aspect ratio.
+//  - format webp + q_auto:good keeps banners visually sharp while
+//    typically delivering files in the 80-250 KB range.
+//  - Strict mime + extension whitelist + 5 MB cap defends against
+//    malicious or oversized uploads.
+const IMAGE_ALLOWED_MIME = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+]);
+const IMAGE_ALLOWED_EXT = /\.(jpe?g|png|webp)$/i;
+
+// Shared strict image filter used by every optimized pipeline below.
+// Defense-in-depth: validates BOTH mimetype AND original extension to
+// frustrate spoofed-MIME uploads.
+function makeStrictImageFilter() {
+  return (req, file, cb) => {
+    const mt = (file.mimetype || '').toLowerCase();
+    const name = file.originalname || '';
+    if (!IMAGE_ALLOWED_MIME.has(mt) || !IMAGE_ALLOWED_EXT.test(name)) {
+      const err = new Error(
+        'Invalid image type. Allowed formats: JPG, JPEG, PNG, WEBP.',
+      );
+      err.code = 'INVALID_FILE_TYPE';
+      err.status = 400;
+      return cb(err);
+    }
+    cb(null, true);
+  };
+}
+
+/**
+ * Build a hardened image uploader.
+ *
+ * @param {Object} cfg
+ * @param {string} cfg.folder       Cloudinary folder (e.g. 'rupalsha/blogs')
+ * @param {Array}  cfg.transformation Cloudinary transform array
+ * @param {number} [cfg.maxSize=5MB]  Hard size cap in bytes
+ * @returns {import('multer').Multer}
+ */
+function buildOptimizedImageUploader({ folder, transformation, maxSize = 5 * 1024 * 1024 }) {
+  const storage = new CloudinaryStorage({
+    cloudinary,
+    params: {
+      folder,
+      resource_type: 'image',
+      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+      format: 'webp', // always store as WebP for best size/quality
+      transformation,
+    },
+  });
+  return multer({
+    storage,
+    fileFilter: makeStrictImageFilter(),
+    limits: { fileSize: maxSize },
+  });
+}
+
+const bannersOptimized = buildOptimizedImageUploader({
+  folder: 'rupalsha/banners',
+  transformation: [
+    {
+      width: 1920,
+      height: 600,
+      crop: 'fill',
+      gravity: 'auto', // smart subject-aware cropping
+      quality: 'auto:good',
+      fetch_format: 'auto',
+    },
+  ],
+});
+
+// Categories: 3:4 portrait card on home (600x800 fill, smart crop)
+const categoriesOptimized = buildOptimizedImageUploader({
+  folder: 'rupalsha/categories',
+  transformation: [
+    {
+      width: 600,
+      height: 800,
+      crop: 'fill',
+      gravity: 'auto',
+      quality: 'auto:good',
+      fetch_format: 'auto',
+    },
+  ],
+});
+
+// Blogs: 16:9 cover (rendered with aspect-video on the frontend)
+const blogsOptimized = buildOptimizedImageUploader({
+  folder: 'rupalsha/blogs',
+  transformation: [
+    {
+      width: 1600,
+      height: 900,
+      crop: 'fill',
+      gravity: 'auto',
+      quality: 'auto:good',
+      fetch_format: 'auto',
+    },
+  ],
+});
+
+// About: cover hero (wide), team avatars (face-aware square)
+const aboutCoverOptimized = buildOptimizedImageUploader({
+  folder: 'rupalsha/about/covers',
+  transformation: [
+    {
+      width: 1920,
+      height: 800,
+      crop: 'fill',
+      gravity: 'auto',
+      quality: 'auto:good',
+      fetch_format: 'auto',
+    },
+  ],
+});
+
+const aboutTeamOptimized = buildOptimizedImageUploader({
+  folder: 'rupalsha/about/team',
+  transformation: [
+    {
+      width: 512,
+      height: 512,
+      crop: 'fill',
+      gravity: 'face', // keep faces centered
+      quality: 'auto:good',
+      fetch_format: 'auto',
+    },
+  ],
+  maxSize: 3 * 1024 * 1024,
+});
+
+// Reviews: user-uploaded photos. Don't crop (keep full subject) but cap
+// the longest edge so we don't store needlessly huge originals.
+const reviewsOptimized = buildOptimizedImageUploader({
+  folder: 'rupalsha/reviews',
+  transformation: [
+    {
+      width: 1600,
+      height: 1600,
+      crop: 'limit',
+      quality: 'auto:good',
+      fetch_format: 'auto',
+    },
+  ],
+});
+
 module.exports = {
   create: createUploader,
   products: createUploader('products'),
   productMedia, // images + videos with smart compression
   categories: createUploader('categories'),
+  categoriesOptimized,
   banners: createUploader('banners'),
+  bannersOptimized,
   blogs: createUploader('blogs'),
+  blogsOptimized,
   about: createUploader('about'),
+  aboutCoverOptimized,
+  aboutTeamOptimized,
   reviews: createUploader('reviews'),
+  reviewsOptimized,
   misc: createUploader('misc'),
 };

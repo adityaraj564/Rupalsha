@@ -3,7 +3,8 @@ const { body } = require('express-validator');
 const Review = require('../models/Review');
 const Order = require('../models/Order');
 const { auth } = require('../middleware/auth');
-const upload = require('../utils/upload').reviews;
+const upload = require('../utils/upload').reviewsOptimized;
+const { uploadErrorHandler, runUpload } = require('../utils/uploadError');
 
 const router = express.Router();
 
@@ -31,7 +32,7 @@ router.get('/product/:productId', async (req, res, next) => {
 });
 
 // POST /api/reviews
-router.post('/', auth, upload.array('images', 4), [
+router.post('/', auth, runUpload(upload.array('images', 4)), [
   body('productId').notEmpty(),
   body('rating').isInt({ min: 1, max: 5 }),
   body('comment').trim().notEmpty().isLength({ max: 2000 }),
@@ -66,5 +67,7 @@ router.post('/', auth, upload.array('images', 4), [
     next(error);
   }
 });
+
+router.use(uploadErrorHandler('reviews'));
 
 module.exports = router;

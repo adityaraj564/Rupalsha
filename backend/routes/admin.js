@@ -12,12 +12,13 @@ const Banner = require('../models/Banner');
 const ActivityLog = require('../models/ActivityLog');
 const uploaders = require('../utils/upload');
 const uploadProducts = uploaders.products;
-const uploadCategories = uploaders.categories;
-const uploadBanners = uploaders.banners;
+const uploadCategories = uploaders.categoriesOptimized;
+const uploadBanners = uploaders.bannersOptimized;
 const cloudinary = require('../config/cloudinary');
 const { sendOrderStatusUpdate } = require('../utils/email');
 const { createNotification } = require('../utils/notification');
 const cache = require('../utils/cache');
+const { uploadErrorHandler, runUpload } = require('../utils/uploadError');
 
 const router = express.Router();
 
@@ -708,7 +709,7 @@ router.post('/categories', [
 });
 
 // PUT /api/admin/categories/:id
-router.put('/categories/:id', uploadCategories.single('image'), async (req, res, next) => {
+router.put('/categories/:id', runUpload(uploadCategories.single('image')), async (req, res, next) => {
   try {
     const category = await Category.findById(req.params.id);
     if (!category) return res.status(404).json({ error: 'Category not found' });
@@ -717,17 +718,14 @@ router.put('/categories/:id', uploadCategories.single('image'), async (req, res,
     if (req.body.isActive !== undefined) category.isActive = req.body.isActive;
     if (req.body.sortOrder !== undefined) category.sortOrder = req.body.sortOrder;
 
-    // Handle image upload
+    // Handle image upload — file already uploaded directly to Cloudinary
+    // by multer-storage-cloudinary; req.file.path is the secure_url and
+    // req.file.filename is the public_id. No second upload needed.
     if (req.file) {
-      // Remove old image from Cloudinary if exists
       if (category.image?.public_id) {
         await cloudinary.uploader.destroy(category.image.public_id);
       }
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: 'rupalsha/categories',
-        transformation: [{ width: 600, height: 800, crop: 'fill', quality: 'auto:good', fetch_format: 'auto' }],
-      });
-      category.image = { url: result.secure_url, public_id: result.public_id };
+      category.image = { url: req.file.path, public_id: req.file.filename };
     }
 
     await category.save();
@@ -766,20 +764,17 @@ router.get('/banners', async (req, res, next) => {
 });
 
 // POST /api/admin/banners
-router.post('/banners', uploadBanners.single('image'), async (req, res, next) => {
+router.post('/banners', runUpload(uploadBanners.single('image')), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Image is required' });
 
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'rupalsha/banners',
-      transformation: [{ width: 1920, quality: 'auto:good', fetch_format: 'auto' }],
-    });
-
+    // multer-storage-cloudinary already uploaded with eager 1920x600 WebP
+    // transform. Reuse its result directly.
     const count = await Banner.countDocuments();
     const banner = await Banner.create({
-      image: { url: result.secure_url, public_id: result.public_id },
-      title: req.body.title || '',
-      link: req.body.link || '',
+      image: { url: req.file.path, public_id: req.file.filename },
+      title: String(req.body.title || '').trim().slice(0, 200),
+      link: String(req.body.link || '').trim().slice(0, 500),
       order: count,
     });
 
@@ -861,5 +856,9 @@ router.get('/order-metrics', adminAuth, (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json(orderMetrics.snapshot());
 });
+
+// Centralized upload error handler — converts multer / Cloudinary failures
+// into structured 4xx responses instead of leaking 500s.
+router.use(uploadErrorHandler('admin'));
 
 module.exports = router;

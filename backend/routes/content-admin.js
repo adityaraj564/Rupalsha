@@ -1,11 +1,13 @@
 const express = require('express');
 const Banner = require('../models/Banner');
 const { subAdminAuth } = require('../middleware/auth');
-const upload = require('../utils/upload').banners;
-const uploadMisc = require('../utils/upload').misc;
+const uploaders = require('../utils/upload');
+const uploadBanner = uploaders.bannersOptimized;
+const uploadMisc = uploaders.misc;
 const cloudinary = require('../config/cloudinary');
 const cache = require('../utils/cache');
 const { logActivity } = require('../utils/activityLog');
+const { uploadErrorHandler, runUpload } = require('../utils/uploadError');
 
 const router = express.Router();
 
@@ -15,15 +17,11 @@ router.use(subAdminAuth);
 // POST /api/content-admin/upload-image
 // Generic image uploader for content sections (special-offer banner, hero, etc.)
 // Returns { url, public_id }. Use the returned url in the relevant content field.
-router.post('/upload-image', uploadMisc.single('image'), async (req, res, next) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'Image is required' });
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'rupalsha/content',
-      transformation: [{ width: 1920, quality: 'auto:good', fetch_format: 'auto' }],
-    });
-    res.json({ url: result.secure_url, public_id: result.public_id });
-  } catch (err) { next(err); }
+router.post('/upload-image', runUpload(uploadMisc.single('image')), (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, error: 'Image is required' });
+  // multer-storage-cloudinary has already streamed the file to Cloudinary.
+  // req.file.path = secure_url, req.file.filename = public_id.
+  res.json({ success: true, url: req.file.path, public_id: req.file.filename });
 });
 
 // GET /api/content-admin/banners
@@ -35,26 +33,43 @@ router.get('/banners', async (req, res, next) => {
 });
 
 // POST /api/content-admin/banners
-router.post('/banners', upload.single('image'), async (req, res, next) => {
+// Robust banner upload pipeline:
+//  - Strict mime + extension validation (JPG/PNG/WEBP only)
+//  - 5MB hard cap (multer)
+//  - Eager Cloudinary transform to 1920x600 WebP (smart crop, q_auto)
+//  - Single direct-to-Cloudinary upload (no double upload, stateless)
+router.post('/banners', runUpload(uploadBanner.single('image')), async (req, res, next) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'Image is required' });
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Image is required' });
+    }
 
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'rupalsha/banners',
-      transformation: [{ width: 1920, quality: 'auto:good', fetch_format: 'auto' }],
-    });
+    // Sanitize text fields (trim + length cap, drop anything weird).
+    const title = String(req.body.title || '').trim().slice(0, 200);
+    const link = String(req.body.link || '').trim().slice(0, 500);
 
     const count = await Banner.countDocuments();
     const banner = await Banner.create({
-      image: { url: result.secure_url, public_id: result.public_id },
-      title: req.body.title || '',
-      link: req.body.link || '',
+      image: { url: req.file.path, public_id: req.file.filename },
+      title,
+      link,
       order: count,
     });
 
     cache.clear('banners');
-    logActivity({ action: 'create', section: 'banner', description: `Created banner: ${banner.title || 'Untitled'}`, user: req.user });
-    res.status(201).json(banner);
+    logActivity({
+      action: 'create',
+      section: 'banner',
+      description: `Created banner: ${banner.title || 'Untitled'}`,
+      user: req.user,
+    });
+
+    res.status(201).json({
+      success: true,
+      imageUrl: req.file.path,
+      publicId: req.file.filename,
+      banner,
+    });
   } catch (err) { next(err); }
 });
 
@@ -97,5 +112,11 @@ router.delete('/banners/:id', async (req, res, next) => {
     res.json({ success: true });
   } catch (err) { next(err); }
 });
+
+// =====================================================================
+// Centralized upload error handler (multer + Cloudinary).
+// Converts known upload failures into structured 4xx responses.
+// =====================================================================
+router.use(uploadErrorHandler('content-admin'));
 
 module.exports = router;

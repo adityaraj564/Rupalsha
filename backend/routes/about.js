@@ -1,9 +1,12 @@
 const express = require('express');
 const About = require('../models/About');
 const { subAdminAuth } = require('../middleware/auth');
-const upload = require('../utils/upload').about;
+const uploaders = require('../utils/upload');
+const uploadCover = uploaders.aboutCoverOptimized;
+const uploadTeam = uploaders.aboutTeamOptimized;
 const cloudinary = require('../config/cloudinary');
 const { logActivity } = require('../utils/activityLog');
+const { uploadErrorHandler, runUpload } = require('../utils/uploadError');
 
 const router = express.Router();
 
@@ -56,8 +59,9 @@ router.put('/', subAdminAuth, async (req, res, next) => {
 });
 
 // PUT /api/about/cover - Admin: upload cover image
-router.put('/cover', subAdminAuth, upload.single('image'), async (req, res, next) => {
+router.put('/cover', subAdminAuth, runUpload(uploadCover.single('image')), async (req, res, next) => {
   try {
+    if (!req.file) return res.status(400).json({ error: 'Image is required' });
     let about = await About.findOne();
     if (!about) about = new About();
 
@@ -104,8 +108,9 @@ router.put('/team/:index', subAdminAuth, async (req, res, next) => {
 });
 
 // PUT /api/about/team/:index/image - Admin: upload team member image
-router.put('/team/:index/image', subAdminAuth, upload.single('image'), async (req, res, next) => {
+router.put('/team/:index/image', subAdminAuth, runUpload(uploadTeam.single('image')), async (req, res, next) => {
   try {
+    if (!req.file) return res.status(400).json({ error: 'Image is required' });
     const index = Number(req.params.index);
     let about = await About.findOne();
     if (!about) return res.status(404).json({ error: 'About not found' });
@@ -172,5 +177,7 @@ router.delete('/team/:index', subAdminAuth, async (req, res, next) => {
     next(error);
   }
 });
+
+router.use(uploadErrorHandler('about'));
 
 module.exports = router;

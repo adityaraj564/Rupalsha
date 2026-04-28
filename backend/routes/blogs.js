@@ -2,11 +2,12 @@ const express = require('express');
 const Blog = require('../models/Blog');
 const Product = require('../models/Product');
 const { subAdminAuth } = require('../middleware/auth');
-const upload = require('../utils/upload').blogs;
+const upload = require('../utils/upload').blogsOptimized;
 const cloudinary = require('../config/cloudinary');
 const cache = require('../utils/cache');
 const { logActivity } = require('../utils/activityLog');
 const { broadcastToAllUsers } = require('../utils/notification');
+const { uploadErrorHandler, runUpload } = require('../utils/uploadError');
 
 const router = express.Router();
 
@@ -155,7 +156,7 @@ router.get('/admin/:id', subAdminAuth, async (req, res, next) => {
 });
 
 // POST /api/blogs/admin - Admin: create blog
-router.post('/admin', subAdminAuth, upload.single('featuredImage'), async (req, res, next) => {
+router.post('/admin', subAdminAuth, runUpload(upload.single('featuredImage')), async (req, res, next) => {
   try {
     const {
       title, slug, shortDescription, content, category, tags,
@@ -213,7 +214,7 @@ router.post('/admin', subAdminAuth, upload.single('featuredImage'), async (req, 
 });
 
 // PUT /api/blogs/admin/:id - Admin: update blog
-router.put('/admin/:id', subAdminAuth, upload.single('featuredImage'), async (req, res, next) => {
+router.put('/admin/:id', subAdminAuth, runUpload(upload.single('featuredImage')), async (req, res, next) => {
   try {
     const blog = await Blog.findById(req.params.id);
     if (!blog) return res.status(404).json({ error: 'Blog not found' });
@@ -312,5 +313,7 @@ router.delete('/admin/:id', subAdminAuth, async (req, res, next) => {
     next(error);
   }
 });
+
+router.use(uploadErrorHandler('blogs'));
 
 module.exports = router;
