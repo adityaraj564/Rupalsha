@@ -217,7 +217,7 @@ export default function HomePage() {
       <section className="relative min-h-[50vh] md:min-h-[60vh] flex items-center bg-brand-cream dark:bg-gray-950 overflow-hidden">
         <div className="absolute inset-0">
           <Image
-            src="https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=1600"
+            src="/defaults/banner-1.jpg"
             alt="Jewellery Hero"
             fill
             className="object-cover opacity-20"
@@ -342,9 +342,9 @@ export default function HomePage() {
       <section className="py-16 md:py-24">
         <div className="mx-auto px-4 sm:px-6 lg:px-[50px]">
           <div className="relative rounded-3xl overflow-hidden bg-brand-green min-h-[400px] flex items-center">
-            <div className="absolute inset-0 opacity-10">
+            <div className="absolute inset-0 opacity-20">
               <Image
-                src={specialOffer?.offerImage || 'https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=1200'}
+                src={specialOffer?.offerImage || '/defaults/banner-2.jpg'}
                 alt="Pattern"
                 fill
                 className="object-cover"

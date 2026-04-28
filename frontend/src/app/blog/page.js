@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { FiSearch, FiCalendar, FiEye, FiArrowRight, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { blogsAPI } from '@/lib/api';
 
-const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=800&h=500&fit=crop';
+const PLACEHOLDER_IMAGE = '/defaults/banner-1.jpg';
 
 export default function BlogListingPage() {
   const [blogs, setBlogs] = useState([]);
@@ -59,7 +59,7 @@ export default function BlogListingPage() {
       {/* Hero */}
       <section className="relative bg-brand-green py-16 md:py-24 overflow-hidden">
         <div className="absolute inset-0 opacity-10">
-          <Image src="https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=1600" alt="" fill className="object-cover" />
+          <Image src="/defaults/banner-1.jpg" alt="" fill className="object-cover" />
         </div>
         <div className="relative mx-auto px-4 sm:px-6 lg:px-[50px] text-center">
           <p className="text-brand-gold font-medium tracking-[0.3em] uppercase text-sm mb-4">Our Journal</p>

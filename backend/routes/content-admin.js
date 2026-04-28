@@ -2,6 +2,7 @@ const express = require('express');
 const Banner = require('../models/Banner');
 const { subAdminAuth } = require('../middleware/auth');
 const upload = require('../utils/upload').banners;
+const uploadMisc = require('../utils/upload').misc;
 const cloudinary = require('../config/cloudinary');
 const cache = require('../utils/cache');
 const { logActivity } = require('../utils/activityLog');
@@ -10,6 +11,20 @@ const router = express.Router();
 
 // All routes require subAdmin or admin auth
 router.use(subAdminAuth);
+
+// POST /api/content-admin/upload-image
+// Generic image uploader for content sections (special-offer banner, hero, etc.)
+// Returns { url, public_id }. Use the returned url in the relevant content field.
+router.post('/upload-image', uploadMisc.single('image'), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Image is required' });
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'rupalsha/content',
+      transformation: [{ width: 1920, quality: 'auto:good', fetch_format: 'auto' }],
+    });
+    res.json({ url: result.secure_url, public_id: result.public_id });
+  } catch (err) { next(err); }
+});
 
 // GET /api/content-admin/banners
 router.get('/banners', async (req, res, next) => {

@@ -607,6 +607,7 @@ export const subAdminAPI = {
   // Page Content
   getPages: () => request('/pages/admin/all'),
   updatePage: (key, data) => request(`/pages/admin/${key}`, { method: 'PUT', body: data }).then(d => { clearApiCache('page'); return d; }),
+  uploadContentImage: (formData) => request('/content-admin/upload-image', { method: 'POST', body: formData }),
   // Blogs
   getBlogs: (params) => {
     const query = new URLSearchParams(params).toString();

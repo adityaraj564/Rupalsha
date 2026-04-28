@@ -31,6 +31,7 @@ export default function ContentAdminPagesPage() {
   const [editingKey, setEditingKey] = useState(null);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [uploadingOfferImage, setUploadingOfferImage] = useState(false);
 
   useEffect(() => { fetchPages(); }, []);
 
@@ -119,8 +120,52 @@ export default function ContentAdminPagesPage() {
                   <input type="text" value={form.offerLink} onChange={(e) => setForm({ ...form, offerLink: e.target.value })} placeholder="e.g. /products" className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm" />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1 flex items-center gap-1"><FiImage size={14} /> Background Image URL</label>
-                  <input type="text" value={form.offerImage} onChange={(e) => setForm({ ...form, offerImage: e.target.value })} placeholder="https://..." className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm" />
+                  <label className="block text-sm font-medium mb-1 flex items-center gap-1"><FiImage size={14} /> Background Image</label>
+                  <div className="flex items-start gap-3">
+                    {form.offerImage && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={form.offerImage} alt="offer" className="w-24 h-16 object-cover rounded-lg border border-gray-200 dark:border-gray-600 flex-shrink-0" />
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <label className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <FiImage size={14} />
+                        {uploadingOfferImage ? 'Uploading…' : 'Upload image'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingOfferImage}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            if (!file) return;
+                            setUploadingOfferImage(true);
+                            try {
+                              const fd = new FormData();
+                              fd.append('image', file);
+                              const res = await subAdminAPI.uploadContentImage(fd);
+                              setForm((f) => ({ ...f, offerImage: res.url }));
+                              toast.success('Image uploaded');
+                            } catch (err) {
+                              toast.error(err.message || 'Upload failed');
+                            } finally {
+                              setUploadingOfferImage(false);
+                            }
+                          }}
+                        />
+                      </label>
+                      {form.offerImage && (
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, offerImage: '' })}
+                          className="ml-2 text-xs text-red-600 hover:underline"
+                        >
+                          Remove
+                        </button>
+                      )}
+                      <input type="text" value={form.offerImage} onChange={(e) => setForm({ ...form, offerImage: e.target.value })} placeholder="Or paste an image URL…" className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-xs" />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

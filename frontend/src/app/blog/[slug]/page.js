@@ -8,7 +8,7 @@ import { FiCalendar, FiEye, FiArrowLeft, FiTag, FiUser } from 'react-icons/fi';
 import ProductCard from '@/components/ProductCard';
 import { blogsAPI } from '@/lib/api';
 
-const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=1600&h=800&fit=crop';
+const PLACEHOLDER_IMAGE = '/defaults/banner-1.jpg';
 
 export default function BlogDetailPage() {
   const { slug } = useParams();

@@ -96,7 +96,7 @@ const PAGES = [
     offerCode: 'RUP10',
     offerDescription: 'at checkout',
     offerLink: '/products',
-    offerImage: 'https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=1200',
+    offerImage: '/defaults/banner-2.jpg',
   },
 ];
 
