@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   FiUser, FiPackage, FiHeart, FiMapPin, FiLock, FiLogOut, FiEdit2, FiTrash2,
   FiCreditCard, FiMail, FiPhone, FiCalendar, FiShield, FiChevronRight, FiPlus,
-  FiCheckCircle, FiHome, FiSmartphone, FiBell,
+  FiCheckCircle, FiCheck, FiHome, FiSmartphone, FiBell,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
 import { authAPI, walletAPI, ordersAPI, wishlistAPI, notificationsAPI } from '@/lib/api';
@@ -160,6 +160,26 @@ export default function ProfilePage() {
       toast.success('Address updated');
     } catch (err) {
       toast.error(err.message);
+    }
+  };
+
+  const handleSetDefaultAddress = async (addr) => {
+    if (addr.isDefault) return;
+    try {
+      const { addresses } = await authAPI.updateAddress(addr._id, {
+        fullName: addr.fullName,
+        phone: addr.phone,
+        addressLine1: addr.addressLine1,
+        addressLine2: addr.addressLine2 || '',
+        city: addr.city,
+        state: addr.state,
+        pincode: addr.pincode,
+        isDefault: true,
+      });
+      updateUser({ addresses });
+      toast.success('Default address updated');
+    } catch (err) {
+      toast.error(err.message || 'Failed to set default');
     }
   };
 
@@ -505,6 +525,14 @@ export default function ProfilePage() {
                                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 inline-flex items-center gap-1.5">
                                     <FiPhone size={12} /> {addr.phone}
                                   </p>
+                                  {!addr.isDefault && (
+                                    <button
+                                      onClick={() => handleSetDefaultAddress(addr)}
+                                      className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand-green dark:text-[#F8F0E8] hover:text-brand-gold dark:hover:text-brand-gold transition-colors"
+                                    >
+                                      <FiCheck size={12} /> Set as default
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex flex-col gap-1 flex-shrink-0">

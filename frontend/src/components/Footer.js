@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FiInstagram, FiMail, FiPhone, FiMapPin } from 'react-icons/fi';
 import { usePathname } from 'next/navigation';
+import { pagesAPI } from '@/lib/api';
 
 const HELP_LINKS = [
   { href: '/help', label: 'FAQ' },
@@ -24,6 +26,14 @@ const PAYMENT_METHODS = [
 
 export default function Footer() {
   const pathname = usePathname();
+  const [brand, setBrand] = useState(null);
+
+  useEffect(() => {
+    pagesAPI.get('footer-about').then((data) => {
+      if (data?.page) setBrand(data.page);
+    }).catch(() => {});
+  }, []);
+
   if (pathname.startsWith('/admin')) return null;
 
   return (
@@ -32,10 +42,9 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Brand */}
           <div>
-            <h2 className="font-serif text-3xl font-bold text-white mb-4">RUPALSHA</h2>
+            <h2 className="font-serif text-3xl font-bold text-white mb-4">{brand?.brandName || 'RUPALSHA'}</h2>
             <p className="text-gray-300 text-sm leading-relaxed mb-6">
-              Adorn Your Elegance. Discover handcrafted jewellery that tells your story —
-              from timeless classics to modern masterpieces.
+              {brand?.content || 'Adorn Your Elegance. Discover handcrafted jewellery that tells your story — from timeless classics to modern masterpieces.'}
             </p>
             <div className="flex items-center space-x-4">
               <a

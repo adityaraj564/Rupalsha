@@ -39,7 +39,56 @@ const DEFAULTS = {
     offerLink: '/products',
     offerImage: 'https://images.unsplash.com/photo-1515562141589-67f0d569b5e9?w=1200',
   },
+  'home-hero': {
+    title: 'Home Hero',
+    content: 'Discover handcrafted jewellery that tells your story. From timeless classics to modern masterpieces — crafted with love.',
+    heroEyebrow: 'Exquisite Jewellery Collection',
+    heroTitle: 'Adorn Your',
+    heroAccent: 'Elegance',
+  },
+  'home-features': {
+    title: 'Home Features',
+    content: 'Edit the feature highlights shown on the home page.',
+    features: [
+      { icon: 'FiTruck',     title: 'Faster Delivery',     desc: 'Quick & reliable shipping' },
+      { icon: 'FiRefreshCw', title: 'Easy Returns',        desc: 'Hassle-free returns' },
+      { icon: 'FiShield',    title: 'Certified Jewellery', desc: 'Quality guaranteed' },
+      { icon: 'FiHeart',     title: 'Handcrafted',         desc: 'Made with love' },
+    ],
+  },
+  'footer-about': {
+    title: 'Footer Brand',
+    content: 'Adorn Your Elegance. Discover handcrafted jewellery that tells your story — from timeless classics to modern masterpieces.',
+    brandName: 'RUPALSHA',
+  },
 };
+
+// GET /api/pages?keys=a,b,c - Public: batch fetch multiple pages in one round-trip
+router.get('/', async (req, res, next) => {
+  try {
+    const raw = String(req.query.keys || '').trim();
+    if (!raw) return res.json({ pages: {} });
+    const keys = raw.split(',').map((k) => k.trim()).filter((k) => DEFAULTS[k]);
+    if (keys.length === 0) return res.json({ pages: {} });
+
+    const found = await PageContent.find({ pageKey: { $in: keys } }).lean();
+    const byKey = Object.fromEntries(found.map((p) => [p.pageKey, p]));
+
+    // Lazily create any missing defaults so first request is self-healing.
+    const missing = keys.filter((k) => !byKey[k]);
+    if (missing.length > 0) {
+      const created = await PageContent.insertMany(
+        missing.map((k) => ({ pageKey: k, ...DEFAULTS[k] })),
+        { ordered: false }
+      ).catch(() => []);
+      created.forEach((doc) => { byKey[doc.pageKey] = doc.toObject(); });
+    }
+
+    res.json({ pages: byKey });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // GET /api/pages/:key - Public: get page content
 router.get('/:key', async (req, res, next) => {
@@ -79,7 +128,7 @@ router.put('/admin/:key', subAdminAuth, async (req, res, next) => {
     const { key } = req.params;
     if (!DEFAULTS[key]) return res.status(404).json({ error: 'Page not found' });
 
-    const { title, content, contactEmail, contactPhone, supportHours, offerHeading, offerCode, offerDescription, offerLink, offerImage } = req.body;
+    const { title, content, contactEmail, contactPhone, supportHours, offerHeading, offerCode, offerDescription, offerLink, offerImage, heroEyebrow, heroTitle, heroAccent, features, brandName } = req.body;
     const update = {};
     if (title !== undefined) update.title = title;
     if (content !== undefined) update.content = content;
@@ -91,6 +140,19 @@ router.put('/admin/:key', subAdminAuth, async (req, res, next) => {
     if (offerDescription !== undefined) update.offerDescription = offerDescription;
     if (offerLink !== undefined) update.offerLink = offerLink;
     if (offerImage !== undefined) update.offerImage = offerImage;
+    if (heroEyebrow !== undefined) update.heroEyebrow = heroEyebrow;
+    if (heroTitle !== undefined) update.heroTitle = heroTitle;
+    if (heroAccent !== undefined) update.heroAccent = heroAccent;
+    if (brandName !== undefined) update.brandName = brandName;
+    if (Array.isArray(features)) {
+      update.features = features
+        .filter((f) => f && (f.title || f.desc))
+        .map((f) => ({
+          icon: String(f.icon || 'FiTruck').slice(0, 40),
+          title: String(f.title || '').slice(0, 80),
+          desc: String(f.desc || '').slice(0, 160),
+        }));
+    }
 
     const page = await PageContent.findOneAndUpdate(
       { pageKey: key },

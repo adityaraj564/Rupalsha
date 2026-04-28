@@ -450,6 +450,28 @@ export const faqsAPI = {
 export const pagesAPI = {
   get: (key) =>
     swr(`page:${key}`, () => request(`/pages/${key}`), CACHE_TTL.medium),
+  /**
+   * Batch-fetch multiple pages in a single HTTP round-trip.
+   * Result is cached under one SWR key AND every individual `page:<key>`
+   * cache slot is seeded so subsequent `pagesAPI.get(k)` calls are instant.
+   */
+  getMany: (keys) => {
+    const list = Array.from(new Set((keys || []).filter(Boolean))).sort();
+    if (list.length === 0) return Promise.resolve({ pages: {} });
+    const cacheKey = `pages:batch:${list.join(',')}`;
+    const fetcher = () =>
+      request(`/pages?keys=${encodeURIComponent(list.join(','))}`).then((data) => {
+        const map = data?.pages || {};
+        // Seed individual page caches so any later pagesAPI.get(k) is a hit.
+        for (const k of list) {
+          if (map[k]) {
+            try { setCache(`page:${k}`, { page: map[k] }, CACHE_TTL.medium); } catch {}
+          }
+        }
+        return data;
+      });
+    return swr(cacheKey, fetcher, CACHE_TTL.medium);
+  },
 };
 
 // About

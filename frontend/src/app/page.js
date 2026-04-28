@@ -1,14 +1,25 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiArrowRight, FiTruck, FiRefreshCw, FiShield, FiHeart, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiArrowRight, FiTruck, FiRefreshCw, FiShield, FiHeart, FiChevronLeft, FiChevronRight, FiStar, FiAward, FiPackage, FiSmile, FiTag, FiGift } from 'react-icons/fi';
 import ProductCard from '@/components/ProductCard';
 import AdBanner from '@/components/AdBanner';
 import { HomeSectionSkeleton } from '@/components/Skeleton';
 import { productsAPI, bannersAPI, categoriesAPI, pagesAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+
+const FEATURE_ICONS = {
+  FiTruck, FiRefreshCw, FiShield, FiHeart, FiStar, FiAward, FiPackage, FiSmile, FiTag, FiGift,
+};
+
+const DEFAULT_FEATURES = [
+  { icon: 'FiTruck', title: 'Faster Delivery', desc: 'Quick & reliable shipping' },
+  { icon: 'FiRefreshCw', title: 'Easy Returns', desc: 'Hassle-free returns' },
+  { icon: 'FiShield', title: 'Certified Jewellery', desc: 'Quality guaranteed' },
+  { icon: 'FiHeart', title: 'Handcrafted', desc: 'Made with love' },
+];
 
 const DEFAULT_CATEGORY_IMAGES = {
   necklaces: '/defaults/cat-necklaces.jpg',
@@ -42,8 +53,22 @@ export default function HomePage() {
   const [categories, setCategories] = useState([]);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [specialOffer, setSpecialOffer] = useState(null);
+  const [hero, setHero] = useState(null);
+  const [features, setFeatures] = useState(DEFAULT_FEATURES);
   const bannerInterval = useRef(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  // Resolve icon components once per features array change to avoid
+  // re-creating render objects on every parent re-render.
+  const resolvedFeatures = useMemo(
+    () => features.map((f) => ({
+      key: `${f.title}-${f.desc}`,
+      Icon: FEATURE_ICONS[f.icon] || FiTruck,
+      title: f.title,
+      desc: f.desc,
+    })),
+    [features]
+  );
 
   // Auto-slide banners
   const startAutoSlide = useCallback(() => {
@@ -69,8 +94,13 @@ export default function HomePage() {
       }
     }).catch(() => {});
 
-    pagesAPI.get('special-offer').then((data) => {
-      if (data?.page) setSpecialOffer(data.page);
+    pagesAPI.getMany(['special-offer', 'home-hero', 'home-features', 'footer-about']).then((data) => {
+      const pages = data?.pages || {};
+      if (pages['special-offer']) setSpecialOffer(pages['special-offer']);
+      if (pages['home-hero']) setHero(pages['home-hero']);
+      if (pages['home-features']?.features?.length) setFeatures(pages['home-features'].features);
+      // 'footer-about' is intentionally fetched here too so the Footer's
+      // own pagesAPI.get('footer-about') call becomes a cache hit.
     }).catch(() => {});
   }, []);
 
@@ -199,16 +229,15 @@ export default function HomePage() {
         <div className="relative mx-auto px-4 sm:px-6 lg:px-[50px] py-10 md:py-20">
           <div className="max-w-2xl">
             <p className="text-brand-gold font-medium tracking-[0.3em] uppercase text-sm mb-4 animate-slide-up">
-              Exquisite Jewellery Collection
+              {hero?.heroEyebrow || 'Exquisite Jewellery Collection'}
             </p>
             <h1 className="font-serif text-5xl md:text-7xl font-bold text-brand-charcoal dark:text-gray-100 leading-tight mb-6">
-              Adorn Your
+              {hero?.heroTitle || 'Adorn Your'}
               <br />
-              <span className="text-brand-gold italic">Elegance</span>
+              <span className="text-brand-gold italic">{hero?.heroAccent || 'Elegance'}</span>
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-lg leading-relaxed">
-              Discover handcrafted jewellery that tells your story.
-              From timeless classics to modern masterpieces — crafted with love.
+              {hero?.content || 'Discover handcrafted jewellery that tells your story. From timeless classics to modern masterpieces — crafted with love.'}
             </p>
             <div className="flex flex-wrap gap-4">
               <Link href="/products" className="btn-primary inline-flex items-center gap-2">
@@ -223,26 +252,23 @@ export default function HomePage() {
       </section>
 
       {/* Features Bar */}
+      {resolvedFeatures.length > 0 && (
       <section className="bg-white dark:bg-gray-900 border-y border-gray-100 dark:border-gray-800">
         <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-          {[
-            { icon: FiTruck, title: 'Faster Delivery', desc: 'Quick & reliable shipping' },
-            { icon: FiRefreshCw, title: 'Easy Returns', desc: 'Hassle-free returns' },
-            { icon: FiShield, title: 'Certified Jewellery', desc: 'Quality guaranteed' },
-            { icon: FiHeart, title: 'Handcrafted', desc: 'Made with love' },
-          ].map((feature) => (
-            <div key={feature.title} className="flex items-center gap-3">
+          {resolvedFeatures.map(({ key, Icon, title, desc }) => (
+            <div key={key} className="flex items-center gap-3">
               <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-brand-cream flex items-center justify-center flex-shrink-0">
-                <feature.icon className="text-brand-green" size={20} />
+                <Icon className="text-brand-green" size={20} />
               </div>
               <div>
-                <p className="font-medium text-sm text-brand-charcoal dark:text-gray-200">{feature.title}</p>
-                <p className="text-xs text-gray-400">{feature.desc}</p>
+                <p className="font-medium text-sm text-brand-charcoal dark:text-gray-200">{title}</p>
+                <p className="text-xs text-gray-400">{desc}</p>
               </div>
             </div>
           ))}
         </div>
       </section>
+      )}
 
       {/* Ad — After Features */}
       <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-4">
