@@ -44,7 +44,7 @@ export default function ProductDetailPage() {
   const [pinchOrigin, setPinchOrigin] = useState('center center');
   const [highlightsOpen, setHighlightsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [descExpanded, setDescExpanded] = useState(false);
+  const [detailsTab, setDetailsTab] = useState('specifications');
   const pinchStartDist = useRef(null);
 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -99,6 +99,14 @@ export default function ProductDetailPage() {
     };
     fetchProduct();
   }, [slug, router]);
+
+  // Default the All Details tab based on what's available
+  useEffect(() => {
+    if (!product) return;
+    const hasSpecs = product.specifications && product.specifications.length > 0;
+    if (!hasSpecs && product.description) setDetailsTab('description');
+    else if (hasSpecs) setDetailsTab('specifications');
+  }, [product]);
 
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
@@ -324,7 +332,7 @@ export default function ProductDetailPage() {
             return (
           <>
           <div
-            className={`relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-4 ${isVideo ? '' : 'md:cursor-crosshair'}`}
+            className={`relative aspect-[3/4] md:aspect-[9/10] rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 mb-4 ${isVideo ? '' : 'md:cursor-crosshair'}`}
             onMouseMove={(e) => {
               if (isVideo) return;
               if (window.innerWidth < 768) return;
@@ -562,23 +570,6 @@ export default function ProductDetailPage() {
           )}
           {!(product.comparePrice && discount > 0) && <div className="mb-6" />}
 
-          {/* Description */}
-          <div className="mb-6">
-            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-              {descExpanded || product.description.length <= 200
-                ? product.description
-                : product.description.slice(0, 200).trimEnd() + '..'}
-              {product.description.length > 200 && (
-                <button
-                  onClick={() => setDescExpanded(!descExpanded)}
-                  className="inline text-blue-600 font-bold text-sm ml-0.5 hover:underline"
-                >
-                  {descExpanded ? 'show less' : 'see more'}
-                </button>
-              )}
-            </p>
-          </div>
-
           {/* Material */}
           {product.fabric && (
             <p className="text-sm text-gray-500 mb-4">
@@ -805,7 +796,7 @@ export default function ProductDetailPage() {
           )}
 
           {/* All Details / Specifications - Flipkart style collapsible */}
-          {product.specifications && product.specifications.length > 0 && (
+          {((product.specifications && product.specifications.length > 0) || product.description) && (
             <div className="border border-gray-200 dark:border-gray-700 rounded-xl mb-4 overflow-hidden">
               <button
                 onClick={() => setDetailsOpen(!detailsOpen)}
@@ -820,24 +811,65 @@ export default function ProductDetailPage() {
               <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${detailsOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                 <div className="overflow-hidden">
                   <div className="border-t border-gray-200 dark:border-gray-700">
-                    <div className="px-4 py-3">
-                      <p className="text-sm font-semibold text-brand-charcoal dark:text-gray-100 mb-3">Specifications</p>
-                      {product.specifications.map((group, gi) => (
-                        <div key={gi} className="mb-4 last:mb-0">
-                          <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 pb-1 border-b border-gray-100 dark:border-gray-700">{group.group}</p>
-                          <table className="w-full">
-                            <tbody>
-                              {group.fields.map((f, fi) => (
-                                <tr key={fi} className="border-b border-gray-50 dark:border-gray-800 last:border-0">
-                                  <td className="text-xs text-gray-500 dark:text-gray-400 py-2 pr-4 w-2/5 align-top">{f.key}</td>
-                                  <td className="text-xs text-brand-charcoal dark:text-gray-200 font-medium py-2">{f.value}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ))}
+                    {/* Tabs */}
+                    <div className="flex border-b border-gray-200 dark:border-gray-700">
+                      {product.specifications && product.specifications.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setDetailsTab('specifications')}
+                          className={`flex-1 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                            detailsTab === 'specifications'
+                              ? 'text-brand-charcoal dark:text-gray-100 border-b-2 border-brand-gold'
+                              : 'text-gray-500 dark:text-gray-400 hover:text-brand-charcoal dark:hover:text-gray-200'
+                          }`}
+                        >
+                          Specifications
+                        </button>
+                      )}
+                      {product.description && (
+                        <button
+                          type="button"
+                          onClick={() => setDetailsTab('description')}
+                          className={`flex-1 px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                            detailsTab === 'description'
+                              ? 'text-brand-charcoal dark:text-gray-100 border-b-2 border-brand-gold'
+                              : 'text-gray-500 dark:text-gray-400 hover:text-brand-charcoal dark:hover:text-gray-200'
+                          }`}
+                        >
+                          Description
+                        </button>
+                      )}
                     </div>
+
+                    {/* Specifications panel */}
+                    {detailsTab === 'specifications' && product.specifications && product.specifications.length > 0 && (
+                      <div className="px-4 py-3">
+                        {product.specifications.map((group, gi) => (
+                          <div key={gi} className="mb-4 last:mb-0">
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 pb-1 border-b border-gray-100 dark:border-gray-700">{group.group}</p>
+                            <table className="w-full">
+                              <tbody>
+                                {group.fields.map((f, fi) => (
+                                  <tr key={fi} className="border-b border-gray-50 dark:border-gray-800 last:border-0">
+                                    <td className="text-xs text-gray-500 dark:text-gray-400 py-2 pr-4 w-2/5 align-top">{f.key}</td>
+                                    <td className="text-xs text-brand-charcoal dark:text-gray-200 font-medium py-2">{f.value}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Description panel */}
+                    {detailsTab === 'description' && product.description && (
+                      <div className="px-4 py-3">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line">
+                          {product.description}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
