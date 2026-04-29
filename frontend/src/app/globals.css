@@ -299,7 +299,13 @@ div.warning strong {
 }
 
 .animate-marquee {
-  animation: marquee-rtl 30s linear infinite;
+  animation: marquee-rtl 15s linear infinite;
+}
+
+@media (min-width: 768px) {
+  .animate-marquee {
+    animation-duration: 30s;
+  }
 }
 
 .animate-marquee:hover {
