@@ -122,7 +122,7 @@ export default function InvoicePage() {
         {/* Header */}
         <div className="border-b-2 border-gray-800 pb-4 mb-6 flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-[#1F3A2F]">Rupalsha</h1>
+            <h1 className="text-3xl font-bold text-[#0E2A22]">Rupalsha</h1>
             <p className="text-xs text-[#C8A951]">Where Comfort Meets Style</p>
             <p className="text-xs text-gray-500 mt-1">support@rupalsha.com</p>
           </div>

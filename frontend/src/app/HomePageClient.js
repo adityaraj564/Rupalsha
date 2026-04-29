@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiArrowRight, FiTruck, FiRefreshCw, FiShield, FiHeart, FiChevronLeft, FiChevronRight, FiStar, FiAward, FiPackage, FiSmile, FiTag, FiGift } from 'react-icons/fi';
+import { FiArrowRight, FiTruck, FiRefreshCw, FiShield, FiHeart, FiChevronLeft, FiChevronRight, FiStar, FiAward, FiPackage, FiSmile, FiTag, FiGift, FiInstagram } from 'react-icons/fi';
 import ProductCard from '@/components/ProductCard';
 import AdBanner from '@/components/AdBanner';
 import { HomeSectionSkeleton } from '@/components/Skeleton';
@@ -135,7 +135,7 @@ export default function HomePageClient({
   }, [banners.length, startAutoSlide]);
 
   useEffect(() => {
-    const extra = !isAuthenticated ? { hideOutOfStock: 'true' } : {};
+    const extra = { hideOutOfStock: 'true' };
     const loadProducts = async () => {
       try {
         // Background-revalidating fetch with onFresh hook so stock changes
@@ -236,10 +236,10 @@ export default function HomePageClient({
 
           {/* Scrolling announcement strip (right-to-left) */}
           {marqueeItems.length > 0 && (
-            <div className="w-full bg-black text-white overflow-hidden py-2 md:py-3">
+            <div className="w-full bg-black text-white overflow-hidden py-1 md:py-1.5">
               <div className="flex animate-marquee whitespace-nowrap">
                 {[...Array(2)].map((_, dup) => (
-                  <div key={dup} className="flex shrink-0 items-center gap-12 px-6 text-sm md:text-base font-medium tracking-wide">
+                  <div key={dup} className="flex shrink-0 items-center gap-12 px-6 text-xs md:text-sm font-medium tracking-wide">
                     {marqueeItems.map((item, i) => (
                       <span key={i}>{item}</span>
                     ))}
@@ -348,7 +348,7 @@ export default function HomePageClient({
 
       {/* Featured Collections */}
       {featured.length > 0 ? (
-        <section className="py-16 md:py-24 bg-white dark:bg-gray-900 skeleton-to-content">
+        <section className="pt-16 md:pt-24 pb-10 md:pb-24 bg-white dark:bg-gray-900 skeleton-to-content">
           <div className="mx-auto px-4 sm:px-6 lg:px-[50px]">
             <div className="flex items-end justify-between mb-10">
               <div>
@@ -361,9 +361,20 @@ export default function HomePageClient({
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {featured.map((product) => (
-                <ProductCard key={product._id} product={product} />
+              {featured.slice(0, 8).map((product, i) => (
+                <div key={product._id} className={i >= 4 ? 'hidden md:block' : ''}>
+                  <ProductCard product={product} />
+                </div>
               ))}
+            </div>
+
+            <div className="flex justify-center mt-10">
+              <Link
+                href="/products?featured=true"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3 border-2 border-black dark:border-white text-black dark:text-white text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors duration-300"
+              >
+                View All
+              </Link>
             </div>
           </div>
         </section>
@@ -372,14 +383,14 @@ export default function HomePageClient({
       )}
 
       {/* Ad — After New Arrivals */}
-      <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-4">
+      <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-0 md:py-4">
         <AdBanner adSlot={process.env.NEXT_PUBLIC_AD_SLOT_2} format="horizontal" />
       </div>
 
       {/* Banner */}
-      <section className="py-16 md:py-24">
-        <div className="mx-auto px-4 sm:px-6 lg:px-[50px]">
-          <div className="relative rounded-3xl overflow-hidden bg-brand-green min-h-[400px] flex items-center">
+      <section className="py-0 md:py-24">
+        <div className="mx-auto md:px-4 sm:px-6 lg:px-[50px] px-0">
+          <div className="relative md:rounded-3xl overflow-hidden bg-brand-green h-[125vw] min-h-[500px] md:h-auto md:min-h-[400px] flex items-center">
             <div className="absolute inset-0 opacity-20">
               <Image
                 src={specialOffer?.offerImage || '/defaults/banner-2.jpg'}
@@ -420,9 +431,20 @@ export default function HomePageClient({
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {trending.map((product) => (
-                <ProductCard key={product._id} product={product} />
+              {trending.slice(0, 8).map((product, i) => (
+                <div key={product._id} className={i >= 4 ? 'hidden md:block' : ''}>
+                  <ProductCard product={product} />
+                </div>
               ))}
+            </div>
+
+            <div className="flex justify-center mt-10">
+              <Link
+                href="/products?trending=true"
+                className="inline-flex items-center justify-center gap-2 px-8 py-3 border-2 border-black dark:border-white text-black dark:text-white text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors duration-300"
+              >
+                View All
+              </Link>
             </div>
           </div>
         </section>
@@ -435,13 +457,16 @@ export default function HomePageClient({
         <div className="mx-auto px-4 sm:px-6 lg:px-[50px] text-center">
           <h2 className="section-title">Follow Us on Instagram</h2>
           <p className="section-subtitle">@rupalsha.official</p>
+
           <a
             href="https://instagram.com/rupalsha.official"
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-secondary inline-flex items-center gap-2 mt-8"
+            className="group inline-flex items-center gap-3 mt-8 px-7 py-3.5 rounded-full bg-white text-brand-charcoal font-semibold text-sm md:text-base shadow-lg hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] transition-all duration-300"
           >
-            Follow @rupalsha.official
+            <FiInstagram size={18} className="text-[#d62976] group-hover:rotate-[-8deg] transition-transform" />
+            <span>Follow @rupalsha.official</span>
+            <FiArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
           </a>
         </div>
       </section>

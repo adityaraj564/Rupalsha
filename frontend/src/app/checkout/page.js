@@ -312,7 +312,7 @@ export default function CheckoutPage() {
           email: user.email,
           contact: user.phone || '',
         },
-        theme: { color: '#1F3A2F' },
+        theme: { color: '#0E2A22' },
       };
 
       const rzp = new window.Razorpay(options);

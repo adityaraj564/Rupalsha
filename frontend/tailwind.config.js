@@ -9,7 +9,7 @@ module.exports = {
       colors: {
         brand: {
           beige: '#E8DCCB',
-          green: '#1F3A2F',
+          green: '#0E2A22',
           gold: '#C8A951',
           cream: '#F9F7F3',
           charcoal: '#2B2B2B',
