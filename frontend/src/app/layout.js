@@ -4,6 +4,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import WhatsAppFloat from '@/components/WhatsAppFloat';
 import AuthInit from '@/components/AuthInit';
+import TopProgressBar from '@/components/TopProgressBar';
 
 const ADSENSE_CLIENT_ID =
   process.env.NEXT_PUBLIC_ADSENSE_ID || 'ca-pub-5385129928466192';
@@ -47,6 +48,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body className="min-h-screen flex flex-col bg-brand-cream dark:bg-gray-950 text-brand-charcoal dark:text-gray-100 transition-colors duration-300">
+        <TopProgressBar />
         <AuthInit />
         <Toaster
           position="top-center"
