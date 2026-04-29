@@ -11,7 +11,7 @@ const pageContentSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    enum: ['shipping', 'returns', 'contact', 'privacy', 'terms', 'special-offer', 'home-hero', 'home-features', 'footer-about'],
+    enum: ['shipping', 'returns', 'contact', 'privacy', 'terms', 'special-offer', 'home-hero', 'home-features', 'home-marquee', 'footer-about'],
   },
   title: {
     type: String,

@@ -292,6 +292,20 @@ div.warning strong {
   animation: slide-right 0.3s ease-out;
 }
 
+/* Marquee (right-to-left) animation */
+@keyframes marquee-rtl {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee-rtl 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
 /* Accordion animation */
 @keyframes accordion-open {
   from {

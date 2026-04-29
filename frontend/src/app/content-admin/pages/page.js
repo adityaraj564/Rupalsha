@@ -14,6 +14,7 @@ const PAGE_LABELS = {
   'special-offer': 'Special Offer (Home Banner)',
   'home-hero': 'Home — Hero Section',
   'home-features': 'Home — Features Bar',
+  'home-marquee': 'Home — Announcement Marquee',
   'footer-about': 'Footer — Brand Block',
 };
 

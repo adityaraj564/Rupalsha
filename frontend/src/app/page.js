@@ -55,6 +55,13 @@ export default function HomePage() {
   const [specialOffer, setSpecialOffer] = useState(null);
   const [hero, setHero] = useState(null);
   const [features, setFeatures] = useState(DEFAULT_FEATURES);
+  const [marqueeItems, setMarqueeItems] = useState([
+    '✦ Free Shipping on Orders Above ₹999',
+    '✦ Hallmark Certified Jewellery',
+    '✦ Easy 7-Day Returns',
+    '✦ New Arrivals Every Week',
+    '✦ Cash on Delivery Available',
+  ]);
   const bannerInterval = useRef(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -94,11 +101,18 @@ export default function HomePage() {
       }
     }).catch(() => {});
 
-    pagesAPI.getMany(['special-offer', 'home-hero', 'home-features', 'footer-about']).then((data) => {
+    pagesAPI.getMany(['special-offer', 'home-hero', 'home-features', 'home-marquee', 'footer-about']).then((data) => {
       const pages = data?.pages || {};
       if (pages['special-offer']) setSpecialOffer(pages['special-offer']);
       if (pages['home-hero']) setHero(pages['home-hero']);
       if (pages['home-features']?.features?.length) setFeatures(pages['home-features'].features);
+      if (pages['home-marquee']?.content) {
+        const items = String(pages['home-marquee'].content)
+          .split('|')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (items.length > 0) setMarqueeItems(items);
+      }
       // 'footer-about' is intentionally fetched here too so the Footer's
       // own pagesAPI.get('footer-about') call becomes a cache hit.
     }).catch(() => {});
@@ -145,7 +159,7 @@ export default function HomePage() {
       {/* Auto-Slide Banner Carousel */}
       {banners.length > 0 && (
         <section className="relative w-full overflow-hidden bg-gray-100 dark:bg-gray-950">
-          <div className="relative w-full h-[45vw] min-h-[220px] md:h-[30vw] md:min-h-[320px]">
+          <div className="relative w-full h-[125vw] min-h-[500px] md:h-[30vw] md:min-h-[320px]">
             {banners.map((banner, index) => {
               const Wrapper = banner.link ? Link : 'div';
               const wrapperProps = banner.link ? { href: banner.link } : {};
@@ -210,6 +224,21 @@ export default function HomePage() {
               </div>
             )}
           </div>
+
+          {/* Scrolling announcement strip (right-to-left) */}
+          {marqueeItems.length > 0 && (
+            <div className="w-full bg-black text-white overflow-hidden py-2 md:py-3">
+              <div className="flex animate-marquee whitespace-nowrap">
+                {[...Array(2)].map((_, dup) => (
+                  <div key={dup} className="flex shrink-0 items-center gap-12 px-6 text-sm md:text-base font-medium tracking-wide">
+                    {marqueeItems.map((item, i) => (
+                      <span key={i}>{item}</span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       )}
 

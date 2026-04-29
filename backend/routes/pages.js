@@ -56,6 +56,10 @@ const DEFAULTS = {
       { icon: 'FiHeart',     title: 'Handcrafted',         desc: 'Made with love' },
     ],
   },
+  'home-marquee': {
+    title: 'Home Announcement Marquee',
+    content: '✦ Free Shipping on Orders Above ₹999 | ✦ Hallmark Certified Jewellery | ✦ Easy 7-Day Returns | ✦ New Arrivals Every Week | ✦ Cash on Delivery Available',
+  },
   'footer-about': {
     title: 'Footer Brand',
     content: 'Adorn Your Elegance. Discover handcrafted jewellery that tells your story — from timeless classics to modern masterpieces.',
