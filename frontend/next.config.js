@@ -1,6 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Tree-shake big icon/util libraries to keep client bundles small.
+  experimental: {
+    optimizePackageImports: ['react-icons', 'react-icons/fi', 'lucide-react'],
+  },
   images: {
+    // Serve next-gen formats. avif first (smaller), webp fallback.
+    formats: ['image/avif', 'image/webp'],
+    // Cache optimized variants for 30 days at the edge.
+    minimumCacheTTL: 60 * 60 * 24 * 30,
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'res.cloudinary.com' },
