@@ -1,4 +1,5 @@
 import './globals.css';
+import { Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -136,7 +137,9 @@ export default function RootLayout({ children }) {
             },
           }}
         />
-        <Header />
+        <Suspense fallback={null}>
+          <Header />
+        </Suspense>
         <main className="flex-1">{children}</main>
         <Footer />
         <WhatsAppFloat />
