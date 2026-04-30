@@ -174,7 +174,7 @@ export default function OrderDetailPage() {
         </div>
         <Link
           href="/orders"
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-brand-green/30 dark:border-gray-700 text-sm font-medium text-brand-green dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-brand-green hover:text-white hover:border-brand-green dark:hover:bg-gray-800 dark:hover:text-white dark:hover:border-gray-600 hover:shadow-md transition-all"
+          className="inline-flex items-center gap-1 px-2.5 py-1 md:gap-1.5 md:px-4 md:py-2 rounded-full border border-brand-green/30 dark:border-gray-700 text-xs md:text-sm font-medium text-brand-green dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-brand-green hover:text-white hover:border-brand-green dark:hover:bg-gray-800 dark:hover:text-white dark:hover:border-gray-600 hover:shadow-md transition-all"
         >
           <span aria-hidden>←</span> All Orders
         </Link>

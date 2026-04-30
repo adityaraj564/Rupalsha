@@ -168,7 +168,7 @@ export default function HomePageClient({
       {/* Auto-Slide Banner Carousel */}
       {banners.length > 0 && (
         <section className="relative w-full overflow-hidden bg-gray-100 dark:bg-gray-950">
-          <div className="relative w-full h-[125vw] min-h-[500px] md:h-[30vw] md:min-h-[320px]">
+          <div className="relative w-full h-[125vw] min-h-[500px] md:h-[38vw] md:min-h-[420px]">
             {banners.map((banner, index) => {
               const Wrapper = banner.link ? Link : 'div';
               const wrapperProps = banner.link ? { href: banner.link } : {};
@@ -253,7 +253,7 @@ export default function HomePageClient({
 
       {/* Shop by Category */}
       {categories.length > 0 && (
-      <section className="py-8 md:py-12 mx-auto px-4 sm:px-6 lg:px-[50px]">
+      <section className="py-8 md:py-12 mx-auto px-4 sm:px-6 lg:px-20 xl:px-32">
         <h2 className="section-title">Shop by Category</h2>
         <p className="section-subtitle">Find the perfect piece from our curated collections</p>
 
@@ -287,7 +287,7 @@ export default function HomePageClient({
       {/* Features Bar */}
       {resolvedFeatures.length > 0 && (
       <section className="bg-white dark:bg-gray-900 border-y border-gray-100 dark:border-gray-800">
-        <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="mx-auto px-4 sm:px-6 lg:px-20 xl:px-32 py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
           {resolvedFeatures.map(({ key, Icon, title, desc }) => (
             <div key={key} className="flex items-center gap-3">
               <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-brand-cream flex items-center justify-center flex-shrink-0">
@@ -304,14 +304,14 @@ export default function HomePageClient({
       )}
 
       {/* Ad — After Features */}
-      <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-4">
+      <div className="mx-auto px-4 sm:px-6 lg:px-20 xl:px-32 py-4">
         <AdBanner adSlot={process.env.NEXT_PUBLIC_AD_SLOT_1} format="horizontal" />
       </div>
 
       {/* Featured Collections */}
       {featured.length > 0 ? (
         <section className="pt-8 md:pt-12 pb-6 md:pb-12 bg-white dark:bg-gray-900 skeleton-to-content">
-          <div className="mx-auto px-4 sm:px-6 lg:px-[50px]">
+          <div className="mx-auto px-4 sm:px-6 lg:px-20 xl:px-32">
             <div className="flex items-end justify-between mb-10">
               <div>
                 <h2 className="section-title text-left">New Arrivals</h2>
@@ -345,13 +345,13 @@ export default function HomePageClient({
       )}
 
       {/* Ad — After New Arrivals */}
-      <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-0 md:py-4">
+      <div className="mx-auto px-4 sm:px-6 lg:px-20 xl:px-32 py-0 md:py-4">
         <AdBanner adSlot={process.env.NEXT_PUBLIC_AD_SLOT_2} format="horizontal" />
       </div>
 
       {/* Banner */}
       <section className="py-0 md:py-12">
-        <div className="mx-auto md:px-4 sm:px-6 lg:px-[50px] px-0">
+        <div className="mx-auto md:px-4 sm:px-6 lg:px-20 xl:px-32 px-0">
           <div className="relative md:rounded-3xl overflow-hidden bg-brand-green h-[125vw] min-h-[500px] md:h-auto md:min-h-[400px] flex items-center">
             <div className="absolute inset-0 opacity-20">
               <Image
@@ -381,7 +381,7 @@ export default function HomePageClient({
       {/* Trending Products */}
       {trending.length > 0 ? (
         <section className="py-8 md:py-12 bg-white dark:bg-gray-900 skeleton-to-content">
-          <div className="mx-auto px-4 sm:px-6 lg:px-[50px]">
+          <div className="mx-auto px-4 sm:px-6 lg:px-20 xl:px-32">
             <div className="flex items-end justify-between mb-10">
               <div>
                 <h2 className="section-title text-left">Trending Now</h2>
@@ -416,7 +416,7 @@ export default function HomePageClient({
 
       {/* Instagram Section */}
       <section className="py-6 md:py-8">
-        <div className="mx-auto px-4 sm:px-6 lg:px-[50px] text-center">
+        <div className="mx-auto px-4 sm:px-6 lg:px-20 xl:px-32 text-center">
           <h2 className="font-sans text-lg md:text-xl font-medium tracking-wide text-brand-charcoal dark:text-gray-100">Follow Us on Instagram</h2>
           <p className="font-sans text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">@rupalsha.official</p>
 

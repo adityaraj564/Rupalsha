@@ -330,7 +330,7 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12 animate-fade-in">
+    <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32 py-8 md:py-12 animate-fade-in">
       <h1 className="font-serif text-3xl font-bold text-brand-charcoal mb-8">Checkout</h1>
 
       {stockIssues.length > 0 && (

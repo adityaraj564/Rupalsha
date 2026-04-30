@@ -118,7 +118,7 @@ function ProductsContent({ initialProducts = null, initialTotal = 0, initialTota
   };
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12">
+    <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32 py-8 md:py-12">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">

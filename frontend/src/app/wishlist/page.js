@@ -19,7 +19,7 @@ export default function WishlistPage() {
   }, [isAuthenticated, fetchWishlist]);
 
   if (authLoading) return (
-    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12">
+    <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32 py-8 md:py-12">
       <div className="skeleton h-9 w-48 rounded-lg mb-8" />
       <ProductGridSkeleton count={4} />
     </div>
@@ -37,7 +37,7 @@ export default function WishlistPage() {
   }
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12 animate-fade-in">
+    <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32 py-8 md:py-12 animate-fade-in">
       <div className="flex items-center gap-3 mb-8">
         <button
           type="button"

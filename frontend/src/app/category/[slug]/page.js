@@ -113,7 +113,7 @@ export default function CategoryPage() {
   const pageTitle = currentCategory?.name || 'Shop';
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12">
+    <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32 py-8 md:py-12">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6 flex-wrap">
         <button onClick={() => router.push('/products')} className="hover:text-brand-green transition-colors">

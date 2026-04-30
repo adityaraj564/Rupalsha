@@ -249,7 +249,7 @@ export default function Header() {
   if (isContentAdminBrowsing) {
     return (
       <header className="sticky top-0 z-50 bg-brand-cream dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
-        <div className="w-full px-4 sm:px-6 lg:px-[50px]">
+        <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32">
           <div className="flex items-center justify-between h-16 md:h-20">
             <Link href="/content-admin" className="flex-shrink-0 flex items-center gap-2">
               <Image src="/rupalshaLogo.png" alt="Rupalsha Logo" width={70} height={70} className="rounded-full translate-y-1" priority />
@@ -318,7 +318,7 @@ export default function Header() {
           isScrolled ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-sm' : 'bg-brand-cream dark:bg-gray-950'
         }`}
       >
-        <div className="w-full px-4 sm:px-6 lg:px-[50px]">
+        <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32">
           <div className="flex items-center justify-between h-16 md:h-20">
             {/* Left: Mobile menu + Logo */}
             <div className="flex items-center gap-0">
@@ -513,7 +513,7 @@ export default function Header() {
         {/* Search Bar */}
         {searchOpen && (
           <div ref={searchBarRef} className="border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 animate-slide-down">
-            <div className="w-full px-4 sm:px-6 lg:px-[50px] py-4">
+            <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32 py-4">
               <form onSubmit={handleSearch} className="flex items-center gap-3">
                 <FiSearch className="text-gray-400" size={20} />
                 <input

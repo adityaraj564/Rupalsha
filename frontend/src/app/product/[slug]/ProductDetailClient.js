@@ -304,7 +304,7 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
   const isOutOfStock = totalStock === 0;
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-[50px] py-8 md:py-12 animate-fade-in" style={{ overflowClipMargin: 'content-box', overflowX: 'clip' }}>
+    <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32 py-8 md:py-12 animate-fade-in" style={{ overflowClipMargin: 'content-box', overflowX: 'clip' }}>
       {/* Product structured data for Google Search & Merchant Center */}
       <script
         type="application/ld+json"
@@ -325,7 +325,7 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
 
       <div className="md:flex md:gap-12 md:items-start">
         {/* Images */}
-        <div className="md:sticky md:top-24 md:w-1/2 md:flex-shrink-0 min-w-0 md:self-start">
+        <div className="md:sticky md:top-24 md:w-[44%] lg:w-[42%] md:flex-shrink-0 min-w-0 md:self-start">
           {(() => {
             const media = [
               ...(product.images || []).map((m) => ({ ...m, kind: 'image' })),
@@ -474,15 +474,15 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
               <>
                 <button
                   onClick={() => { setSelectedImage((prev) => (prev === 0 ? media.length - 1 : prev - 1)); setIsVideoPlaying(false); }}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/80 dark:bg-gray-700/80 flex items-center justify-center hover:bg-white dark:hover:bg-gray-600 transition-colors"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/80 dark:bg-gray-700/80 flex items-center justify-center hover:bg-white dark:hover:bg-gray-600 transition-colors"
                 >
-                  <FiChevronLeft size={20} />
+                  <FiChevronLeft size={16} />
                 </button>
                 <button
                   onClick={() => { setSelectedImage((prev) => (prev === media.length - 1 ? 0 : prev + 1)); setIsVideoPlaying(false); }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/80 dark:bg-gray-700/80 flex items-center justify-center hover:bg-white dark:hover:bg-gray-600 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-white/80 dark:bg-gray-700/80 flex items-center justify-center hover:bg-white dark:hover:bg-gray-600 transition-colors"
                 >
-                  <FiChevronRight size={20} />
+                  <FiChevronRight size={16} />
                 </button>
               </>
             )}
