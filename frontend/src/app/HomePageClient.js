@@ -164,7 +164,7 @@ export default function HomePageClient({
   }, [isAuthenticated]);
 
   return (
-    <div className="animate-fade-in hexagon-bg">
+    <div className="animate-fade-in bg-white dark:bg-gray-950">
       {/* Auto-Slide Banner Carousel */}
       {banners.length > 0 && (
         <section className="relative w-full overflow-hidden bg-gray-100 dark:bg-gray-950">
@@ -203,17 +203,17 @@ export default function HomePageClient({
               <>
                 <button
                   onClick={() => { setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length); startAutoSlide(); }}
-                  className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/80 dark:bg-black/50 flex items-center justify-center text-brand-charcoal dark:text-white hover:bg-white transition-colors shadow"
+                  className="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors shadow"
                   aria-label="Previous banner"
                 >
-                  <FiChevronLeft size={20} />
+                  <FiChevronLeft size={16} />
                 </button>
                 <button
                   onClick={() => { setCurrentBanner((prev) => (prev + 1) % banners.length); startAutoSlide(); }}
-                  className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/80 dark:bg-black/50 flex items-center justify-center text-brand-charcoal dark:text-white hover:bg-white transition-colors shadow"
+                  className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors shadow"
                   aria-label="Next banner"
                 >
-                  <FiChevronRight size={20} />
+                  <FiChevronRight size={16} />
                 </button>
               </>
             )}
@@ -251,71 +251,9 @@ export default function HomePageClient({
         </section>
       )}
 
-      {/* Hero Section */}
-      <section className="relative min-h-[50vh] md:min-h-[60vh] flex items-center bg-brand-cream dark:bg-gray-950 overflow-hidden">
-        <div className="absolute inset-0">
-          <Image
-            src="/defaults/banner-1.jpg"
-            alt="Jewellery Hero"
-            fill
-            className="object-cover opacity-20"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-brand-cream via-brand-cream/80 to-transparent dark:from-gray-950 dark:via-gray-950/80" />
-        </div>
-
-        <div className="relative mx-auto px-4 sm:px-6 lg:px-[50px] py-10 md:py-20">
-          <div className="max-w-2xl">
-            <p className="text-brand-gold font-medium tracking-[0.3em] uppercase text-sm mb-4 animate-slide-up">
-              {hero?.heroEyebrow || 'Exquisite Jewellery Collection'}
-            </p>
-            <h1 className="font-serif text-5xl md:text-7xl font-bold text-brand-charcoal dark:text-gray-100 leading-tight mb-6">
-              {hero?.heroTitle || 'Adorn Your'}
-              <br />
-              <span className="text-brand-gold italic">{hero?.heroAccent || 'Elegance'}</span>
-            </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-lg leading-relaxed">
-              {hero?.content || 'Discover handcrafted jewellery that tells your story. From timeless classics to modern masterpieces — crafted with love.'}
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <Link href="/products" className="btn-primary inline-flex items-center gap-2">
-                Shop Now <FiArrowRight />
-              </Link>
-              <Link href="/products?featured=true" className="btn-secondary inline-flex items-center gap-2">
-                View Collections
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Bar */}
-      {resolvedFeatures.length > 0 && (
-      <section className="bg-white dark:bg-gray-900 border-y border-gray-100 dark:border-gray-800">
-        <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
-          {resolvedFeatures.map(({ key, Icon, title, desc }) => (
-            <div key={key} className="flex items-center gap-3">
-              <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-brand-cream flex items-center justify-center flex-shrink-0">
-                <Icon className="text-brand-green" size={20} />
-              </div>
-              <div>
-                <p className="font-medium text-sm text-brand-charcoal dark:text-gray-200">{title}</p>
-                <p className="text-xs text-gray-400">{desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-      )}
-
-      {/* Ad — After Features */}
-      <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-4">
-        <AdBanner adSlot={process.env.NEXT_PUBLIC_AD_SLOT_1} format="horizontal" />
-      </div>
-
       {/* Shop by Category */}
       {categories.length > 0 && (
-      <section className="py-16 md:py-24 mx-auto px-4 sm:px-6 lg:px-[50px]">
+      <section className="py-8 md:py-12 mx-auto px-4 sm:px-6 lg:px-[50px]">
         <h2 className="section-title">Shop by Category</h2>
         <p className="section-subtitle">Find the perfect piece from our curated collections</p>
 
@@ -346,9 +284,33 @@ export default function HomePageClient({
       </section>
       )}
 
+      {/* Features Bar */}
+      {resolvedFeatures.length > 0 && (
+      <section className="bg-white dark:bg-gray-900 border-y border-gray-100 dark:border-gray-800">
+        <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+          {resolvedFeatures.map(({ key, Icon, title, desc }) => (
+            <div key={key} className="flex items-center gap-3">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-brand-cream flex items-center justify-center flex-shrink-0">
+                <Icon className="text-brand-green" size={20} />
+              </div>
+              <div>
+                <p className="font-medium text-sm text-brand-charcoal dark:text-gray-200">{title}</p>
+                <p className="text-xs text-gray-400">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+      )}
+
+      {/* Ad — After Features */}
+      <div className="mx-auto px-4 sm:px-6 lg:px-[50px] py-4">
+        <AdBanner adSlot={process.env.NEXT_PUBLIC_AD_SLOT_1} format="horizontal" />
+      </div>
+
       {/* Featured Collections */}
       {featured.length > 0 ? (
-        <section className="pt-16 md:pt-24 pb-10 md:pb-24 bg-white dark:bg-gray-900 skeleton-to-content">
+        <section className="pt-8 md:pt-12 pb-6 md:pb-12 bg-white dark:bg-gray-900 skeleton-to-content">
           <div className="mx-auto px-4 sm:px-6 lg:px-[50px]">
             <div className="flex items-end justify-between mb-10">
               <div>
@@ -388,7 +350,7 @@ export default function HomePageClient({
       </div>
 
       {/* Banner */}
-      <section className="py-0 md:py-24">
+      <section className="py-0 md:py-12">
         <div className="mx-auto md:px-4 sm:px-6 lg:px-[50px] px-0">
           <div className="relative md:rounded-3xl overflow-hidden bg-brand-green h-[125vw] min-h-[500px] md:h-auto md:min-h-[400px] flex items-center">
             <div className="absolute inset-0 opacity-20">
@@ -418,7 +380,7 @@ export default function HomePageClient({
 
       {/* Trending Products */}
       {trending.length > 0 ? (
-        <section className="py-16 md:py-24 bg-white dark:bg-gray-900 skeleton-to-content">
+        <section className="py-8 md:py-12 bg-white dark:bg-gray-900 skeleton-to-content">
           <div className="mx-auto px-4 sm:px-6 lg:px-[50px]">
             <div className="flex items-end justify-between mb-10">
               <div>
@@ -453,16 +415,16 @@ export default function HomePageClient({
       )}
 
       {/* Instagram Section */}
-      <section className="py-16 md:py-24">
+      <section className="py-6 md:py-8">
         <div className="mx-auto px-4 sm:px-6 lg:px-[50px] text-center">
-          <h2 className="section-title">Follow Us on Instagram</h2>
-          <p className="section-subtitle">@rupalsha.official</p>
+          <h2 className="font-sans text-lg md:text-xl font-medium tracking-wide text-brand-charcoal dark:text-gray-100">Follow Us on Instagram</h2>
+          <p className="font-sans text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">@rupalsha.official</p>
 
           <a
             href="https://instagram.com/rupalsha.official"
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-center gap-3 mt-8 px-7 py-3.5 rounded-full bg-white text-brand-charcoal font-semibold text-sm md:text-base shadow-lg hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] transition-all duration-300"
+            className="group inline-flex items-center gap-3 mt-4 px-7 py-3.5 rounded-full bg-white text-brand-charcoal font-semibold text-sm md:text-base shadow-lg hover:shadow-2xl hover:scale-[1.03] active:scale-[0.98] transition-all duration-300"
           >
             <FiInstagram size={18} className="text-[#d62976] group-hover:rotate-[-8deg] transition-transform" />
             <span>Follow @rupalsha.official</span>

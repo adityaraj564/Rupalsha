@@ -7,7 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon, FiLogOut, FiCreditCard } from 'react-icons/fi';
 import { useAuthStore, useCartStore, useWishlistStore, useThemeStore } from '@/lib/store';
 import NotificationBell from './NotificationBell';
-import { couponsAPI } from '@/lib/api';
+import { couponsAPI, categoriesAPI } from '@/lib/api';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
@@ -36,6 +36,8 @@ export default function Header() {
 
   const [showThemeTip, setShowThemeTip] = useState(false);
   const [searchHistory, setSearchHistory] = useState([]);
+  const [categoryNames, setCategoryNames] = useState([]);
+  const [animPlaceholder, setAnimPlaceholder] = useState('');
 
   const { isAuthenticated, user, logout } = useAuthStore();
   const cartCount = useCartStore((s) => s.getCount());
@@ -73,16 +75,91 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [searchOpen]);
 
-  // Close search on scroll
+  // Close search on scroll (only when scrolling down/away from top)
   useEffect(() => {
     if (!searchOpen) return;
+    let lastY = window.scrollY;
     const handleScroll = () => {
-      setSearchOpen(false);
-      setSearchQuery('');
+      const y = window.scrollY;
+      if (y > lastY && y > 10) {
+        setSearchOpen(false);
+        setSearchQuery('');
+      }
+      lastY = y;
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [searchOpen]);
+
+  // Mobile pull-down at top opens search bar (Palmonas-style)
+  useEffect(() => {
+    let startY = null;
+    const onTouchStart = (e) => {
+      startY = window.scrollY <= 0 ? e.touches[0].clientY : null;
+    };
+    const onTouchMove = (e) => {
+      if (startY === null || searchOpen || mobileMenuOpen) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy > 60) {
+        setSearchOpen(true);
+        startY = null;
+      }
+    };
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+    };
+  }, [searchOpen, mobileMenuOpen]);
+
+  // Load categories for placeholder suggestions
+  useEffect(() => {
+    let cancelled = false;
+    categoriesAPI.getTree().then((data) => {
+      if (cancelled) return;
+      const tree = Array.isArray(data) ? data : (Array.isArray(data?.categories) ? data.categories : []);
+      const names = [];
+      const walk = (arr) => arr.forEach((c) => {
+        if (c?.name) names.push(c.name);
+        if (Array.isArray(c.children)) walk(c.children);
+      });
+      walk(tree);
+      if (names.length) setCategoryNames(names);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  // Typewriter placeholder cycling through category names
+  useEffect(() => {
+    if (!searchOpen || searchQuery || categoryNames.length === 0) {
+      setAnimPlaceholder('');
+      return;
+    }
+    let idx = 0, char = 0, deleting = false, timer;
+    const tick = () => {
+      const word = categoryNames[idx];
+      if (!deleting) {
+        char++;
+        setAnimPlaceholder(`Search for ${word.slice(0, char)}|`);
+        if (char >= word.length) {
+          deleting = true;
+          timer = setTimeout(tick, 5000);
+          return;
+        }
+      } else {
+        char--;
+        setAnimPlaceholder(`Search for ${word.slice(0, char)}|`);
+        if (char <= 0) {
+          deleting = false;
+          idx = (idx + 1) % categoryNames.length;
+        }
+      }
+      timer = setTimeout(tick, deleting ? 40 : 90);
+    };
+    tick();
+    return () => clearTimeout(timer);
+  }, [searchOpen, searchQuery, categoryNames]);
 
   // Show night mode tooltip for first-time visitors (only in light mode)
   useEffect(() => {
@@ -116,21 +193,7 @@ export default function Header() {
     return () => clearInterval(interval);
   }, [coupons.length]);
 
-  // Debounced live search: triggers after 2+ characters
-  useEffect(() => {
-    if (!searchOpen) return;
-    const trimmed = searchQuery.trim();
-    const timer = setTimeout(() => {
-      if (trimmed.length >= 2) {
-        router.push(`/products?search=${encodeURIComponent(trimmed)}`);
-        addToSearchHistory(trimmed);
-      } else if (trimmed.length === 0) {
-        // When search is fully cleared, show all products
-        router.push('/products');
-      }
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [searchQuery, searchOpen, router]);
+  // Navigation happens only on form submit (Enter) — see handleSearch below.
 
   // Load search history from localStorage
   useEffect(() => {
@@ -165,7 +228,11 @@ export default function Header() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // Live search handles it — form submit just prevents page reload
+    const trimmed = searchQuery.trim();
+    if (trimmed.length === 0) return;
+    addToSearchHistory(trimmed);
+    router.push(`/products?search=${encodeURIComponent(trimmed)}`);
+    setSearchOpen(false);
   };
 
   const handleCloseSearch = () => {
@@ -186,7 +253,7 @@ export default function Header() {
           <div className="flex items-center justify-between h-16 md:h-20">
             <Link href="/content-admin" className="flex-shrink-0 flex items-center gap-2">
               <Image src="/rupalshaLogo.png" alt="Rupalsha Logo" width={70} height={70} className="rounded-full translate-y-1" priority />
-              <h1 className="hidden md:block font-serif text-2xl md:text-3xl font-bold tracking-wide -ml-1 text-brand-green dark:text-[#F8F0E8] [text-shadow:1px_1px_2px_rgba(200,169,81,0.4)]">RUPALSHA</h1>
+              <h1 className="hidden md:block font-sans text-xl md:text-2xl font-light tracking-[0.35em] uppercase -ml-1 text-brand-charcoal dark:text-[#F8F0E8]">RUPALSHA</h1>
             </Link>
             <div className="flex items-center gap-4">
               <Link href="/content-admin" className="text-sm font-medium text-brand-gold hover:text-brand-green transition-colors flex items-center gap-1">
@@ -274,7 +341,7 @@ export default function Header() {
                 className="rounded-full translate-y-1"
                 priority
               />
-              <h1 className="hidden md:block font-serif text-2xl md:text-3xl font-bold tracking-wide -ml-1 text-brand-green dark:text-[#F8F0E8] [text-shadow:1px_1px_2px_rgba(200,169,81,0.4)]">
+              <h1 className="hidden md:block font-sans text-xl md:text-2xl font-light tracking-[0.35em] uppercase -ml-1 text-brand-charcoal dark:text-[#F8F0E8]">
                 RUPALSHA
               </h1>
             </Link>
@@ -454,8 +521,8 @@ export default function Header() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search for sarees, kurtis, dresses..."
-                  className="flex-1 outline-none text-brand-charcoal dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent"
+                  placeholder={animPlaceholder || 'Search...'}
+                  className={`flex-1 outline-none text-brand-charcoal dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent ${!searchQuery ? 'caret-transparent' : ''}`}
                   autoFocus
                 />
                 {searchQuery && (

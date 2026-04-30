@@ -67,6 +67,8 @@ router.get('/', async (req, res, next) => {
         { tags: searchRegex },
         { category: searchRegex },
         { fabric: searchRegex },
+        { productCode: searchRegex },
+        { sku: searchRegex },
       ];
     }
 
