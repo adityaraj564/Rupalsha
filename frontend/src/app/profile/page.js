@@ -21,6 +21,7 @@ export default function ProfilePage() {
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [editingAddress, setEditingAddress] = useState(null);
   const [addingAddress, setAddingAddress] = useState(false);
+  const [showAllAddresses, setShowAllAddresses] = useState(false);
   const [addressForm, setAddressForm] = useState({
     fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
   });
@@ -485,8 +486,9 @@ export default function ProfilePage() {
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Add a delivery address for faster checkout.</p>
                   </div>
                 ) : (
+                  <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {user.addresses?.map((addr) => (
+                    {(showAllAddresses ? user.addresses : user.addresses?.slice(0, 2))?.map((addr) => (
                       <div
                         key={addr._id}
                         className={`relative rounded-2xl p-5 border transition-all ${
@@ -549,6 +551,18 @@ export default function ProfilePage() {
                       </div>
                     ))}
                   </div>
+                  {user.addresses?.length > 2 && (
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowAllAddresses((v) => !v)}
+                        className="text-brand-green dark:text-[#F8F0E8] font-medium text-sm hover:underline"
+                      >
+                        {showAllAddresses ? 'Show less' : `View all (${user.addresses.length})`}
+                      </button>
+                    </div>
+                  )}
+                  </>
                 )}
               </div>
             </div>

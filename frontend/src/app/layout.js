@@ -9,14 +9,44 @@ import TopProgressBar from '@/components/TopProgressBar';
 const ADSENSE_CLIENT_ID =
   process.env.NEXT_PUBLIC_ADSENSE_ID || 'ca-pub-5385129928466192';
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.rupalsha.com';
+const SITE_NAME = 'Rupalsha';
+const SITE_DESCRIPTION = 'Discover elegant ethnic and modern fashion at Rupalsha. Shop sarees, kurtis, lehengas, dresses and more. Premium quality, affordable luxury.';
+const LOGO_URL = `${SITE_URL}/Rupalsha.png`;
+
 export const metadata = {
-  title: 'Rupalsha — Where Comfort Meets Style',
-  description: 'Discover elegant ethnic and modern fashion at Rupalsha. Shop sarees, kurtis, lehengas, dresses and more. Premium quality, affordable luxury.',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'Rupalsha — Where Comfort Meets Style',
+    template: '%s | Rupalsha',
+  },
+  description: SITE_DESCRIPTION,
   keywords: 'fashion, ethnic wear, sarees, kurtis, lehengas, dresses, women fashion, Indian fashion, Rupalsha',
+  applicationName: SITE_NAME,
+  icons: {
+    icon: [
+      { url: '/Rupalsha.png', type: 'image/png' },
+    ],
+    shortcut: ['/Rupalsha.png'],
+    apple: [{ url: '/Rupalsha.png' }],
+  },
+  manifest: '/manifest.webmanifest',
   openGraph: {
-    title: 'Rupalsha — Where Comfort Meets Style',
-    description: 'Discover elegant ethnic and modern fashion at Rupalsha.',
     type: 'website',
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: 'Rupalsha — Where Comfort Meets Style',
+    description: SITE_DESCRIPTION,
+    images: [{ url: LOGO_URL, width: 512, height: 512, alt: 'Rupalsha' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Rupalsha — Where Comfort Meets Style',
+    description: SITE_DESCRIPTION,
+    images: [LOGO_URL],
+  },
+  alternates: {
+    canonical: SITE_URL,
   },
 };
 
@@ -45,6 +75,48 @@ export default function RootLayout({ children }) {
           async
           src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
           crossOrigin="anonymous"
+        />
+        {/* Structured data — helps Google show the logo & sitelinks search box. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@graph': [
+                {
+                  '@type': 'Organization',
+                  '@id': `${SITE_URL}/#organization`,
+                  name: SITE_NAME,
+                  url: SITE_URL,
+                  logo: {
+                    '@type': 'ImageObject',
+                    url: LOGO_URL,
+                    width: 512,
+                    height: 512,
+                  },
+                  sameAs: [
+                    'https://instagram.com/rupalsha.official',
+                  ],
+                },
+                {
+                  '@type': 'WebSite',
+                  '@id': `${SITE_URL}/#website`,
+                  url: SITE_URL,
+                  name: SITE_NAME,
+                  description: SITE_DESCRIPTION,
+                  publisher: { '@id': `${SITE_URL}/#organization` },
+                  potentialAction: {
+                    '@type': 'SearchAction',
+                    target: {
+                      '@type': 'EntryPoint',
+                      urlTemplate: `${SITE_URL}/products?search={search_term_string}`,
+                    },
+                    'query-input': 'required name=search_term_string',
+                  },
+                },
+              ],
+            }),
+          }}
         />
       </head>
       <body className="min-h-screen flex flex-col bg-brand-cream dark:bg-gray-950 text-brand-charcoal dark:text-gray-100 transition-colors duration-300">

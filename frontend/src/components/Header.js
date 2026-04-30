@@ -250,10 +250,9 @@ export default function Header() {
     return (
       <header className="sticky top-0 z-50 bg-brand-cream dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
         <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32">
-          <div className="flex items-center justify-between h-16 md:h-20">
-            <Link href="/content-admin" className="flex-shrink-0 flex items-center gap-2">
-              <Image src="/rupalshaLogo.png" alt="Rupalsha Logo" width={70} height={70} className="rounded-full translate-y-1" priority />
-              <h1 className="hidden md:block font-sans text-xl md:text-2xl font-light tracking-[0.35em] uppercase -ml-1 text-brand-charcoal dark:text-[#F8F0E8]">RUPALSHA</h1>
+          <div className="flex items-center justify-between h-20">
+            <Link href="/content-admin" className="flex-shrink-0 flex items-center">
+              <h1 className="font-sans text-lg sm:text-xl md:text-2xl font-semibold tracking-[0.25em] sm:tracking-[0.3em] md:tracking-[0.35em] uppercase text-brand-charcoal dark:text-[#F8F0E8]">RUPALSHA</h1>
             </Link>
             <div className="flex items-center gap-4">
               <Link href="/content-admin" className="text-sm font-medium text-brand-gold hover:text-brand-green transition-colors flex items-center gap-1">
@@ -319,9 +318,9 @@ export default function Header() {
         }`}
       >
         <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32">
-          <div className="flex items-center justify-between h-16 md:h-20">
+          <div className="flex items-center justify-between h-20">
             {/* Left: Mobile menu + Logo */}
-            <div className="flex items-center gap-0">
+            <div className="flex items-center gap-6 md:gap-0">
             {/* Mobile menu toggle */}
             <button
               className="md:hidden p-1 -ml-3"
@@ -332,16 +331,8 @@ export default function Header() {
             </button>
 
             {/* Logo */}
-            <Link href="/" className="flex-shrink-0 flex items-center gap-2">
-              <Image
-                src="/rupalshaLogo.png"
-                alt="Rupalsha Logo"
-                width={70}
-                height={70}
-                className="rounded-full translate-y-1"
-                priority
-              />
-              <h1 className="hidden md:block font-sans text-xl md:text-2xl font-light tracking-[0.35em] uppercase -ml-1 text-brand-charcoal dark:text-[#F8F0E8]">
+            <Link href="/" className="flex-shrink-0 flex items-center -ml-3 md:ml-0">
+              <h1 className="font-sans text-2xl sm:text-3xl md:text-3xl font-normal tracking-[0.25em] sm:tracking-[0.3em] md:tracking-[0.35em] uppercase text-brand-charcoal dark:text-[#F8F0E8]">
                 RUPALSHA
               </h1>
             </Link>
@@ -362,20 +353,22 @@ export default function Header() {
             </nav>
 
             {/* Actions */}
-            <div className="flex items-center space-x-3 md:space-x-4">
-              <button
-                ref={searchBtnRef}
-                onClick={() => setSearchOpen(!searchOpen)}
-                className="p-2 hover:text-brand-green transition-colors"
-                aria-label="Search"
-              >
-                <FiSearch size={20} />
-              </button>
+            <div className="flex items-center space-x-0 md:space-x-3">
+              {!searchOpen && (
+                <button
+                  ref={searchBtnRef}
+                  onClick={() => setSearchOpen(!searchOpen)}
+                  className="p-1.5 md:p-2 hover:text-brand-green transition-colors"
+                  aria-label="Search"
+                >
+                  <FiSearch size={20} />
+                </button>
+              )}
 
               {isAuthenticated && (
                 <Link
                   href="/wishlist"
-                  className="p-2 hover:text-brand-green transition-colors relative hidden sm:block"
+                  className="p-1.5 md:p-2 hover:text-brand-green transition-colors relative hidden sm:block"
                 >
                   <FiHeart size={20} />
                   {wishlistCount > 0 && (
@@ -393,7 +386,7 @@ export default function Header() {
 
               <Link
                 href="/cart"
-                className="p-2 hover:text-brand-green transition-colors relative"
+                className="p-1.5 md:p-2 hover:text-brand-green transition-colors relative"
               >
                 <FiShoppingBag size={20} />
                 {cartCount > 0 && (
@@ -407,7 +400,7 @@ export default function Header() {
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => { setProfileOpen(!profileOpen); if (showThemeTip) { setShowThemeTip(false); localStorage.setItem('rupalsha_theme_tip', '1'); } }}
-                  className="p-2 hover:text-brand-green transition-colors"
+                  className="p-1.5 md:p-2 hover:text-brand-green transition-colors"
                   aria-label="Profile"
                 >
                   <FiUser size={20} />

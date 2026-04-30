@@ -34,6 +34,7 @@ export default function CheckoutPage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [useWallet, setUseWallet] = useState(false);
   const [showAddressForm, setShowAddressForm] = useState(false);
+  const [showAllAddresses, setShowAllAddresses] = useState(false);
   const [stockIssues, setStockIssues] = useState([]); // [{ name, size, message, ... }]
   const [newAddress, setNewAddress] = useState({
     fullName: '', phone: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
@@ -359,7 +360,17 @@ export default function CheckoutPage() {
 
             {user.addresses?.length > 0 && (
               <div className="space-y-3 mb-4">
-                {user.addresses.map((addr) => (
+                {(() => {
+                  const all = user.addresses;
+                  let visible = all;
+                  if (!showAllAddresses && all.length > 2) {
+                    visible = all.slice(0, 2);
+                    if (selectedAddress && !visible.some((a) => a._id === selectedAddress._id)) {
+                      const sel = all.find((a) => a._id === selectedAddress._id);
+                      if (sel) visible = [sel, ...all.slice(0, 2).filter((a) => a._id !== sel._id)].slice(0, 2);
+                    }
+                  }
+                  return visible.map((addr) => (
                   <label
                     key={addr._id}
                     className={`block p-4 border rounded-xl cursor-pointer transition-colors ${
@@ -380,7 +391,17 @@ export default function CheckoutPage() {
                     </p>
                     <p className="text-sm text-gray-500 mt-1 break-words">{addr.phone}</p>
                   </label>
-                ))}
+                  ));
+                })()}
+                {user.addresses.length > 2 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllAddresses((v) => !v)}
+                    className="text-brand-green font-medium text-sm hover:underline"
+                  >
+                    {showAllAddresses ? 'Show less' : `View all (${user.addresses.length})`}
+                  </button>
+                )}
               </div>
             )}
 
