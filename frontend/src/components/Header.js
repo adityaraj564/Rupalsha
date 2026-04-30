@@ -394,8 +394,8 @@ export default function Header() {
             </button>
 
             {/* Logo */}
-            <Link href="/" className="flex-shrink-0 flex items-center -ml-3 md:ml-0">
-              <h1 className="font-sans text-2xl sm:text-3xl md:text-3xl font-normal tracking-[0.25em] sm:tracking-[0.3em] md:tracking-[0.35em] uppercase text-brand-charcoal dark:text-[#F8F0E8]">
+            <Link href="/" className="flex-shrink-0 flex items-center -ml-2 md:ml-0">
+              <h1 className="font-sans text-lg sm:text-2xl md:text-3xl font-normal tracking-[0.18em] sm:tracking-[0.3em] md:tracking-[0.35em] uppercase text-brand-charcoal dark:text-[#F8F0E8]">
                 RUPALSHA
               </h1>
             </Link>
@@ -416,12 +416,12 @@ export default function Header() {
             </nav>
 
             {/* Actions */}
-            <div className="flex items-center space-x-0 md:space-x-3">
+            <div className="flex items-center gap-1 md:gap-3">
               {!searchOpen && (
                 <button
                   ref={searchBtnRef}
                   onClick={() => setSearchOpen(!searchOpen)}
-                  className="p-1.5 md:p-2 hover:text-brand-green transition-colors"
+                  className="p-1.5 md:p-2 ml-2 md:ml-0 hover:text-brand-green transition-colors"
                   aria-label="Search"
                 >
                   <FiSearch size={20} />

@@ -161,7 +161,7 @@ export default function NotificationBell() {
       <button
         ref={btnRef}
         onClick={() => setOpen((o) => !o)}
-        className="p-2 hover:text-brand-green transition-colors relative"
+        className="p-1.5 md:p-2 hover:text-brand-green transition-colors relative"
         aria-label="Notifications"
         aria-expanded={open}
       >

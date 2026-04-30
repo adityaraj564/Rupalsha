@@ -1,5 +1,4 @@
 import './globals.css';
-import { Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -51,6 +50,11 @@ export const metadata = {
     canonical: SITE_URL,
   },
 };
+
+// Site is highly dynamic (auth, cart, search params in Header) — opt out of
+// static prerendering at the root so Next.js doesn't error on useSearchParams
+// during the Vercel build, and avoids dev-mode hydration mismatches.
+export const dynamic = 'force-dynamic';
 
 export default function RootLayout({ children }) {
   return (
@@ -137,9 +141,7 @@ export default function RootLayout({ children }) {
             },
           }}
         />
-        <Suspense fallback={null}>
-          <Header />
-        </Suspense>
+        <Header />
         <main className="flex-1">{children}</main>
         <Footer />
         <WhatsAppFloat />
