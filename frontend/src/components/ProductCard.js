@@ -1,25 +1,41 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiHeart, FiEye } from 'react-icons/fi';
-import { useAuthStore, useWishlistStore } from '@/lib/store';
+import { FiHeart } from 'react-icons/fi';
+import { useAuthStore, useAuthModalStore, useCartStore, useWishlistStore } from '@/lib/store';
 import toast from 'react-hot-toast';
 
-export default function ProductCard({ product }) {
+// Module-level cache for the device's hover capability. `matchMedia` is
+// cheap individually, but on a long product grid it would otherwise be
+// called on every single mouse event of every card. Resolved once and
+// shared across every card instance.
+let _hasHover = null;
+const deviceHasHover = () => {
+  if (_hasHover !== null) return _hasHover;
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
+  _hasHover = window.matchMedia('(hover: hover)').matches;
+  return _hasHover;
+};
+
+function ProductCard({ product }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const openAuthModal = useAuthModalStore((s) => s.open);
+  const addToCart = useCartStore((s) => s.addItem);
   const { isInWishlist, addItem, removeItem } = useWishlistStore();
   const inWishlist = isAuthenticated && isInWishlist(product._id);
   const [currentImage, setCurrentImage] = useState(0);
+  const [adding, setAdding] = useState(false);
   const intervalRef = useRef(null);
+  const cardRef = useRef(null);
   const hasMultipleImages = product.images?.length > 1;
 
   const handleWishlist = async (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (!isAuthenticated) {
-      toast.error('Please login to add to wishlist');
+      openAuthModal('login');
       return;
     }
     try {
@@ -41,21 +57,72 @@ export default function ProductCard({ product }) {
 
   const totalStock = product.sizes?.reduce((sum, s) => sum + s.stock, 0) || 0;
   const isOutOfStock = totalStock === 0;
+  // First in-stock size — used to add to bag directly when the product
+  // only has a single size. If multiple sizes exist we send the user to
+  // the product page so they can choose.
+  const firstInStockSize = product.sizes?.find((s) => s.stock > 0)?.size;
+  const sizeOptions = product.sizes?.filter((s) => s.stock > 0) || [];
+  const needsSizeChoice = sizeOptions.length > 1;
 
   const startSlide = () => {
     if (!hasMultipleImages) return;
+    if (intervalRef.current) return; // already running
     intervalRef.current = setInterval(() => {
       setCurrentImage((prev) => (prev + 1) % product.images.length);
     }, 2000);
   };
 
-  const stopSlide = () => {
+  const stopSlide = (resetIndex = true) => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    setCurrentImage(0);
+    if (resetIndex) setCurrentImage(0);
   };
+
+  // Mouse-driven auto-slide for desktop hover. We only start the
+  // slideshow on `mouseenter`; `mouseleave` is the one that needs to
+  // discriminate between a real desktop pointer leaving the card
+  // (resets to the first image) and a touch device firing a synthetic
+  // mouseleave at the end of a tap (must not interrupt the IO-driven
+  // autoplay below).
+  const handleMouseEnter = () => {
+    startSlide();
+  };
+
+  const handleMouseLeave = () => {
+    if (deviceHasHover()) stopSlide(true);
+  };
+
+  // Drive the slideshow by viewport visibility on every device. We used
+  // to gate this behind `(hover: none)` but several mobile browsers
+  // (and dev-tool emulations) report `hover: hover`, which left mobile
+  // users stuck on the first image. Running IO unconditionally is safe:
+  // the interval is cleared as soon as the card scrolls out, so off-
+  // screen cards don't burn CPU.
+  useEffect(() => {
+    if (!hasMultipleImages || typeof window === 'undefined') return undefined;
+    const node = cardRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      startSlide();
+      return () => stopSlide(false);
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) startSlide();
+          else stopSlide(false);
+        });
+      },
+      { threshold: 0.4 }
+    );
+    io.observe(node);
+    return () => {
+      io.disconnect();
+      stopSlide(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMultipleImages, product.images?.length]);
 
   useEffect(() => {
     return () => {
@@ -63,14 +130,53 @@ export default function ProductCard({ product }) {
     };
   }, []);
 
+  const handleAddToBag = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (isOutOfStock) return;
+    // Read auth state via getState() so the resumed call after a successful
+    // login (fired from the modal's `pendingAction`) sees the now-true
+    // value instead of the stale `false` captured by the original click's
+    // closure — otherwise we'd reopen the modal in an infinite loop.
+    const authed = useAuthStore.getState().isAuthenticated;
+    if (!authed) {
+      // Open the popup over the same page; once login completes the
+      // resolver fires this `pendingAction`, which retries the add — so
+      // the user lands back on the same product list with the item added
+      // and never loses their place.
+      openAuthModal('login', () => handleAddToBag(null));
+      return;
+    }
+    if (needsSizeChoice) {
+      // Multiple sizes available — the user must choose. We can't pick
+      // for them silently, so route them to the product detail page
+      // where the size grid lives. Single-size products skip this entirely.
+      toast('Choose a size to continue', { icon: '👕' });
+      window.location.href = `/product/${product.slug}`;
+      return;
+    }
+    if (!firstInStockSize) return;
+    setAdding(true);
+    try {
+      await addToCart(product._id, firstInStockSize);
+      toast.success('Added to bag!');
+    } catch (err) {
+      toast.error(err.message || 'Could not add to bag');
+    } finally {
+      setAdding(false);
+    }
+  };
+
   return (
-    <Link href={`/product/${product.slug}`} className="group block">
+    <Link href={`/product/${product.slug}`} className="group block" ref={cardRef}>
       <div className={`card overflow-hidden ${isOutOfStock ? 'opacity-60' : ''}`}>
         {/* Image */}
         <div
           className="relative aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-gray-700 product-image-zoom"
-          onMouseEnter={startSlide}
-          onMouseLeave={stopSlide}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
           <Image
             src={product.images?.[currentImage]?.url || product.images?.[0]?.url || '/placeholder.jpg'}
@@ -81,9 +187,10 @@ export default function ProductCard({ product }) {
             loading="lazy"
           />
 
-          {/* Image dots indicator */}
+          {/* Image dots indicator — sits above the action row so the
+              heart and Add-to-Bag pill don't overlap it. */}
           {hasMultipleImages && (
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1 z-10">
               {product.images.map((_, i) => (
                 <span
                   key={i}
@@ -103,8 +210,8 @@ export default function ProductCard({ product }) {
               </span>
             )}
             {discount > 0 && (
-              <span className="bg-brand-gold text-white text-xs font-semibold px-2 py-1 rounded-full">
-                -{discount}%
+              <span className="bg-green-100 text-green-700 text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm">
+                Save {discount}%
               </span>
             )}
             {product.isTrending && (
@@ -114,22 +221,34 @@ export default function ProductCard({ product }) {
             )}
           </div>
 
-          {/* Actions */}
-          <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          {/* Bottom action row — wishlist heart on the left, compact
+              Add-to-Bag pill on the right. Both stay visible at all
+              times (no hover gating) so mobile shoppers can reach them
+              just as easily as desktop users. */}
+          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2 z-10 pointer-events-none">
             <button
               onClick={handleWishlist}
-              className={`w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center transition-colors ${
-                inWishlist ? 'text-red-500' : 'text-gray-600 hover:text-red-500'
+              aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+              className={`pointer-events-auto w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm shadow-md flex items-center justify-center transition-colors ${
+                inWishlist ? 'text-red-500' : 'text-gray-700 hover:text-red-500'
               }`}
             >
-              <FiHeart size={16} fill={inWishlist ? 'currentColor' : 'none'} />
+              <FiHeart size={13} fill={inWishlist ? 'currentColor' : 'none'} />
             </button>
-          </div>
 
-          {/* Quick View */}
-          <div className="absolute bottom-0 left-0 right-0 bg-brand-green/90 text-white text-center py-3 text-sm font-medium translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-            <FiEye className="inline mr-2" size={16} />
-            Quick View
+            <button
+              type="button"
+              onClick={handleAddToBag}
+              disabled={isOutOfStock || adding}
+              aria-label={isOutOfStock ? 'Out of stock' : 'Add to bag'}
+              className={`pointer-events-auto inline-flex items-center px-2.5 py-1 rounded-full text-[9px] md:text-[10px] font-semibold tracking-wider uppercase backdrop-blur-sm shadow-sm transition-colors ${
+                isOutOfStock
+                  ? 'bg-gray-200/80 text-gray-500 cursor-not-allowed'
+                  : 'bg-white/80 text-gray-800 hover:bg-white hover:text-brand-green'
+              }`}
+            >
+              {isOutOfStock ? 'Sold out' : adding ? 'Adding…' : 'Add to bag'}
+            </button>
           </div>
         </div>
 
@@ -160,3 +279,11 @@ export default function ProductCard({ product }) {
     </Link>
   );
 }
+
+// Wrap in `memo` so a card only re-renders when its own product prop
+// actually changes. Product grids are big — without this every parent
+// state change (sort, filter, pagination, even a sibling's wishlist
+// toggle that triggers a store update) would re-render every card.
+// The `product` object reference is stable across renders coming from
+// the API, so reference equality is enough.
+export default memo(ProductCard);

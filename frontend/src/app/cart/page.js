@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { FiMinus, FiPlus, FiTrash2, FiArrowLeft, FiShoppingBag } from 'react-icons/fi';
-import { useCartStore, useAuthStore } from '@/lib/store';
+import { useCartStore, useAuthStore, useAuthModalStore } from '@/lib/store';
 import { CartSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
@@ -12,6 +12,7 @@ export default function CartPage() {
   const { items, isLoading, fetchCart, hydrate, updateItem, removeItem } = useCartStore();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authLoading = useAuthStore((s) => s.isLoading);
+  const openAuthModal = useAuthModalStore((s) => s.open);
 
   useEffect(() => {
     // Synchronously paint the cached cart, then revalidate against the
@@ -30,7 +31,7 @@ export default function CartPage() {
         <FiShoppingBag size={48} className="text-gray-300 mb-4" />
         <h1 className="font-serif text-2xl font-bold mb-2">Your cart is waiting</h1>
         <p className="text-gray-500 mb-6">Login to view your cart</p>
-        <Link href="/auth/login" className="btn-primary">Login</Link>
+        <button onClick={() => openAuthModal('login')} className="btn-primary">Login</button>
       </div>
     );
   }

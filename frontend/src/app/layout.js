@@ -4,6 +4,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import WhatsAppFloat from '@/components/WhatsAppFloat';
 import AuthInit from '@/components/AuthInit';
+import AuthModal from '@/components/AuthModal';
 import TopProgressBar from '@/components/TopProgressBar';
 
 const ADSENSE_CLIENT_ID =
@@ -139,6 +140,7 @@ export default function RootLayout({ children }) {
         <main className="flex-1">{children}</main>
         <Footer />
         <WhatsAppFloat />
+        <AuthModal />
       </body>
     </html>
   );

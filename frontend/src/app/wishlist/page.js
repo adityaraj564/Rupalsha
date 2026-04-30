@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FiHeart, FiTrash2, FiArrowLeft } from 'react-icons/fi';
-import { useAuthStore, useWishlistStore } from '@/lib/store';
+import { useAuthStore, useAuthModalStore, useWishlistStore } from '@/lib/store';
 import ProductCard from '@/components/ProductCard';
 import { ProductGridSkeleton } from '@/components/Skeleton';
 
@@ -12,6 +12,7 @@ export default function WishlistPage() {
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authLoading = useAuthStore((s) => s.isLoading);
+  const openAuthModal = useAuthModalStore((s) => s.open);
   const { items, fetchWishlist } = useWishlistStore();
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function WishlistPage() {
         <FiHeart size={48} className="text-gray-300 mb-4" />
         <h1 className="font-serif text-2xl font-bold mb-2">Your Wishlist</h1>
         <p className="text-gray-500 mb-6">Login to view your wishlist</p>
-        <Link href="/auth/login" className="btn-primary">Login</Link>
+        <button onClick={() => openAuthModal('login')} className="btn-primary">Login</button>
       </div>
     );
   }

@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { FiHeart, FiShoppingBag, FiTruck, FiRefreshCw, FiChevronLeft, FiChevronRight, FiStar, FiMapPin, FiCheck, FiX, FiShare2, FiCamera, FiBell, FiVideo, FiChevronDown, FiPlay, FiPause } from 'react-icons/fi';
 import { productsAPI, reviewsAPI } from '@/lib/api';
-import { useAuthStore, useCartStore, useWishlistStore } from '@/lib/store';
+import { useAuthStore, useAuthModalStore, useCartStore, useWishlistStore } from '@/lib/store';
 import SizeGuideModal from '@/components/SizeGuideModal';
 import ProductCard from '@/components/ProductCard';
 import { ProductDetailSkeleton } from '@/components/Skeleton';
@@ -53,6 +53,7 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
+  const openAuthModal = useAuthModalStore((s) => s.open);
   const addToCart = useCartStore((s) => s.addItem);
   const { isInWishlist, addItem: addToWishlist, removeItem: removeFromWishlist } = useWishlistStore();
 
@@ -113,13 +114,15 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
   }, [product]);
 
   const handleAddToCart = async () => {
-    if (!isAuthenticated) {
-      toast.error('Please login to add to cart');
-      router.push('/auth/login');
-      return;
-    }
     if (!selectedSize) {
       toast.error('Please select a size');
+      return;
+    }
+    // Read auth via getState() so a resumed call (after the modal logs the
+    // user in) sees the fresh value rather than the stale `false` captured
+    // when the user first clicked.
+    if (!useAuthStore.getState().isAuthenticated) {
+      openAuthModal('login', () => handleAddToCart());
       return;
     }
     setAddingToCart(true);
@@ -134,12 +137,12 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
   };
 
   const handleBuyNow = async () => {
-    if (!isAuthenticated) {
-      router.push('/auth/login');
-      return;
-    }
     if (!selectedSize) {
       toast.error('Please select a size');
+      return;
+    }
+    if (!useAuthStore.getState().isAuthenticated) {
+      openAuthModal('login', () => handleBuyNow());
       return;
     }
     try {
@@ -151,8 +154,8 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
   };
 
   const handleWishlist = async () => {
-    if (!isAuthenticated) {
-      toast.error('Please login first');
+    if (!useAuthStore.getState().isAuthenticated) {
+      openAuthModal('login', () => handleWishlist());
       return;
     }
     try {
@@ -217,8 +220,7 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
   const handleSubmitReview = async (e) => {
     e.preventDefault();
     if (!isAuthenticated) {
-      toast.error('Please login to write a review');
-      router.push('/auth/login');
+      openAuthModal('login');
       return;
     }
     if (!reviewForm.comment.trim()) {
@@ -632,8 +634,7 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
                 <button
                   onClick={() => {
                     if (!isAuthenticated) {
-                      toast.error('Please login first');
-                      router.push('/auth/login');
+                      openAuthModal('login');
                       return;
                     }
                     toast.success('We will notify you when this product is back in stock!');

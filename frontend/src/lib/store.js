@@ -22,6 +22,38 @@ const writeCachedUser = (user) => {
   } catch {}
 };
 
+// Auth Modal Store
+// --------------------------------------------------------------------------
+// Drives the global login/register popup. Components that require auth (e.g.
+// "Add to Bag" on a card, cart buttons on a product page) call
+// `useAuthModalStore.getState().open('login')` instead of routing to
+// /auth/login, so the user keeps their place on the current page.
+// `pendingAction` is an optional callback that fires once login succeeds —
+// callers can pass the original action (e.g. add-to-cart) so it resumes
+// automatically without the user having to click again.
+export const useAuthModalStore = create((set, get) => ({
+  isOpen: false,
+  mode: 'login', // 'login' | 'register'
+  pendingAction: null,
+
+  open: (mode = 'login', pendingAction = null) =>
+    set({ isOpen: true, mode, pendingAction: pendingAction || null }),
+
+  close: () => set({ isOpen: false, pendingAction: null }),
+
+  setMode: (mode) => set({ mode }),
+
+  // Called by AuthModal after a successful login/register — fires the
+  // pending action (if any) and closes the modal.
+  resolve: () => {
+    const { pendingAction } = get();
+    set({ isOpen: false, pendingAction: null });
+    if (typeof pendingAction === 'function') {
+      try { pendingAction(); } catch {}
+    }
+  },
+}));
+
 // Auth Store
 // Initial state matches between SSR and CSR (no window access). The instant
 // rehydrate happens inside init() which runs synchronously up to the first

@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon, FiLogOut, FiCreditCard } from 'react-icons/fi';
-import { useAuthStore, useCartStore, useWishlistStore, useThemeStore } from '@/lib/store';
+import { useAuthStore, useAuthModalStore, useCartStore, useWishlistStore, useThemeStore } from '@/lib/store';
 import NotificationBell from './NotificationBell';
 import { couponsAPI, categoriesAPI } from '@/lib/api';
 
@@ -32,6 +32,7 @@ export default function Header() {
   const profileRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [profileOpen, setProfileOpen] = useState(false);
 
   const [showThemeTip, setShowThemeTip] = useState(false);
@@ -40,6 +41,7 @@ export default function Header() {
   const [animPlaceholder, setAnimPlaceholder] = useState('');
 
   const { isAuthenticated, user, logout } = useAuthStore();
+  const openAuthModal = useAuthModalStore((s) => s.open);
   const cartCount = useCartStore((s) => s.getCount());
   const wishlistCount = useWishlistStore((s) => s.items.length);
   const { isDark, toggle: toggleTheme } = useThemeStore();
@@ -67,8 +69,10 @@ export default function Header() {
     const handleClickOutside = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
       if (searchOpen && searchBarRef.current && !searchBarRef.current.contains(e.target) && searchBtnRef.current && !searchBtnRef.current.contains(e.target)) {
+        // Just close — keep the query in state so reopening shows the
+        // user's most recent search and the matching results page they
+        // were already looking at.
         setSearchOpen(false);
-        setSearchQuery('');
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -83,7 +87,6 @@ export default function Header() {
       const y = window.scrollY;
       if (y > lastY && y > 10) {
         setSearchOpen(false);
-        setSearchQuery('');
       }
       lastY = y;
     };
@@ -226,19 +229,79 @@ export default function Header() {
     localStorage.removeItem('rupalsha_search_history');
   };
 
+  // When the search bar is opened on the products page that already has a
+  // `?search=…` param (e.g. user landed via a deep link or refined a
+  // search earlier), prefill the input so they can see and edit the
+  // active query instead of staring at an empty box.
+  useEffect(() => {
+    if (!searchOpen) return;
+    if (pathname !== '/products') return;
+    const urlQ = searchParams?.get('search') || '';
+    if (urlQ && !searchQuery) setSearchQuery(urlQ);
+    // We deliberately don't sync in the other direction — typing should
+    // overwrite, never the URL clobbering the user's in-progress text.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchOpen]);
+
   const handleSearch = (e) => {
     e.preventDefault();
     const trimmed = searchQuery.trim();
     if (trimmed.length === 0) return;
     addToSearchHistory(trimmed);
+    // Pressing Enter just makes sure we're on the products page with the
+    // current query — the live debounced effect below already keeps the
+    // URL in sync as the user types. We deliberately do NOT close the
+    // search bar here: when a query returns no results the user should
+    // still see their typed text and the empty state, and be able to
+    // refine without reopening the bar.
     router.push(`/products?search=${encodeURIComponent(trimmed)}`);
-    setSearchOpen(false);
   };
 
-  const handleCloseSearch = () => {
-    setSearchOpen(false);
-    setSearchQuery('');
-  };
+  // Live, debounced search.
+  // ------------------------------------------------------------------
+  // As the user types we wait 300ms after the last keystroke and then
+  // sync the products page to the current query. Rules:
+  //   - 0 chars  → if we're already on /products, drop the search param
+  //                so the default listing comes back. Otherwise no-op
+  //                (don't yank the user away from where they were).
+  //   - 1 char   → ignore (avoids hammering the API on a single letter).
+  //   - ≥2 chars → push/replace `/products?search=…` so the listing
+  //                renders matching products in real time.
+  // We use `router.replace` while the user is actively typing so the
+  // back button doesn't fill up with one history entry per keystroke;
+  // the explicit Enter handler above uses `push` so a deliberate
+  // submit becomes a real history entry the user can navigate back to.
+  // ------------------------------------------------------------------
+  // Perf: we deliberately do NOT include `pathname`/`searchParams` in
+  // the dep array. Putting them there would re-run this effect (and
+  // restart the timer) every time the URL changes — including in
+  // response to our own `router.replace` calls — wasting one render
+  // and one timer per keystroke. Reading them through refs lets the
+  // effect run only when the user actually types.
+  const navStateRef = useRef({ pathname, searchParams });
+  useEffect(() => {
+    navStateRef.current = { pathname, searchParams };
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    if (!searchOpen) return undefined;
+    const trimmed = searchQuery.trim();
+    const t = setTimeout(() => {
+      const { pathname: pn, searchParams: sp } = navStateRef.current;
+      const onProducts = pn === '/products';
+      if (trimmed.length === 0) {
+        if (onProducts && (sp?.get('search') || '')) {
+          router.replace('/products');
+        }
+        return;
+      }
+      if (trimmed.length < 2) return;
+      const current = sp?.get('search') || '';
+      if (current === trimmed && onProducts) return;
+      router.replace(`/products?search=${encodeURIComponent(trimmed)}`);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQuery, searchOpen, router]);
 
   const isAdmin = pathname.startsWith('/admin') || pathname.startsWith('/content-admin');
   const isContentAdminBrowsing = user?.role === 'subadmin' && isAuthenticated && !isAdmin;
@@ -271,7 +334,7 @@ export default function Header() {
                     <button onClick={() => { toggleTheme(); setProfileOpen(false); }} className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full text-left">
                       {isDark ? <FiSun size={16} /> : <FiMoon size={16} />} {isDark ? 'Light Mode' : 'Night Mode'}
                     </button>
-                    <button onClick={() => { logout(); setProfileOpen(false); router.push('/auth/login'); }} className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-gray-700 transition-colors w-full text-left">
+                    <button onClick={() => { logout(); setProfileOpen(false); router.push('/'); }} className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-gray-700 transition-colors w-full text-left">
                       <FiLogOut size={16} /> Logout
                     </button>
                   </div>
@@ -480,13 +543,13 @@ export default function Header() {
                         </button>
                       </>
                     ) : (
-                      <Link
-                        href="/auth/login"
-                        onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-brand-green dark:text-[#F8F0E8] font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      <button
+                        type="button"
+                        onClick={() => { setProfileOpen(false); openAuthModal('login'); }}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-brand-green dark:text-[#F8F0E8] font-semibold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full text-left"
                       >
                         <FiUser size={16} /> Login / Register
-                      </Link>
+                      </button>
                     )}
                     <hr className="my-1 border-gray-100 dark:border-gray-700" />
                     <button
@@ -503,38 +566,63 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar — modern, premium look. The input itself is a tall
+            pill with a subtle inner background, soft shadow, and a focus
+            ring in the brand colour. The leading icon sits inside a
+            circular badge and the trailing area shows either a clear (×)
+            button or a subtle "Press Enter ↵" hint so customers know how
+            to submit. */}
         {searchOpen && (
-          <div ref={searchBarRef} className="border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 animate-slide-down">
-            <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32 py-4">
-              <form onSubmit={handleSearch} className="flex items-center gap-3">
-                <FiSearch className="text-gray-400" size={20} />
+          <div
+            ref={searchBarRef}
+            className="border-t border-gray-100 dark:border-gray-800 bg-gradient-to-b from-white to-brand-cream/40 dark:from-gray-900 dark:to-gray-950 animate-slide-down"
+          >
+            <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32 py-5 md:py-7">
+              <form
+                onSubmit={handleSearch}
+                className="group relative flex items-center gap-3 bg-white dark:bg-gray-900 rounded-full pl-2 pr-2 py-2 shadow-[0_4px_24px_-8px_rgba(14,42,34,0.18)] dark:shadow-[0_4px_24px_-8px_rgba(0,0,0,0.6)] ring-1 ring-gray-200/70 dark:ring-gray-700/60 focus-within:ring-2 focus-within:ring-brand-green/50 focus-within:shadow-[0_8px_32px_-10px_rgba(14,42,34,0.28)] transition-all"
+              >
+                <span className="flex items-center justify-center w-10 h-10 rounded-full bg-brand-green/10 text-brand-green dark:bg-brand-gold/10 dark:text-brand-gold shrink-0">
+                  <FiSearch size={18} />
+                </span>
                 <input
                   ref={searchRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={animPlaceholder || 'Search...'}
-                  className={`flex-1 outline-none text-brand-charcoal dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent ${!searchQuery ? 'caret-transparent' : ''}`}
+                  placeholder={animPlaceholder || 'Search for sarees, kurtis, dresses…'}
+                  className={`flex-1 outline-none text-base md:text-lg text-brand-charcoal dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent ${!searchQuery ? 'caret-transparent' : ''}`}
                   autoFocus
                 />
-                {searchQuery && (
+                {searchQuery ? (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="text-gray-400 hover:text-gray-600 mr-1"
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                     aria-label="Clear search"
                   >
                     <FiX size={16} />
                   </button>
+                ) : (
+                  <span className="hidden md:inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 px-3 select-none">
+                    Press
+                    <kbd className="px-1.5 py-0.5 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-sans text-[10px] text-gray-500">Enter</kbd>
+                  </span>
                 )}
+                <button
+                  type="submit"
+                  disabled={!searchQuery.trim()}
+                  className="hidden md:inline-flex items-center gap-2 rounded-full bg-brand-green text-white px-5 py-2.5 text-sm font-medium hover:bg-brand-green/90 disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:bg-gray-800 disabled:cursor-not-allowed transition-colors"
+                >
+                  Search
+                </button>
               </form>
 
               {/* Search History */}
               {searchHistory.length > 0 && !searchQuery && (
-                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Recent Searches</p>
+                <div className="mt-5">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-[0.18em]">Recent Searches</p>
                     <button
                       onClick={clearSearchHistory}
                       className="text-xs text-gray-400 hover:text-red-500 transition-colors"
@@ -546,7 +634,7 @@ export default function Header() {
                     {[...searchHistory].reverse().map((term) => (
                       <div
                         key={term}
-                        className="group flex items-center gap-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full pl-3 pr-1.5 py-1.5 hover:border-brand-gold/50 transition-colors"
+                        className="group flex items-center gap-1.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-full pl-3 pr-1.5 py-1.5 hover:border-brand-gold/60 hover:shadow-sm transition-all"
                       >
                         <button
                           onClick={() => { setSearchQuery(term); }}
@@ -591,9 +679,13 @@ export default function Header() {
                   <Link href="/wishlist" className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">Wishlist</Link>
                 </>
               ) : (
-                <Link href="/auth/login" className="block py-3 px-4 text-brand-green dark:text-[#F8F0E8] font-semibold hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => { setMobileMenuOpen(false); openAuthModal('login'); }}
+                  className="block w-full text-left py-3 px-4 text-brand-green dark:text-[#F8F0E8] font-semibold hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg"
+                >
                   Login / Register
-                </Link>
+                </button>
               )}
               <button
                 onClick={() => { toggleTheme(); setMobileMenuOpen(false); }}

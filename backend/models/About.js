@@ -40,6 +40,14 @@ const aboutSchema = new mongoose.Schema({
     url: String,
     public_id: String,
   },
+  // Admin-controlled visibility for the public "Meet Our Team" section.
+  // When false the team grid (and the team-count stat) are hidden on
+  // /about, but the underlying team data is preserved so the admin can
+  // toggle it back on at any time.
+  showTeam: {
+    type: Boolean,
+    default: true,
+  },
   team: [teamMemberSchema],
 }, {
   timestamps: true,

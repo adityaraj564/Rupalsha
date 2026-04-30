@@ -52,7 +52,7 @@ export default function AboutPage() {
 
       {/* Stats Bar */}
       <section className="bg-brand-green text-white py-8">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-3 gap-4 text-center">
+        <div className={`max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid ${about.showTeam === false ? 'grid-cols-2' : 'grid-cols-3'} gap-4 text-center`}>
           <div>
             <div className="text-2xl md:text-3xl font-bold">{about.foundedYear}</div>
             <div className="text-sm text-white/70 mt-1">Founded</div>
@@ -61,10 +61,12 @@ export default function AboutPage() {
             <div className="text-2xl md:text-3xl font-bold">{yearsRunning}+</div>
             <div className="text-sm text-white/70 mt-1">Years of Passion</div>
           </div>
-          <div>
-            <div className="text-2xl md:text-3xl font-bold">{about.team.length}</div>
-            <div className="text-sm text-white/70 mt-1">Team Members</div>
-          </div>
+          {about.showTeam !== false && (
+            <div>
+              <div className="text-2xl md:text-3xl font-bold">{about.team.length}</div>
+              <div className="text-sm text-white/70 mt-1">Team Members</div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -101,8 +103,8 @@ export default function AboutPage() {
         </section>
       )}
 
-      {/* Team Section */}
-      {about.team.length > 0 && (
+      {/* Team Section — admin can hide this entirely from /admin/about. */}
+      {about.showTeam !== false && about.team.length > 0 && (
         <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
           <div className="text-center mb-12">
             <h2 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal mb-3">Meet Our Team</h2>

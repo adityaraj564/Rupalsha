@@ -13,6 +13,7 @@ export default function SubAdminAboutPage() {
   const [message, setMessage] = useState('');
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingTeam, setUploadingTeam] = useState(null);
+  const [savingTeamVisibility, setSavingTeamVisibility] = useState(false);
   const [form, setForm] = useState({
     companyName: '',
     tagline: '',
@@ -66,6 +67,27 @@ export default function SubAdminAboutPage() {
     }
   };
 
+  // Persist the team-section visibility toggle on its own so the admin
+  // doesn't need to also press "Save Changes". Optimistically flips the
+  // local UI, reverts on error.
+  const handleToggleTeamVisibility = async () => {
+    if (!about) return;
+    const next = about.showTeam === false;
+    setSavingTeamVisibility(true);
+    setAbout({ ...about, showTeam: next });
+    try {
+      const data = await subAdminAPI.updateAbout({ ...form, showTeam: next });
+      setAbout(data.about);
+      showMessage(next ? 'Team section is now visible.' : 'Team section is now hidden.');
+    } catch (err) {
+      // Revert
+      setAbout({ ...about, showTeam: !next });
+      showMessage('Failed to update visibility: ' + err.message);
+    } finally {
+      setSavingTeamVisibility(false);
+    }
+  };
+
   const handleCoverUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -103,7 +125,7 @@ export default function SubAdminAboutPage() {
   const handleTeamMemberUpdate = async (index) => {
     const member = about.team[index];
     try {
-      const data = await subAdminAPI.updateTeamMember(index, {
+      const data = await subAdminAPI.updateAboutTeamMember(index, {
         name: member.name,
         role: member.role,
         title: member.title,
@@ -272,13 +294,50 @@ export default function SubAdminAboutPage() {
 
       {/* Team Members */}
       <div className="bg-white rounded-2xl border p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="font-semibold text-lg text-brand-charcoal">Team Members</h2>
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <div>
+            <h2 className="font-semibold text-lg text-brand-charcoal">Team Members</h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Controls the &quot;Meet Our Team&quot; section on the public About page.
+            </p>
+          </div>
           <button
             onClick={handleAddMember}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-green text-white rounded-lg text-sm hover:bg-green-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-brand-green text-white rounded-lg text-sm hover:bg-green-700 transition-colors flex-shrink-0"
           >
             <FiPlus size={14} /> Add Member
+          </button>
+        </div>
+
+        {/* Show / hide toggle for the public "Meet Our Team" section.
+            Flips `about.showTeam` and persists immediately so the admin
+            doesn't have to remember to click "Save Changes" up top. */}
+        <div className="flex items-center justify-between gap-4 mt-4 mb-6 p-4 rounded-xl border border-gray-200 bg-gray-50">
+          <div>
+            <div className="text-sm font-medium text-brand-charcoal">
+              Show &ldquo;Meet Our Team&rdquo; on About page
+            </div>
+            <div className="text-xs text-gray-500 mt-0.5">
+              {about?.showTeam === false
+                ? 'Currently hidden from visitors. Team data is preserved.'
+                : 'Visible to all visitors on /about.'}
+            </div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={about?.showTeam !== false}
+            disabled={savingTeamVisibility}
+            onClick={handleToggleTeamVisibility}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+              about?.showTeam === false ? 'bg-gray-300' : 'bg-brand-green'
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                about?.showTeam === false ? 'translate-x-0.5' : 'translate-x-[22px]'
+              }`}
+            />
           </button>
         </div>
 

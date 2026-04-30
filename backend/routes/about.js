@@ -38,7 +38,7 @@ router.get('/', async (req, res, next) => {
 // PUT /api/about - Admin: update about info
 router.put('/', subAdminAuth, async (req, res, next) => {
   try {
-    const { companyName, tagline, story, mission, vision, foundedYear } = req.body;
+    const { companyName, tagline, story, mission, vision, foundedYear, showTeam } = req.body;
     let about = await About.findOne();
     if (!about) {
       about = new About();
@@ -49,6 +49,7 @@ router.put('/', subAdminAuth, async (req, res, next) => {
     if (mission !== undefined) about.mission = mission;
     if (vision !== undefined) about.vision = vision;
     if (foundedYear !== undefined) about.foundedYear = Number(foundedYear);
+    if (showTeam !== undefined) about.showTeam = !!showTeam;
 
     await about.save();
     logActivity({ action: 'update', section: 'about', description: 'Updated about page info', user: req.user });

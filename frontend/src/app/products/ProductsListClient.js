@@ -7,7 +7,7 @@ import CategorySidebar from '@/components/CategorySidebar';
 import { ProductsPageSkeleton, ProductGridSkeleton } from '@/components/Skeleton';
 import { productsAPI, categoriesAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { FiFilter, FiX, FiChevronDown } from 'react-icons/fi';
+import { FiFilter, FiX, FiChevronDown, FiSearch } from 'react-icons/fi';
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
@@ -178,11 +178,16 @@ function ProductsContent({ initialProducts = null, initialTotal = 0, initialTota
           {loading && products.length === 0 ? (
             <ProductGridSkeleton count={6} cols="grid-cols-2 md:grid-cols-3" />
           ) : products.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="text-gray-500 text-lg">No products found</p>
-              <button onClick={clearFilters} className="text-brand-green mt-4 hover:underline">
-                Clear filters
-              </button>
+            <div className="flex flex-col items-center justify-center text-center py-20 px-6">
+              <div className="w-16 h-16 rounded-full border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500 mb-5">
+                <FiSearch size={26} strokeWidth={1.5} />
+              </div>
+              <p className="text-brand-charcoal dark:text-gray-200 text-base md:text-lg font-medium">
+                No products were found matching your selection.
+              </p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-2 max-w-md">
+                Try adjusting your filters or search keywords.
+              </p>
             </div>
           ) : (
             <>
