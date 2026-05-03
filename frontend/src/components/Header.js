@@ -8,6 +8,7 @@ import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon, F
 import { useAuthStore, useAuthModalStore, useCartStore, useWishlistStore, useThemeStore } from '@/lib/store';
 import NotificationBell from './NotificationBell';
 import { couponsAPI, categoriesAPI } from '@/lib/api';
+import toast from 'react-hot-toast';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
@@ -334,7 +335,7 @@ export default function Header() {
                     <button onClick={() => { toggleTheme(); setProfileOpen(false); }} className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full text-left">
                       {isDark ? <FiSun size={16} /> : <FiMoon size={16} />} {isDark ? 'Light Mode' : 'Night Mode'}
                     </button>
-                    <button onClick={() => { logout(); setProfileOpen(false); router.push('/'); }} className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-gray-700 transition-colors w-full text-left">
+                    <button onClick={() => { logout(); toast.success('Logged out'); setProfileOpen(false); router.push('/'); }} className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-gray-700 transition-colors w-full text-left">
                       <FiLogOut size={16} /> Logout
                     </button>
                   </div>
@@ -536,7 +537,7 @@ export default function Header() {
                         </Link>
                         <hr className="my-1 border-gray-100 dark:border-gray-700" />
                         <button
-                          onClick={() => { logout(); setProfileOpen(false); router.push('/'); }}
+                          onClick={() => { logout(); toast.success('Logged out'); setProfileOpen(false); router.push('/'); }}
                           className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-gray-700 transition-colors w-full text-left"
                         >
                           <FiLogOut size={16} /> Logout

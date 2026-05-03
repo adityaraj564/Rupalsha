@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import { FiX, FiEye, FiEyeOff, FiMail, FiLock } from 'react-icons/fi';
+import { FiX, FiEye, FiEyeOff, FiMail, FiLock, FiArrowLeft } from 'react-icons/fi';
 import { useAuthStore, useAuthModalStore } from '@/lib/store';
 import { authAPI } from '@/lib/api';
 import GoogleSignInButton from '@/components/GoogleSignInButton';
@@ -42,6 +41,11 @@ export default function AuthModal() {
   const [registerForm, setRegisterForm] = useState({ name: '', email: '', password: '', phone: '' });
   const [showRegPassword, setShowRegPassword] = useState(false);
 
+  // Forgot-password state — handled inline in the same popup so the user
+  // never leaves the page they were on.
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -64,6 +68,8 @@ export default function AuthModal() {
       setRegisterForm({ name: '', email: '', password: '', phone: '' });
       setShowRegPassword(false);
       setAuthMode('password');
+      setForgotEmail('');
+      setForgotSent(false);
     }
   }, [isOpen]);
 
@@ -167,6 +173,21 @@ export default function AuthModal() {
     }
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!forgotEmail) return;
+    setError('');
+    setLoading(true);
+    try {
+      await authAPI.forgotPassword(forgotEmail);
+      setForgotSent(true);
+    } catch (err) {
+      setError(err.message || 'Could not send reset link');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleGoogleCredential = async (credential) => {
     setError('');
     try {
@@ -203,10 +224,15 @@ export default function AuthModal() {
             <FiX size={18} />
           </button>
           <h1 id="auth-modal-title" className="font-serif text-2xl font-bold text-white">
-            {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+            {mode === 'login' && 'Welcome Back'}
+            {mode === 'register' && 'Create Account'}
+            {mode === 'forgot' && (forgotSent ? 'Check Your Email' : 'Forgot Password')}
           </h1>
           <p className="text-gray-300 mt-1 text-xs">
-            {mode === 'login' ? 'Sign in to continue shopping' : 'Join the Rupalsha family'}
+            {mode === 'login' && 'Sign in to continue shopping'}
+            {mode === 'register' && 'Join the Rupalsha family'}
+            {mode === 'forgot' && !forgotSent && 'Enter your email to receive a reset link'}
+            {mode === 'forgot' && forgotSent && 'We just sent you a reset link'}
           </p>
         </div>
 
@@ -285,13 +311,13 @@ export default function AuthModal() {
                     </div>
                   </div>
                   <div className="flex items-center justify-end">
-                    <Link
-                      href="/auth/forgot-password"
-                      onClick={close}
+                    <button
+                      type="button"
+                      onClick={() => { setMode('forgot'); setForgotEmail(email); setForgotSent(false); setError(''); }}
                       className="text-sm text-brand-gold hover:underline"
                     >
                       Forgot password?
-                    </Link>
+                    </button>
                   </div>
                   <button type="submit" className="btn-primary w-full" disabled={loading}>
                     {loading ? 'Signing in...' : 'Sign In'}
@@ -426,6 +452,55 @@ export default function AuthModal() {
             </form>
           )}
 
+          {mode === 'forgot' && !forgotSent && (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  className="input-field"
+                  placeholder="your@email.com"
+                  required
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  We&apos;ll email you a link to reset your password.
+                </p>
+              </div>
+              <button type="submit" className="btn-primary w-full" disabled={loading}>
+                {loading ? 'Sending...' : 'Send Reset Link'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode('login'); setError(''); }}
+                className="w-full flex items-center justify-center gap-1.5 text-sm text-gray-500 hover:text-brand-charcoal dark:hover:text-white pt-1"
+              >
+                <FiArrowLeft size={14} /> Back to login
+              </button>
+            </form>
+          )}
+
+          {mode === 'forgot' && forgotSent && (
+            <div className="text-center space-y-5">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                If an account exists for{' '}
+                <span className="font-medium text-brand-charcoal dark:text-gray-200">{forgotEmail}</span>,
+                we&apos;ve sent a password reset link. Please check your inbox.
+              </p>
+              <button
+                type="button"
+                onClick={() => { setMode('login'); setForgotSent(false); setError(''); }}
+                className="btn-secondary w-full inline-flex items-center justify-center gap-1.5"
+              >
+                <FiArrowLeft size={14} /> Back to login
+              </button>
+            </div>
+          )}
+
+          {mode !== 'forgot' && (
+          <>
           <div className="flex items-center gap-4 my-5">
             <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
             <span className="text-xs text-gray-400 uppercase tracking-wider">or</span>
@@ -462,6 +537,8 @@ export default function AuthModal() {
               </>
             )}
           </p>
+          </>
+          )}
         </div>
       </div>
     </div>
