@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { subAdminAPI } from '@/lib/api';
-import { FiEdit2, FiCheck, FiX, FiMail, FiPhone, FiClock, FiGift, FiLink, FiImage, FiPlus, FiTrash2, FiTruck, FiRefreshCw, FiShield, FiHeart, FiStar, FiAward, FiPackage, FiSmile, FiTag } from 'react-icons/fi';
+import { FiEdit2, FiCheck, FiX, FiMail, FiPhone, FiClock, FiGift, FiLink, FiImage, FiPlus, FiTrash2, FiTruck, FiRefreshCw, FiShield, FiHeart, FiStar, FiAward, FiPackage, FiSmile, FiTag, FiHeadphones } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const PAGE_LABELS = {
@@ -12,18 +12,17 @@ const PAGE_LABELS = {
   privacy: 'Privacy Policy',
   terms: 'Terms of Service',
   'special-offer': 'Special Offer (Home Banner)',
-  'home-hero': 'Home — Hero Section',
   'home-features': 'Home — Features Bar',
   'home-marquee': 'Home — Announcement Marquee',
   'footer-about': 'Footer — Brand Block',
 };
 
 const FEATURE_ICON_OPTIONS = [
-  'FiTruck', 'FiRefreshCw', 'FiShield', 'FiHeart', 'FiStar', 'FiAward', 'FiPackage', 'FiSmile', 'FiTag', 'FiGift',
+  'FiTruck', 'FiRefreshCw', 'FiShield', 'FiHeart', 'FiStar', 'FiAward', 'FiPackage', 'FiSmile', 'FiTag', 'FiGift', 'FiHeadphones',
 ];
 
 const FEATURE_ICON_MAP = {
-  FiTruck, FiRefreshCw, FiShield, FiHeart, FiStar, FiAward, FiPackage, FiSmile, FiTag, FiGift,
+  FiTruck, FiRefreshCw, FiShield, FiHeart, FiStar, FiAward, FiPackage, FiSmile, FiTag, FiGift, FiHeadphones,
 };
 
 export default function ContentAdminPagesPage() {
@@ -254,23 +253,6 @@ export default function ContentAdminPagesPage() {
                 </div>
               </div>
             )}
-            {editingKey === 'home-hero' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1">Eyebrow text (small uppercase line)</label>
-                  <input type="text" value={form.heroEyebrow} onChange={(e) => setForm({ ...form, heroEyebrow: e.target.value })} placeholder="Exquisite Jewellery Collection" className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Headline first line</label>
-                  <input type="text" value={form.heroTitle} onChange={(e) => setForm({ ...form, heroTitle: e.target.value })} placeholder="Adorn Your" className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Headline accent (gold italic)</label>
-                  <input type="text" value={form.heroAccent} onChange={(e) => setForm({ ...form, heroAccent: e.target.value })} placeholder="Elegance" className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm" />
-                </div>
-                <p className="md:col-span-2 text-xs text-gray-500">The main paragraph below the headline is edited in the “Content” field above. Font, size and colour come from the site theme and will not change when you edit the text.</p>
-              </div>
-            )}
             {editingKey === 'footer-about' && (
               <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
                 <label className="block text-sm font-medium mb-1">Brand name (footer heading)</label>
@@ -396,7 +378,7 @@ export default function ContentAdminPagesPage() {
 
       {/* Pages List */}
       <div className="grid gap-4">
-        {pages.map((page) => (
+        {pages.filter((p) => p.pageKey !== 'home-hero').map((page) => (
           <div key={page.pageKey} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 flex items-center justify-between">
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-brand-charcoal dark:text-gray-100">{PAGE_LABELS[page.pageKey] || page.pageKey}</h3>
@@ -406,9 +388,6 @@ export default function ContentAdminPagesPage() {
               )}
               {page.pageKey === 'special-offer' && page.offerCode && (
                 <p className="text-xs text-gray-400 mt-1">Code: {page.offerCode} | {page.offerHeading}</p>
-              )}
-              {page.pageKey === 'home-hero' && (
-                <p className="text-xs text-gray-400 mt-1">{page.heroTitle} <em>{page.heroAccent}</em></p>
               )}
               {page.pageKey === 'home-features' && (
                 <p className="text-xs text-gray-400 mt-1">{(page.features || []).length} feature(s)</p>
@@ -433,7 +412,7 @@ export default function ContentAdminPagesPage() {
 // no network, no global state. Cheap to re-render on every keystroke.
 // ──────────────────────────────────────────────────────────────────────────
 function LivePreview({ pageKey, form }) {
-  const visualKeys = ['home-hero', 'home-features', 'special-offer', 'footer-about'];
+  const visualKeys = ['home-features', 'special-offer', 'footer-about'];
   const isVisual = visualKeys.includes(pageKey);
 
   return (
@@ -443,26 +422,6 @@ function LivePreview({ pageKey, form }) {
         <span className="text-[10px] uppercase tracking-wider text-gray-400">Updates as you type</span>
       </div>
       <div className="p-4 max-h-[80vh] overflow-y-auto">
-        {pageKey === 'home-hero' && (
-          <div className="relative rounded-xl overflow-hidden bg-brand-cream dark:bg-gray-950 p-6 md:p-8">
-            <p className="text-brand-gold font-medium tracking-[0.3em] uppercase text-[10px] md:text-xs mb-3">
-              {form.heroEyebrow || 'Exquisite Jewellery Collection'}
-            </p>
-            <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal dark:text-gray-100 leading-tight mb-4">
-              {form.heroTitle || 'Adorn Your'}
-              <br />
-              <span className="text-brand-gold italic">{form.heroAccent || 'Elegance'}</span>
-            </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400 max-w-md leading-relaxed whitespace-pre-line">
-              {form.content || 'Discover handcrafted jewellery that tells your story. From timeless classics to modern masterpieces — crafted with love.'}
-            </p>
-            <div className="flex flex-wrap gap-2 mt-5">
-              <span className="bg-brand-green text-white text-xs px-4 py-2 rounded-full">Shop Now →</span>
-              <span className="border border-brand-charcoal/30 text-brand-charcoal dark:text-gray-200 text-xs px-4 py-2 rounded-full">View Collections</span>
-            </div>
-          </div>
-        )}
-
         {pageKey === 'home-features' && (
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl p-4">
             {(form.features || []).length === 0 ? (

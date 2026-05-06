@@ -12,7 +12,7 @@ import { serverHomeAPI } from '@/lib/serverApi';
 // individual cache windows in serverApi.js.
 export const revalidate = 60;
 
-const PAGE_KEYS = ['special-offer', 'home-hero', 'home-features', 'home-marquee', 'footer-about'];
+const PAGE_KEYS = ['special-offer', 'home-features', 'home-marquee', 'footer-about'];
 
 export default async function HomePage() {
   // Fire all backend calls in parallel. Any individual failure resolves to
@@ -63,7 +63,6 @@ export default async function HomePage() {
       initialFeatured={featured}
       initialTrending={trending}
       initialSpecialOffer={pages['special-offer'] || null}
-      initialHero={pages['home-hero'] || null}
       initialFeatures={pages['home-features']?.features?.length ? pages['home-features'].features : undefined}
       initialMarqueeItems={marqueeItems}
     />

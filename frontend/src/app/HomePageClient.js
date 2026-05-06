@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiArrowRight, FiTruck, FiRefreshCw, FiShield, FiHeart, FiChevronLeft, FiChevronRight, FiStar, FiAward, FiPackage, FiSmile, FiTag, FiGift, FiInstagram } from 'react-icons/fi';
+import { FiArrowRight, FiTruck, FiRefreshCw, FiShield, FiHeart, FiChevronLeft, FiChevronRight, FiStar, FiAward, FiPackage, FiSmile, FiTag, FiGift, FiInstagram, FiHeadphones } from 'react-icons/fi';
 import ProductCard from '@/components/ProductCard';
 import AdBanner from '@/components/AdBanner';
 import { HomeSectionSkeleton } from '@/components/Skeleton';
@@ -11,7 +11,7 @@ import { productsAPI, bannersAPI, categoriesAPI, pagesAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
 const FEATURE_ICONS = {
-  FiTruck, FiRefreshCw, FiShield, FiHeart, FiStar, FiAward, FiPackage, FiSmile, FiTag, FiGift,
+  FiTruck, FiRefreshCw, FiShield, FiHeart, FiStar, FiAward, FiPackage, FiSmile, FiTag, FiGift, FiHeadphones,
 };
 
 const DEFAULT_FEATURES = [
@@ -52,7 +52,6 @@ export default function HomePageClient({
   initialFeatured = [],
   initialTrending = [],
   initialSpecialOffer = null,
-  initialHero = null,
   initialFeatures = DEFAULT_FEATURES,
   initialMarqueeItems = [
     '✦ Free Shipping on Orders Above ₹999',
@@ -68,7 +67,6 @@ export default function HomePageClient({
   const [categories, setCategories] = useState(initialCategories);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [specialOffer, setSpecialOffer] = useState(initialSpecialOffer);
-  const [hero, setHero] = useState(initialHero);
   const [features, setFeatures] = useState(initialFeatures);
   const [marqueeItems, setMarqueeItems] = useState(initialMarqueeItems);
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -119,10 +117,9 @@ export default function HomePageClient({
       }
     }).catch(() => {});
 
-    pagesAPI.getMany(['special-offer', 'home-hero', 'home-features', 'home-marquee', 'footer-about']).then((data) => {
+    pagesAPI.getMany(['special-offer', 'home-features', 'home-marquee', 'footer-about']).then((data) => {
       const pages = data?.pages || {};
       if (pages['special-offer']) setSpecialOffer(pages['special-offer']);
-      if (pages['home-hero']) setHero(pages['home-hero']);
       if (pages['home-features']?.features?.length) setFeatures(pages['home-features'].features);
       if (pages['home-marquee']?.content) {
         const items = String(pages['home-marquee'].content)
