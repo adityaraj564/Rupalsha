@@ -306,7 +306,14 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
   const isOutOfStock = totalStock === 0;
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-20 xl:px-32 py-8 md:py-12 animate-fade-in" style={{ overflowClipMargin: 'content-box', overflowX: 'clip' }}>
+    <div
+      className="no-copy w-full px-4 sm:px-6 lg:px-20 xl:px-32 py-8 md:py-12 animate-fade-in"
+      style={{ overflowClipMargin: 'content-box', overflowX: 'clip' }}
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+    >
       {/* Product structured data for Google Search & Merchant Center */}
       <script
         type="application/ld+json"
@@ -532,7 +539,12 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
         {/* Details */}
         <div className="mt-8 md:mt-0 md:flex-1 min-w-0">
           <p className="text-brand-gold text-sm font-medium uppercase tracking-wider mb-2">{product.category}</p>
-          <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-charcoal dark:text-gray-100 mb-4">{product.name}</h1>
+          <h1
+            className="allow-copy font-serif text-3xl md:text-4xl font-bold text-brand-charcoal dark:text-gray-100 mb-4"
+            onCopy={(e) => e.stopPropagation()}
+            onCut={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.stopPropagation()}
+          >{product.name}</h1>
 
           {/* Rating */}
           {product.numReviews > 0 && (

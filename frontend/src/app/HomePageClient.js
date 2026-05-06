@@ -71,6 +71,7 @@ export default function HomePageClient({
   const [hero, setHero] = useState(initialHero);
   const [features, setFeatures] = useState(initialFeatures);
   const [marqueeItems, setMarqueeItems] = useState(initialMarqueeItems);
+  const [showAllCategories, setShowAllCategories] = useState(false);
   const bannerInterval = useRef(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -172,7 +173,13 @@ export default function HomePageClient({
   }, [isAuthenticated]);
 
   return (
-    <div className="animate-fade-in bg-white dark:bg-gray-950">
+    <div
+      className="no-copy animate-fade-in bg-white dark:bg-gray-950"
+      onCopy={(e) => e.preventDefault()}
+      onCut={(e) => e.preventDefault()}
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+    >
       {/* Auto-Slide Banner Carousel */}
       {banners.length > 0 && (
         <section className="relative w-full overflow-hidden bg-gray-100 dark:bg-gray-950">
@@ -286,29 +293,56 @@ export default function HomePageClient({
         <p className="section-subtitle">Find the perfect piece from our curated collections</p>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-10">
-          {categories.map((cat) => (
-            <Link
-              key={cat.slug}
-              href={`/products?category=${cat.slug}`}
-              className="group relative aspect-[3/4] rounded-2xl overflow-hidden"
-            >
-              <Image
-                src={cat.image}
-                alt={cat.name}
-                fill
-                className="object-cover group-hover:scale-110 transition-transform duration-700"
-                sizes="(max-width: 640px) 50vw, 20vw"
-              />
-              <div className={`absolute inset-0 bg-gradient-to-t ${cat.color} to-transparent`} />
-              <div className="absolute bottom-0 left-0 right-0 p-4">
-                <h3 className="font-serif text-white text-xl font-semibold">{cat.name}</h3>
-                <p className="text-white/70 text-sm mt-1 group-hover:text-brand-gold transition-colors">
-                  Explore →
-                </p>
-              </div>
-            </Link>
-          ))}
+          {categories.map((cat, idx) => {
+            // Limit visibility unless expanded:
+            // - mobile: show first 4
+            // - md/desktop: show first 5
+            let hideClass = '';
+            if (!showAllCategories) {
+              if (idx >= 5) hideClass = 'hidden';
+              else if (idx >= 4) hideClass = 'hidden md:block';
+            }
+            return (
+              <Link
+                key={cat.slug}
+                href={`/products?category=${cat.slug}`}
+                className={`group relative aspect-[3/4] rounded-2xl overflow-hidden ${hideClass}`}
+              >
+                <Image
+                  src={cat.image}
+                  alt={cat.name}
+                  fill
+                  className="object-cover group-hover:scale-110 transition-transform duration-700"
+                  sizes="(max-width: 640px) 50vw, 20vw"
+                />
+                <div className={`absolute inset-0 bg-gradient-to-t ${cat.color} to-transparent`} />
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <h3 className="font-serif text-white text-xl font-semibold">{cat.name}</h3>
+                  <p className="text-white/70 text-sm mt-1 group-hover:text-brand-gold transition-colors">
+                    Explore →
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
         </div>
+        {!showAllCategories && (categories.length > 4) && (
+          <div
+            className={`justify-center mt-10 ${
+              categories.length > 5
+                ? 'flex'
+                : 'flex md:hidden'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setShowAllCategories(true)}
+              className="inline-flex items-center justify-center gap-2 px-8 py-3 border-2 border-black dark:border-white text-black dark:text-white text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors duration-300"
+            >
+              View All
+            </button>
+          </div>
+        )}
       </section>
       )}
 
