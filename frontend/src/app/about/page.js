@@ -74,41 +74,54 @@ export default function AboutPage() {
           <div className="mt-6 mx-auto h-px w-16 bg-brand-gold/60" />
         </div>
 
-        {about.coverImage?.url && (
-          <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-            <div className="relative aspect-[16/9] md:aspect-[21/9] overflow-hidden rounded-3xl bg-brand-cream dark:bg-gray-800 ring-1 ring-black/5 dark:ring-white/5 shadow-xl">
-              <Image
-                src={about.coverImage.url}
-                alt={about.companyName}
-                fill
-                sizes="(min-width: 1024px) 1024px, 100vw"
-                className="object-cover"
-                priority
-              />
+        {/* Full-bleed banner. We deliberately drop the max-w container,
+            rounded corners, and outer padding so the cover image lives
+            edge-to-edge — a cinematic moment that opens the page.
+            Aspect ratios chosen to keep the image readable on phones
+            (16/9) without becoming a wall of pixels on desktop (21/9).
+            min-h fallback guarantees the band has height even if the
+            arbitrary aspect-ratio utility ever fails to compile, and a
+            styled placeholder renders when no cover has been uploaded
+            yet so the page never looks broken in dev. */}
+        <div className="relative w-full aspect-[16/9] md:aspect-[21/9] lg:aspect-[24/9] min-h-[220px] md:min-h-[320px] lg:min-h-[360px] overflow-hidden bg-brand-cream dark:bg-gray-900">
+          {about.coverImage?.url ? (
+            <Image
+              src={about.coverImage.url}
+              alt={about.companyName}
+              fill
+              sizes="100vw"
+              className="object-cover"
+              priority
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="font-serif text-4xl md:text-6xl text-brand-green/20 dark:text-brand-gold/30 tracking-wide">
+                {about.companyName}
+              </span>
+              <div className="pointer-events-none absolute -top-24 -right-16 h-64 w-64 rounded-full bg-brand-gold/15 blur-3xl" aria-hidden="true" />
+              <div className="pointer-events-none absolute -bottom-20 -left-12 h-64 w-64 rounded-full bg-brand-green/10 blur-3xl" aria-hidden="true" />
             </div>
-          </div>
-        )}
+          )}
+          {/* Soft bottom fade so the page below blends in without a
+              hard horizontal seam. */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-white dark:to-gray-950" aria-hidden="true" />
+        </div>
       </section>
 
       {/* ── Promises (admin-editable, hidden if empty) ────────── */}
       {about.promises?.length > 0 && (
         <section className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 mt-16 md:mt-24">
-          <div
-            className={`grid gap-3 md:gap-4 grid-cols-2 ${
-              // Static class strings only \u2014 Tailwind\u2019s JIT can\u2019t see
-              // template-interpolated class names.
-              about.promises.length === 1 ? 'md:grid-cols-1'
-                : about.promises.length === 2 ? 'md:grid-cols-2'
-                  : about.promises.length === 3 ? 'md:grid-cols-3'
-                    : 'md:grid-cols-4'
-            }`}
-          >
+          {/* Flex-wrap with justify-center so any count (1, 2, 3 or 4)
+              sits centred as a group instead of left-aligning when
+              there are fewer chips than columns. Each chip has a
+              sensible min-width so they line up neatly side-by-side. */}
+          <div className="flex flex-wrap justify-center gap-3 md:gap-4">
             {about.promises.map((p, i) => {
               const Icon = PROMISE_ICONS[p.icon] || FiAward;
               return (
                 <div
                   key={`${p.label}-${i}`}
-                  className="flex items-center gap-3 rounded-2xl bg-brand-cream/50 dark:bg-gray-900 ring-1 ring-gray-100 dark:ring-gray-800 px-4 py-3"
+                  className="flex items-center gap-3 rounded-2xl bg-brand-cream/50 dark:bg-gray-900 ring-1 ring-gray-100 dark:ring-gray-800 px-4 py-3 min-w-[150px] md:min-w-[210px]"
                 >
                   <Icon className="text-brand-gold shrink-0" size={18} />
                   <span className="text-xs md:text-sm font-medium text-brand-charcoal dark:text-gray-200">
