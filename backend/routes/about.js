@@ -38,7 +38,7 @@ router.get('/', async (req, res, next) => {
 // PUT /api/about - Admin: update about info
 router.put('/', subAdminAuth, async (req, res, next) => {
   try {
-    const { companyName, tagline, story, mission, vision, foundedYear, showTeam } = req.body;
+    const { companyName, tagline, story, mission, vision, foundedYear, showTeam, promises } = req.body;
     let about = await About.findOne();
     if (!about) {
       about = new About();
@@ -50,6 +50,16 @@ router.put('/', subAdminAuth, async (req, res, next) => {
     if (vision !== undefined) about.vision = vision;
     if (foundedYear !== undefined) about.foundedYear = Number(foundedYear);
     if (showTeam !== undefined) about.showTeam = !!showTeam;
+    if (Array.isArray(promises)) {
+      // Sanitise each entry — drop anything missing a label so we never
+      // render an empty chip on the public page.
+      about.promises = promises
+        .map((p) => ({
+          icon: typeof p?.icon === 'string' && p.icon.trim() ? p.icon.trim() : 'award',
+          label: typeof p?.label === 'string' ? p.label.trim() : '',
+        }))
+        .filter((p) => p.label);
+    }
 
     await about.save();
     logActivity({ action: 'update', section: 'about', description: 'Updated about page info', user: req.user });

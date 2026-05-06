@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { FiGrid, FiImage, FiHelpCircle, FiFileText, FiInfo, FiFile, FiUser, FiLogOut, FiChevronDown, FiSun, FiMoon } from 'react-icons/fi';
-import { useAuthStore, useThemeStore } from '@/lib/store';
+import { useAuthStore, useThemeStore, useAuthModalStore } from '@/lib/store';
 
 const CONTENT_ADMIN_NAV = [
   { href: '/content-admin', label: 'Dashboard', icon: FiGrid },
@@ -22,6 +22,10 @@ export default function ContentAdminLayout({ children }) {
   const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
+  // One-shot guard prevents the post-logout redirect loop that
+  // otherwise flips between /content-admin and /auth/login many
+  // times per second.
+  const redirectedRef = useRef(false);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -32,14 +36,22 @@ export default function ContentAdminLayout({ children }) {
   }, []);
 
   const handleLogout = () => {
+    redirectedRef.current = true; // suppress the auth-gate effect below
     logout();
-    router.push('/auth/login');
+    router.replace('/');
   };
 
-  useEffect(() => {
-    if (!isLoading && (!isAuthenticated || (user?.role !== 'subadmin' && user?.role !== 'admin'))) {
-      router.push('/auth/login');
+  useLayoutEffect(() => {
+    if (isLoading) return;
+    const allowed = isAuthenticated && (user?.role === 'subadmin' || user?.role === 'admin');
+    if (allowed) {
+      redirectedRef.current = false;
+      return;
     }
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
+    router.replace('/');
+    useAuthModalStore.getState().open('login');
   }, [isLoading, isAuthenticated, user, router]);
 
   if (isLoading) return (
@@ -47,7 +59,13 @@ export default function ContentAdminLayout({ children }) {
       <div className="w-8 h-8 border-2 border-brand-gold border-t-transparent rounded-full animate-spin" />
     </div>
   );
-  if (!isAuthenticated || (user?.role !== 'subadmin' && user?.role !== 'admin')) return null;
+  // Keep the spinner visible during the redirect window so the page
+  // never flashes blank.
+  if (!isAuthenticated || (user?.role !== 'subadmin' && user?.role !== 'admin')) return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-brand-gold border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { FiCheckCircle, FiPackage, FiTruck, FiMapPin, FiAlertCircle, FiClock, FiShoppingBag, FiDownload } from 'react-icons/fi';
 import { ordersAPI, paymentAPI, returnsAPI, settingsAPI } from '@/lib/api';
 import { useAuthStore, useCartStore } from '@/lib/store';
+import { useRequireAuth } from '@/components/RequireAuth';
 import { OrdersSkeleton } from '@/components/Skeleton';
 import ReturnModal from '@/components/ReturnModal';
 import ReturnTracker from '@/components/ReturnTracker';
@@ -27,19 +28,14 @@ export default function OrderDetailPage() {
   const [retryingPayment, setRetryingPayment] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returns, setReturns] = useState([]);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const isLoading = useAuthStore((s) => s.isLoading);
+  const isAuthed = useRequireAuth();
   const user = useAuthStore((s) => s.user);
   const addToCart = useCartStore((s) => s.addItem);
 
   const isSuccess = searchParams.get('success') === 'true';
 
   useEffect(() => {
-    if (isLoading) return;
-    if (!isAuthenticated) {
-      router.push('/auth/login');
-      return;
-    }
+    if (!isAuthed) return;
     ordersAPI.getById(id)
       .then((data) => setOrder(data.order))
       .catch(() => { toast.error('Order not found'); router.push('/orders'); })
@@ -54,7 +50,7 @@ export default function OrderDetailPage() {
     settingsAPI.get()
       .then((data) => setSiteSettings(data))
       .catch(() => {});
-  }, [id, isAuthenticated, router]);
+  }, [id, isAuthed, router]);
 
   const handleCancel = async () => {
     if (!cancelReason.trim()) {

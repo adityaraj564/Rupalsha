@@ -13,10 +13,20 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Reserve space for the scrollbar at all times so opening any
+       overlay (login popup, search, mobile menu) that locks body
+       scroll doesn't cause the entire page to shift right by ~15px.
+       That horizontal jump was being perceived as "flickering". */
+    scrollbar-gutter: stable;
   }
 
   body {
-    @apply bg-brand-cream text-brand-charcoal font-sans transition-colors duration-300;
+    /* NOTE: no `transition-colors` here. It animated every color
+       settle during hydration and modal open/close, producing a
+       visible 300ms light/dark flash on refresh. Theme toggling is
+       still snappy because the dark class is applied on <html>
+       *before* paint by the inline script in app/layout.js. */
+    @apply bg-brand-cream text-brand-charcoal font-sans;
   }
 
   h1, h2, h3, h4, h5, h6 {

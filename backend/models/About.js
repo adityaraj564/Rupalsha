@@ -11,6 +11,15 @@ const teamMemberSchema = new mongoose.Schema({
   },
 });
 
+// A single "promise" / value chip rendered as an icon + short label
+// on the public About page. The icon is stored as a string key
+// (e.g. "award", "truck") that the frontend maps to a real icon
+// component, so the admin never has to deal with React imports.
+const promiseSchema = new mongoose.Schema({
+  icon: { type: String, default: 'award' },
+  label: { type: String, required: true },
+}, { _id: false });
+
 const aboutSchema = new mongoose.Schema({
   companyName: {
     type: String,
@@ -47,6 +56,18 @@ const aboutSchema = new mongoose.Schema({
   showTeam: {
     type: Boolean,
     default: true,
+  },
+  // Customer-facing promise chips shown under the hero on the public
+  // About page. Editable from the admin panel; if the array is empty
+  // the section is simply hidden.
+  promises: {
+    type: [promiseSchema],
+    default: () => ([
+      { icon: 'award',  label: 'BIS Hallmarked' },
+      { icon: 'heart',  label: 'Hand-picked Designs' },
+      { icon: 'truck',  label: 'Free Insured Shipping' },
+      { icon: 'shield', label: '7-Day Easy Returns' },
+    ]),
   },
   team: [teamMemberSchema],
 }, {

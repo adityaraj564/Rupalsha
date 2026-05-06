@@ -4,7 +4,24 @@ import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { aboutAPI } from '@/lib/api';
 import { AdminTableSkeleton } from '@/components/Skeleton';
-import { FiSave, FiUpload, FiPlus, FiTrash2, FiImage, FiEdit3 } from 'react-icons/fi';
+import { FiSave, FiUpload, FiPlus, FiTrash2, FiImage, FiEdit3, FiAward, FiHeart, FiTruck, FiShield, FiStar, FiPackage, FiGift, FiCheckCircle, FiSmile, FiTag } from 'react-icons/fi';
+
+// Icon options for the customer promise chips on the public About
+// page. Keep keys in sync with PROMISE_ICONS in
+// frontend/src/app/about/page.js and the `promises` field on the
+// About model.
+const PROMISE_ICON_OPTIONS = [
+  { key: 'award',   label: 'Award',           Icon: FiAward },
+  { key: 'heart',   label: 'Heart',           Icon: FiHeart },
+  { key: 'truck',   label: 'Truck / Shipping', Icon: FiTruck },
+  { key: 'shield',  label: 'Shield / Returns', Icon: FiShield },
+  { key: 'star',    label: 'Star',            Icon: FiStar },
+  { key: 'package', label: 'Package',         Icon: FiPackage },
+  { key: 'gift',    label: 'Gift',            Icon: FiGift },
+  { key: 'check',   label: 'Checkmark',       Icon: FiCheckCircle },
+  { key: 'smile',   label: 'Smile',           Icon: FiSmile },
+  { key: 'tag',     label: 'Tag',             Icon: FiTag },
+];
 
 export default function AdminAboutPage() {
   const [about, setAbout] = useState(null);
@@ -21,6 +38,7 @@ export default function AdminAboutPage() {
     mission: '',
     vision: '',
     foundedYear: '',
+    promises: [],
   });
 
   const coverInputRef = useRef(null);
@@ -41,6 +59,10 @@ export default function AdminAboutPage() {
         mission: data.about.mission || '',
         vision: data.about.vision || '',
         foundedYear: data.about.foundedYear || '',
+        promises: Array.isArray(data.about.promises) ? data.about.promises.map((p) => ({
+          icon: p.icon || 'award',
+          label: p.label || '',
+        })) : [],
       });
     } catch (err) {
       console.error(err);
@@ -290,6 +312,87 @@ export default function AdminAboutPage() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Promise Chips \u2014 customer-facing trust badges shown under the
+          About hero. Up to 4 are displayed in a single row on desktop;
+          extras wrap onto a second row. Saved together with the rest
+          of the form via "Save Changes" at the top. */}
+      <div className="bg-white rounded-2xl border p-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="font-semibold text-lg text-brand-charcoal">Promise Chips</h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Trust badges shown below the hero on the public About page. Keep labels short \u2014 ideally 2 to 4 words.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setForm((f) => ({
+              ...f,
+              promises: [...(f.promises || []), { icon: 'award', label: '' }],
+            }))}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-green text-white rounded-lg text-sm hover:bg-green-700 transition-colors flex-shrink-0"
+          >
+            <FiPlus size={14} /> Add Promise
+          </button>
+        </div>
+
+        {form.promises?.length > 0 ? (
+          <div className="space-y-2">
+            {form.promises.map((p, index) => {
+              const opt = PROMISE_ICON_OPTIONS.find((o) => o.key === p.icon) || PROMISE_ICON_OPTIONS[0];
+              const PreviewIcon = opt.Icon;
+              return (
+                <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl">
+                  <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center text-brand-gold ring-1 ring-gray-200 flex-shrink-0">
+                    <PreviewIcon size={18} />
+                  </div>
+                  <select
+                    value={p.icon}
+                    onChange={(e) => setForm((f) => {
+                      const promises = [...f.promises];
+                      promises[index] = { ...promises[index], icon: e.target.value };
+                      return { ...f, promises };
+                    })}
+                    className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none"
+                  >
+                    {PROMISE_ICON_OPTIONS.map((o) => (
+                      <option key={o.key} value={o.key}>{o.label}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={p.label}
+                    placeholder="e.g. BIS Hallmarked"
+                    maxLength={40}
+                    onChange={(e) => setForm((f) => {
+                      const promises = [...f.promises];
+                      promises[index] = { ...promises[index], label: e.target.value };
+                      return { ...f, promises };
+                    })}
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-brand-green/20 focus:border-brand-green outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({
+                      ...f,
+                      promises: f.promises.filter((_, i) => i !== index),
+                    }))}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0"
+                    aria-label="Remove promise"
+                  >
+                    <FiTrash2 size={16} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 italic">
+            No promises configured. The promises row will be hidden on the public About page.
+          </p>
+        )}
       </div>
 
       {/* Team Members */}

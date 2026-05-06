@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers, FiClipboard, FiSun, FiMoon, FiImage, FiFileText, FiActivity, FiRotateCcw, FiCreditCard, FiSettings } from 'react-icons/fi';
-import { useAuthStore, useThemeStore } from '@/lib/store';
+import { useAuthStore, useThemeStore, useAuthModalStore } from '@/lib/store';
 import { AdminDashboardSkeleton } from '@/components/Skeleton';
 
 const ADMIN_NAV = [
@@ -32,6 +32,9 @@ export default function AdminLayout({ children }) {
   const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
+  // One-shot guard: prevents the redirect-loop seen when /auth/login
+  // bounced back here while React was still re-rendering after logout.
+  const redirectedRef = useRef(false);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -41,19 +44,34 @@ export default function AdminLayout({ children }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Send the user home and pop the auth modal there. Pushing them to
+  // /auth/login (which itself bounces back) caused the URL to flip
+  // between /admin and /auth/login many times per second on logout.
   const handleLogout = () => {
+    redirectedRef.current = true; // suppress the auth-gate effect below
     logout();
-    router.push('/auth/login');
+    router.replace('/');
   };
 
-  useEffect(() => {
-    if (!isLoading && (!isAuthenticated || user?.role !== 'admin')) {
-      router.push('/auth/login');
+  useLayoutEffect(() => {
+    if (isLoading) return;
+    const allowed = isAuthenticated && user?.role === 'admin';
+    if (allowed) {
+      redirectedRef.current = false;
+      return;
     }
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
+    router.replace('/');
+    // Prompt the user to sign back in without forcing a route
+    // dedicated to login (which the rest of the app no longer has).
+    useAuthModalStore.getState().open('login');
   }, [isLoading, isAuthenticated, user, router]);
 
   if (isLoading) return <AdminDashboardSkeleton />;
-  if (!isAuthenticated || user?.role !== 'admin') return null;
+  // Keep showing the skeleton while the redirect lands so the page
+  // never flashes blank — `return null` produced the white screen.
+  if (!isAuthenticated || user?.role !== 'admin') return <AdminDashboardSkeleton />;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

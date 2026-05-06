@@ -4,24 +4,20 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ordersAPI, returnsAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { useRequireAuth } from '@/components/RequireAuth';
 import { OrdersSkeleton } from '@/components/Skeleton';
 
 export default function InvoicePage() {
   const { id } = useParams();
   const router = useRouter();
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const isLoading = useAuthStore((s) => s.isLoading);
+  const isAuthed = useRequireAuth();
   const [order, setOrder] = useState(null);
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (isLoading) return;
-    if (!isAuthenticated) {
-      router.push('/auth/login');
-      return;
-    }
+    if (!isAuthed) return;
     Promise.all([
       ordersAPI.getById(id),
       returnsAPI.getAllByOrder(id).catch(() => ({ returns: [] })),
@@ -37,7 +33,7 @@ export default function InvoicePage() {
       })
       .catch(() => setError('Order not found'))
       .finally(() => setLoading(false));
-  }, [id, isAuthenticated, isLoading, router]);
+  }, [id, isAuthed]);
 
   // Auto-trigger print once data is ready
   useEffect(() => {
