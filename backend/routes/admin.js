@@ -13,7 +13,7 @@ const ActivityLog = require('../models/ActivityLog');
 const uploaders = require('../utils/upload');
 const uploadProducts = uploaders.products;
 const uploadCategories = uploaders.categoriesOptimized;
-const uploadBanners = uploaders.bannersOptimized;
+const uploadBanners = uploaders.bannersDualOptimized;
 const cloudinary = require('../config/cloudinary');
 const { sendOrderStatusUpdate } = require('../utils/email');
 const { createNotification } = require('../utils/notification');
@@ -764,24 +764,38 @@ router.get('/banners', async (req, res, next) => {
 });
 
 // POST /api/admin/banners
-router.post('/banners', runUpload(uploadBanners.single('image')), async (req, res, next) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'Image is required' });
+// Accepts a required desktop `image` (1920x600 landscape) and an optional
+// mobile `mobileImage` (750x1000 portrait). Cloudinary applies the correct
+// eager transform per field so the stored asset matches the rendered
+// aspect ratio — no client-side stretching / cropping.
+router.post(
+  '/banners',
+  runUpload(uploadBanners.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'mobileImage', maxCount: 1 },
+  ])),
+  async (req, res, next) => {
+    try {
+      const desktop = req.files?.image?.[0];
+      const mobile = req.files?.mobileImage?.[0];
+      if (!desktop) return res.status(400).json({ error: 'Desktop image is required' });
 
-    // multer-storage-cloudinary already uploaded with eager 1920x600 WebP
-    // transform. Reuse its result directly.
-    const count = await Banner.countDocuments();
-    const banner = await Banner.create({
-      image: { url: req.file.path, public_id: req.file.filename },
-      title: String(req.body.title || '').trim().slice(0, 200),
-      link: String(req.body.link || '').trim().slice(0, 500),
-      order: count,
-    });
+      const count = await Banner.countDocuments();
+      const banner = await Banner.create({
+        image: { url: desktop.path, public_id: desktop.filename },
+        mobileImage: mobile
+          ? { url: mobile.path, public_id: mobile.filename }
+          : { url: '', public_id: '' },
+        title: String(req.body.title || '').trim().slice(0, 200),
+        link: String(req.body.link || '').trim().slice(0, 500),
+        order: count,
+      });
 
-    cache.clear('banners');
-    res.status(201).json(banner);
-  } catch (err) { next(err); }
-});
+      cache.clear('banners');
+      res.status(201).json(banner);
+    } catch (err) { next(err); }
+  }
+);
 
 // PUT /api/admin/banners/:id
 router.put('/banners/:id', async (req, res, next) => {
@@ -811,9 +825,11 @@ router.delete('/banners/:id', async (req, res, next) => {
   try {
     const banner = await Banner.findById(req.params.id);
     if (!banner) return res.status(404).json({ error: 'Banner not found' });
-    if (banner.image?.public_id) {
-      await cloudinary.uploader.destroy(banner.image.public_id);
-    }
+    // Clean up BOTH cloudinary assets if present.
+    const deletions = [];
+    if (banner.image?.public_id) deletions.push(cloudinary.uploader.destroy(banner.image.public_id));
+    if (banner.mobileImage?.public_id) deletions.push(cloudinary.uploader.destroy(banner.mobileImage.public_id));
+    if (deletions.length) await Promise.all(deletions);
     await banner.deleteOne();
     cache.clear('banners');
     res.json({ success: true });

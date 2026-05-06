@@ -575,8 +575,12 @@ export const settingsAPI = {
 
 // Banners (public)
 export const bannersAPI = {
-  getActive: () =>
-    swr('banners:active', () => request('/banners'), CACHE_TTL.medium),
+  // alwaysRevalidate ensures the home page picks up new uploads / edits made
+  // in the admin panel within one network round-trip, instead of waiting
+  // for the 5-minute TTL to expire. Callers can pass an onFresh callback to
+  // re-render when the background revalidation returns different data.
+  getActive: ({ onFresh } = {}) =>
+    swr('banners:active', () => request('/banners'), CACHE_TTL.medium, { alwaysRevalidate: true, onFresh }),
 };
 
 // Blogs (public)

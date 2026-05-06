@@ -30,6 +30,7 @@ import {
   FiInfo, FiTrash2, FiArrowLeft,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
+import { useRequireAuth } from '@/components/RequireAuth';
 import { notificationsAPI, peekCached, writeApiCache } from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -131,7 +132,7 @@ const hydrateInitialState = () => {
 };
 
 export default function NotificationsPage() {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const isAuthed = useRequireAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('all');
 
@@ -163,10 +164,8 @@ export default function NotificationsPage() {
   const pageNum = current?.page || 1;
   const pages = current?.pages || 1;
 
-  useEffect(() => {
-    if (isLoading) return;
-    if (!isAuthenticated) router.push('/auth/login');
-  }, [isAuthenticated, isLoading, router]);
+  // Auth gating is handled by useRequireAuth above (redirect + modal).
+  // No additional effect needed here.
 
   // Merge a server response into the normalized store for a given tab.
   const applyResponse = useCallback((tab, res, append = false) => {
@@ -244,7 +243,7 @@ export default function NotificationsPage() {
   // Tab change → load with a tiny debounce so a fast left-right scrub doesn't
   // queue up a burst of network calls.
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthed) return;
     const hasCached = !!store.tabs[activeTab]?.loaded;
     if (!hasCached) setLoading(true);
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -253,12 +252,12 @@ export default function NotificationsPage() {
     }, hasCached ? 60 : 0);
     return () => clearTimeout(debounceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, isAuthenticated, load]);
+  }, [activeTab, isAuthed, load]);
 
   // Prefetch high-value tabs once "All" is loaded so the user's first switch
   // into them is instant. Uses requestIdleCallback to stay out of the way.
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthed) return;
     if (!store.tabs.all?.loaded) return;
     const idle = (cb) => {
       if (typeof window !== 'undefined' && window.requestIdleCallback) {
@@ -282,7 +281,7 @@ export default function NotificationsPage() {
         }
       });
     };
-  }, [isAuthenticated, store.tabs.all?.loaded, load]);
+  }, [isAuthed, store.tabs.all?.loaded, load]);
 
   // Cancel any pending request when the page unmounts.
   useEffect(() => () => {
@@ -439,7 +438,7 @@ export default function NotificationsPage() {
   const groups = groupByDay(items);
   const unread = counts.unread || 0;
 
-  if (isLoading || !isAuthenticated) return null;
+  if (!isAuthed) return null;
 
   return (
     <div className="container mx-auto px-4 py-6 lg:py-10 max-w-3xl">

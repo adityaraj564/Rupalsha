@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { FiArrowLeft, FiPlus, FiArrowDownLeft, FiArrowUpRight } from 'react-icons/fi';
 import { walletAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { useRequireAuth } from '@/components/RequireAuth';
 import toast from 'react-hot-toast';
 
 const SOURCE_LABELS = {
@@ -36,7 +37,8 @@ const writeWalletCache = (data) => {
 
 export default function WalletPage() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading } = useAuthStore();
+  const { user } = useAuthStore();
+  const isAuthed = useRequireAuth();
   // Hydrate from cache so the balance is visible the instant the page paints.
   const cached = typeof window !== 'undefined' ? readWalletCache() : null;
   const [balance, setBalance] = useState(cached?.balance ?? 0);
@@ -46,13 +48,9 @@ export default function WalletPage() {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    if (isLoading) return;
-    if (!isAuthenticated) {
-      router.push('/auth/login');
-      return;
-    }
+    if (!isAuthed) return;
     load();
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthed]);
 
   const load = async () => {
     try {

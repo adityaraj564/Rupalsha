@@ -22,16 +22,16 @@ export default function LoginRedirect() {
       router.replace('/');
       return;
     }
-    // Replace the /auth/login entry in history so the back button takes
-    // the user where they came from rather than re-triggering this.
+    // Open the popup synchronously, *then* swap the underlying route so the
+    // user only sees one transition (modal-over-home). The previous 50ms
+    // setTimeout caused a visible flicker between "blank /auth/login" and
+    // the destination page.
+    open('login');
     if (typeof window !== 'undefined' && window.history.length > 1) {
       router.back();
     } else {
       router.replace('/');
     }
-    // Open the popup on the next tick so the destination page mounts first.
-    const t = setTimeout(() => open('login'), 50);
-    return () => clearTimeout(t);
   }, [authLoading, isAuthenticated, open, router]);
 
   return null;

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { FiPackage, FiChevronRight, FiSearch, FiChevronDown, FiRotateCcw, FiArrowLeft } from 'react-icons/fi';
 import { ordersAPI, returnsAPI } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { useRequireAuth } from '@/components/RequireAuth';
 import { OrdersSkeleton } from '@/components/Skeleton';
 
 const STATUS_COLORS = {
@@ -63,16 +64,11 @@ export default function OrdersPage() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [statusFilter, setStatusFilter] = useState('all');
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const isLoading = useAuthStore((s) => s.isLoading);
+  const isAuthed = useRequireAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoading) return;
-    if (!isAuthenticated) {
-      router.push('/auth/login');
-      return;
-    }
+    if (!isAuthed) return;
 
     // Paint cached orders synchronously, then revalidate.
     const cached = readCachedOrders();
@@ -93,7 +89,7 @@ export default function OrdersPage() {
       setReturns(nextReturns);
       writeCachedOrders({ orders: nextOrders, returns: nextReturns });
     }).finally(() => setLoading(false));
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthed]);
 
   if (loading && orders.length === 0) return <OrdersSkeleton />;
 

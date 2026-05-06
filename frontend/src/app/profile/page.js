@@ -10,10 +10,13 @@ import {
 } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
 import { authAPI, walletAPI, ordersAPI, wishlistAPI, notificationsAPI } from '@/lib/api';
+import { ProfileSkeleton } from '@/components/Skeleton';
+import { useRequireAuth } from '@/components/RequireAuth';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading, logout, updateUser } = useAuthStore();
+  const isAuthed = useRequireAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('profile');
   const [editingProfile, setEditingProfile] = useState(false);
@@ -42,12 +45,9 @@ export default function ProfilePage() {
   }, [user?._id, user?.name, user?.phone]);
 
   useEffect(() => {
-    if (isLoading && !user) return; // wait only if we have no cached user
-    if (!isAuthenticated && !isLoading) {
-      router.push('/auth/login');
-      return;
-    }
-    if (!isAuthenticated) return;
+    // useRequireAuth above already handles redirect + modal open. We just
+    // skip data-loading work until we're definitely authed.
+    if (!isAuthed) return;
 
     // Background refresh of user (addresses, etc.) — never blocks render.
     authAPI.getMe().then(({ user: fresh }) => {
@@ -73,10 +73,11 @@ export default function ProfilePage() {
       setStats(next);
       try { localStorage.setItem('rupalsha_profile_stats', JSON.stringify(next)); } catch {}
     });
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthed, updateUser]);
 
-  // Render with cached user immediately; only hide the page if we truly have nothing.
-  if (!user) return null;
+  // Show skeleton on the very first paint (auth still resolving) and during
+  // the brief redirect-to-home window if the viewer is logged out.
+  if (!isAuthed || !user) return <ProfileSkeleton />;
 
   const handleUpdateProfile = async () => {
     try {

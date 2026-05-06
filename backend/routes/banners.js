@@ -13,7 +13,7 @@ router.get('/', async (req, res, next) => {
 
     const banners = await Banner.find({ isActive: true })
       .sort({ order: 1 })
-      .select('image title link')
+      .select('image mobileImage title link')
       .lean();
 
     cache.set(cacheKey, banners, 300); // 5 min TTL

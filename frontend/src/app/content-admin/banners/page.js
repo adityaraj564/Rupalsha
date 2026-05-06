@@ -3,8 +3,12 @@
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { subAdminAPI } from '@/lib/api';
-import { FiPlus, FiTrash2, FiUpload, FiToggleLeft, FiToggleRight, FiArrowUp, FiArrowDown, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
+import { validateBannerImage } from '@/lib/imageValidation';
+import { FiPlus, FiTrash2, FiUpload, FiToggleLeft, FiToggleRight, FiArrowUp, FiArrowDown, FiEdit2, FiCheck, FiX, FiAlertCircle } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+
+const DESKTOP_SPEC = { targetWidth: 1920, targetHeight: 600 };
+const MOBILE_SPEC = { targetWidth: 750, targetHeight: 1000 };
 
 export default function ContentAdminBannersPage() {
   const [banners, setBanners] = useState([]);
@@ -13,8 +17,27 @@ export default function ContentAdminBannersPage() {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', link: '' });
   const fileRef = useRef(null);
+  const mobileFileRef = useRef(null);
   const [newTitle, setNewTitle] = useState('');
   const [newLink, setNewLink] = useState('');
+  // Inline dimension warnings (soft — backend will still crop with Cloudinary).
+  const [desktopWarn, setDesktopWarn] = useState('');
+  const [mobileWarn, setMobileWarn] = useState('');
+
+  const onPickDesktop = async (e) => {
+    setDesktopWarn('');
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const r = await validateBannerImage(f, DESKTOP_SPEC);
+    if (!r.ok) setDesktopWarn(r.message);
+  };
+  const onPickMobile = async (e) => {
+    setMobileWarn('');
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const r = await validateBannerImage(f, MOBILE_SPEC);
+    if (!r.ok) setMobileWarn(r.message);
+  };
 
   useEffect(() => { fetchBanners(); }, []);
 
@@ -28,16 +51,23 @@ export default function ContentAdminBannersPage() {
 
   const handleUpload = async () => {
     const file = fileRef.current?.files?.[0];
-    if (!file) return;
+    const mobileFile = mobileFileRef.current?.files?.[0];
+    if (!file) {
+      toast.error('Please select a desktop image (1920 × 600 px)');
+      return;
+    }
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('image', file);
+      if (mobileFile) formData.append('mobileImage', mobileFile);
       if (newTitle) formData.append('title', newTitle);
       if (newLink) formData.append('link', newLink);
       await subAdminAPI.createBanner(formData);
       setNewTitle(''); setNewLink('');
       fileRef.current.value = '';
+      if (mobileFileRef.current) mobileFileRef.current.value = '';
+      setDesktopWarn(''); setMobileWarn('');
       await fetchBanners();
       toast.success('Banner added');
     } catch (err) { toast.error(err.message || 'Failed to upload'); }
@@ -94,12 +124,38 @@ export default function ContentAdminBannersPage() {
       {/* Upload Form */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
         <h2 className="font-semibold text-brand-charcoal dark:text-gray-100 mb-2">Add New Banner</h2>
-        <p className="text-xs text-gray-500 mb-4">Recommended size: 1920 × 600 px (landscape)</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <p className="text-xs text-gray-500 mb-4">
+          Upload separate images for desktop and mobile so the banner never stretches or crops awkwardly across devices. Mobile image is optional.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Image *</label>
-            <input ref={fileRef} type="file" accept="image/*" className="w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-brand-gold file:text-white file:cursor-pointer cursor-pointer dark:text-gray-300" />
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Desktop Image * <span className="font-normal text-gray-500">(1920 × 600 px, landscape)</span>
+            </label>
+            <input ref={fileRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={onPickDesktop} className="w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-brand-gold file:text-white file:cursor-pointer cursor-pointer dark:text-gray-300" />
+            <p className="mt-1 text-xs text-gray-400">Shown on tablets &amp; desktops. JPG/PNG/WEBP, max 5 MB.</p>
+            {desktopWarn && (
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1">
+                <FiAlertCircle size={12} className="flex-shrink-0 mt-0.5" />
+                <span>{desktopWarn}</span>
+              </p>
+            )}
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Mobile Image <span className="font-normal text-gray-500">(750 × 1000 px, portrait)</span>
+            </label>
+            <input ref={mobileFileRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={onPickMobile} className="w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-brand-gold file:text-white file:cursor-pointer cursor-pointer dark:text-gray-300" />
+            <p className="mt-1 text-xs text-gray-400">Optional. Shown on phones. JPG/PNG/WEBP, max 5 MB.</p>
+            {mobileWarn && (
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1">
+                <FiAlertCircle size={12} className="flex-shrink-0 mt-0.5" />
+                <span>{mobileWarn}</span>
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title (optional)</label>
             <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Banner title" className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm" />
@@ -134,8 +190,19 @@ export default function ContentAdminBannersPage() {
                   <button onClick={() => handleMove(index, -1)} disabled={index === 0} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 text-gray-500"><FiArrowUp size={14} /></button>
                   <button onClick={() => handleMove(index, 1)} disabled={index === banners.length - 1} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 text-gray-500"><FiArrowDown size={14} /></button>
                 </div>
-                <div className="relative w-40 h-20 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
-                  <Image src={banner.image?.url} alt={banner.title || 'Banner'} fill className="object-cover" sizes="160px" />
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="relative w-32 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700" title="Desktop">
+                    <Image src={banner.image?.url} alt={banner.title || 'Banner'} fill className="object-cover" sizes="128px" />
+                  </div>
+                  {banner.mobileImage?.url ? (
+                    <div className="relative w-12 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700" title="Mobile">
+                      <Image src={banner.mobileImage.url} alt={(banner.title || 'Banner') + ' (mobile)'} fill className="object-cover" sizes="48px" />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-16 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center text-[9px] text-gray-400 text-center px-0.5" title="No mobile image">
+                      No mobile
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   {editingId === banner._id ? (

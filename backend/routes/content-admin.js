@@ -2,7 +2,7 @@ const express = require('express');
 const Banner = require('../models/Banner');
 const { subAdminAuth } = require('../middleware/auth');
 const uploaders = require('../utils/upload');
-const uploadBanner = uploaders.bannersOptimized;
+const uploadBanner = uploaders.bannersDualOptimized;
 const uploadMisc = uploaders.misc;
 const cloudinary = require('../config/cloudinary');
 const cache = require('../utils/cache');
@@ -36,42 +36,57 @@ router.get('/banners', async (req, res, next) => {
 // Robust banner upload pipeline:
 //  - Strict mime + extension validation (JPG/PNG/WEBP only)
 //  - 5MB hard cap (multer)
-//  - Eager Cloudinary transform to 1920x600 WebP (smart crop, q_auto)
+//  - Eager Cloudinary transform: 1920x600 WebP for `image` (desktop),
+//    750x1000 WebP for the optional `mobileImage` (portrait).
 //  - Single direct-to-Cloudinary upload (no double upload, stateless)
-router.post('/banners', runUpload(uploadBanner.single('image')), async (req, res, next) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, error: 'Image is required' });
-    }
+router.post(
+  '/banners',
+  runUpload(uploadBanner.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'mobileImage', maxCount: 1 },
+  ])),
+  async (req, res, next) => {
+    try {
+      const desktop = req.files?.image?.[0];
+      const mobile = req.files?.mobileImage?.[0];
+      if (!desktop) {
+        return res.status(400).json({ success: false, error: 'Desktop image is required' });
+      }
 
-    // Sanitize text fields (trim + length cap, drop anything weird).
-    const title = String(req.body.title || '').trim().slice(0, 200);
-    const link = String(req.body.link || '').trim().slice(0, 500);
+      // Sanitize text fields (trim + length cap, drop anything weird).
+      const title = String(req.body.title || '').trim().slice(0, 200);
+      const link = String(req.body.link || '').trim().slice(0, 500);
 
-    const count = await Banner.countDocuments();
-    const banner = await Banner.create({
-      image: { url: req.file.path, public_id: req.file.filename },
-      title,
-      link,
-      order: count,
-    });
+      const count = await Banner.countDocuments();
+      const banner = await Banner.create({
+        image: { url: desktop.path, public_id: desktop.filename },
+        mobileImage: mobile
+          ? { url: mobile.path, public_id: mobile.filename }
+          : { url: '', public_id: '' },
+        title,
+        link,
+        order: count,
+      });
 
-    cache.clear('banners');
-    logActivity({
-      action: 'create',
-      section: 'banner',
-      description: `Created banner: ${banner.title || 'Untitled'}`,
-      user: req.user,
-    });
+      cache.clear('banners');
+      logActivity({
+        action: 'create',
+        section: 'banner',
+        description: `Created banner: ${banner.title || 'Untitled'}`,
+        user: req.user,
+      });
 
-    res.status(201).json({
-      success: true,
-      imageUrl: req.file.path,
-      publicId: req.file.filename,
-      banner,
-    });
-  } catch (err) { next(err); }
-});
+      res.status(201).json({
+        success: true,
+        imageUrl: desktop.path,
+        publicId: desktop.filename,
+        mobileImageUrl: mobile?.path || '',
+        mobilePublicId: mobile?.filename || '',
+        banner,
+      });
+    } catch (err) { next(err); }
+  }
+);
 
 // PUT /api/content-admin/banners/:id
 router.put('/banners/:id', async (req, res, next) => {
@@ -103,9 +118,10 @@ router.delete('/banners/:id', async (req, res, next) => {
   try {
     const banner = await Banner.findById(req.params.id);
     if (!banner) return res.status(404).json({ error: 'Banner not found' });
-    if (banner.image?.public_id) {
-      await cloudinary.uploader.destroy(banner.image.public_id);
-    }
+    const deletions = [];
+    if (banner.image?.public_id) deletions.push(cloudinary.uploader.destroy(banner.image.public_id));
+    if (banner.mobileImage?.public_id) deletions.push(cloudinary.uploader.destroy(banner.mobileImage.public_id));
+    if (deletions.length) await Promise.all(deletions);
     await banner.deleteOne();
     cache.clear('banners');
     logActivity({ action: 'delete', section: 'banner', description: `Deleted banner: ${banner.title || req.params.id}`, user: req.user });

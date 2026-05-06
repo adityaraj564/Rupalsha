@@ -44,7 +44,7 @@ export async function serverFetch(path, opts = {}) {
 // ── Page-specific helpers ────────────────────────────────────────────────
 
 export const serverHomeAPI = {
-  banners:    () => serverFetch('/banners',             { revalidate: 300, tags: ['banners'] }),
+  banners:    () => serverFetch('/banners',             { revalidate: 30, tags: ['banners'] }),
   categories: () => serverFetch('/categories/tree',     { revalidate: 600, tags: ['categories'] }),
   pages:      (keys) => serverFetch(`/pages?keys=${encodeURIComponent(keys.join(','))}`, { revalidate: 300, tags: ['pages'] }),
   featured:   () => serverFetch('/products?featured=true&limit=8&hideOutOfStock=true', { revalidate: 60, tags: ['products'] }),

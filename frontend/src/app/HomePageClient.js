@@ -95,9 +95,17 @@ export default function HomePageClient({
   }, [banners.length]);
 
   useEffect(() => {
-    bannersAPI.getActive().then((data) => {
+    const applyBanners = (data) => {
       setBanners(data && data.length > 0 ? data : DEFAULT_BANNERS);
-    }).catch(() => setBanners(DEFAULT_BANNERS));
+    };
+    // Returns cached banners immediately AND triggers a background
+    // revalidation; onFresh fires only when the server response actually
+    // differs from the cached one, so admin uploads/edits appear without
+    // a manual refresh.
+    bannersAPI
+      .getActive({ onFresh: applyBanners })
+      .then(applyBanners)
+      .catch(() => setBanners(DEFAULT_BANNERS));
 
     categoriesAPI.getTree().then((data) => {
       if (data?.categories?.length > 0) {
@@ -180,14 +188,34 @@ export default function HomePageClient({
                     index === currentBanner ? 'opacity-100 z-10' : 'opacity-0 z-0'
                   }`}
                 >
-                  <Image
-                    src={banner.image?.url}
-                    alt={banner.title || 'Banner'}
-                    fill
-                    className="object-cover"
-                    sizes="100vw"
-                    priority={index === 0}
-                  />
+                  {/*
+                    Native <picture> element: the browser selects the right
+                    source BEFORE first paint based on viewport width, so
+                    there is zero JS-driven flash on phones. Cloudinary
+                    pre-renders each variant at the correct aspect ratio
+                    (1920x600 desktop, 750x1000 mobile) and we set
+                    fetchpriority="high" on the first slide so it lands in
+                    the LCP path. The img stretches via absolute inset to
+                    fill the carousel slot — object-cover keeps the focal
+                    point centered without distortion.
+                  */}
+                  <picture>
+                    {banner.mobileImage?.url && (
+                      <source
+                        media="(max-width: 767px)"
+                        srcSet={banner.mobileImage.url}
+                      />
+                    )}
+                    <img
+                      src={banner.image?.url}
+                      alt={banner.title || 'Banner'}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      loading={index === 0 ? 'eager' : 'lazy'}
+                      fetchpriority={index === 0 ? 'high' : 'auto'}
+                      decoding="async"
+                      draggable={false}
+                    />
+                  </picture>
                   {banner.title && (
                     <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/40 to-transparent">
                       <p className="text-white text-lg md:text-2xl font-serif font-semibold px-6 md:px-12 pb-6 md:pb-10">

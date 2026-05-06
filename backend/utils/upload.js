@@ -150,6 +150,50 @@ const bannersOptimized = buildOptimizedImageUploader({
   ],
 });
 
+// Dual-field banner uploader: accepts a desktop `image` (1920x600 landscape)
+// and an optional mobile `mobileImage` (750x1000 portrait). The transform is
+// chosen at upload time based on `file.fieldname`, so each variant is stored
+// pre-cropped at the right aspect ratio — no stretching / cropping in the
+// browser regardless of source image proportions.
+const bannersDualStorage = new CloudinaryStorage({
+  cloudinary,
+  params: (req, file) => {
+    const isMobile = file.fieldname === 'mobileImage';
+    return {
+      folder: 'rupalsha/banners',
+      resource_type: 'image',
+      allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+      format: 'webp',
+      transformation: isMobile
+        ? [
+            {
+              width: 750,
+              height: 1000,
+              crop: 'fill',
+              gravity: 'auto',
+              quality: 'auto:good',
+              fetch_format: 'auto',
+            },
+          ]
+        : [
+            {
+              width: 1920,
+              height: 600,
+              crop: 'fill',
+              gravity: 'auto',
+              quality: 'auto:good',
+              fetch_format: 'auto',
+            },
+          ],
+    };
+  },
+});
+const bannersDualOptimized = multer({
+  storage: bannersDualStorage,
+  fileFilter: makeStrictImageFilter(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
 // Categories: 3:4 portrait card on home (600x800 fill, smart crop)
 const categoriesOptimized = buildOptimizedImageUploader({
   folder: 'rupalsha/categories',
@@ -233,6 +277,7 @@ module.exports = {
   categoriesOptimized,
   banners: createUploader('banners'),
   bannersOptimized,
+  bannersDualOptimized,
   blogs: createUploader('blogs'),
   blogsOptimized,
   about: createUploader('about'),

@@ -6,6 +6,7 @@ import { FiMapPin, FiPlus, FiCreditCard, FiTruck, FiMinus, FiTrash2, FiTag } fro
 import { useAuthStore, useCartStore } from '@/lib/store';
 import { ordersAPI, couponsAPI, paymentAPI, authAPI, walletAPI, settingsAPI } from '@/lib/api';
 import { CartSkeleton } from '@/components/Skeleton';
+import { useRequireAuth } from '@/components/RequireAuth';
 import toast from 'react-hot-toast';
 
 // Generate a per-attempt UUID. Used as the `Idempotency-Key` so that retried
@@ -19,8 +20,7 @@ function newIdempotencyKey() {
 export default function CheckoutPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const isLoading = useAuthStore((s) => s.isLoading);
+  const isAuthed = useRequireAuth();
   const { items, clearCart, updateItem, removeItem, fetchCart } = useCartStore();
   const updateUser = useAuthStore((s) => s.updateUser);
   const [selectedAddress, setSelectedAddress] = useState(null);
@@ -68,11 +68,8 @@ export default function CheckoutPage() {
   };
 
   useEffect(() => {
-    if (isLoading) return;
-    if (!isAuthenticated) {
-      router.push('/auth/login');
-      return;
-    }
+    // useRequireAuth handles the redirect+modal. Skip data work until authed.
+    if (!isAuthed) return;
     // Re-fetch user to get latest addresses
     authAPI.getMe().then(({ user: fresh }) => {
       updateUser(fresh);
@@ -91,10 +88,10 @@ export default function CheckoutPage() {
     ordersAPI.validate()
       .then((r) => setStockIssues(r?.ok ? [] : (r?.issues || [])))
       .catch(() => {});
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthed, fetchCart, updateUser]);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (!isAuthed) return;
     if (items.length === 0) {
       router.push('/cart');
       return;
@@ -104,9 +101,9 @@ export default function CheckoutPage() {
       setSelectedAddress(defaultAddr);
     }
     couponsAPI.getActive().then(setAvailableCoupons).catch(() => {});
-  }, [isAuthenticated, items.length, router, user]);
+  }, [isAuthed, items.length, router, user]);
 
-  if (!user || items.length === 0) return <CartSkeleton />;
+  if (!isAuthed || !user || items.length === 0) return <CartSkeleton />;
 
   // Build a quick lookup so we can render an inline message under the
   // exact cart row that has a problem (rather than only a global toast).

@@ -4,7 +4,11 @@ import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { adminAPI } from '@/lib/api';
 import { AdminTableSkeleton } from '@/components/Skeleton';
-import { FiPlus, FiTrash2, FiUpload, FiToggleLeft, FiToggleRight, FiArrowUp, FiArrowDown, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
+import { validateBannerImage } from '@/lib/imageValidation';
+import { FiPlus, FiTrash2, FiUpload, FiToggleLeft, FiToggleRight, FiArrowUp, FiArrowDown, FiEdit2, FiCheck, FiX, FiAlertCircle } from 'react-icons/fi';
+
+const DESKTOP_SPEC = { targetWidth: 1920, targetHeight: 600 };
+const MOBILE_SPEC = { targetWidth: 750, targetHeight: 1000 };
 
 export default function AdminBannersPage() {
   const [banners, setBanners] = useState([]);
@@ -14,8 +18,30 @@ export default function AdminBannersPage() {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', link: '' });
   const fileRef = useRef(null);
+  const mobileFileRef = useRef(null);
   const [newTitle, setNewTitle] = useState('');
   const [newLink, setNewLink] = useState('');
+  // Inline dimension warnings shown as soon as the user picks a file.
+  // We never block the upload — the backend Cloudinary transform will
+  // crop to the right ratio anyway — but a clear warning lets admins
+  // catch obvious mistakes (selfie uploaded as a banner, etc).
+  const [desktopWarn, setDesktopWarn] = useState('');
+  const [mobileWarn, setMobileWarn] = useState('');
+
+  const onPickDesktop = async (e) => {
+    setDesktopWarn('');
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const r = await validateBannerImage(f, DESKTOP_SPEC);
+    if (!r.ok) setDesktopWarn(r.message);
+  };
+  const onPickMobile = async (e) => {
+    setMobileWarn('');
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const r = await validateBannerImage(f, MOBILE_SPEC);
+    if (!r.ok) setMobileWarn(r.message);
+  };
 
   useEffect(() => {
     fetchBanners();
@@ -39,12 +65,17 @@ export default function AdminBannersPage() {
 
   const handleUpload = async () => {
     const file = fileRef.current?.files?.[0];
-    if (!file) return;
+    const mobileFile = mobileFileRef.current?.files?.[0];
+    if (!file) {
+      showMessage('Please select a desktop image (1920 × 600 px)');
+      return;
+    }
 
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('image', file);
+      if (mobileFile) formData.append('mobileImage', mobileFile);
       if (newTitle) formData.append('title', newTitle);
       if (newLink) formData.append('link', newLink);
 
@@ -52,6 +83,9 @@ export default function AdminBannersPage() {
       setNewTitle('');
       setNewLink('');
       fileRef.current.value = '';
+      if (mobileFileRef.current) mobileFileRef.current.value = '';
+      setDesktopWarn('');
+      setMobileWarn('');
       await fetchBanners();
       showMessage('Banner added successfully');
     } catch (err) {
@@ -129,18 +163,49 @@ export default function AdminBannersPage() {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
         <h2 className="font-semibold text-brand-charcoal dark:text-gray-100 mb-4">Add New Banner</h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-          Recommended size: 1920 × 600 px (landscape). Images will be displayed full-width on the home page.
+          Upload separate images for desktop and mobile so the banner never stretches or crops awkwardly across devices. Mobile image is optional — if omitted, the desktop image is used on mobile too.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Image *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Desktop Image * <span className="font-normal text-gray-500">(1920 × 600 px, landscape)</span>
+            </label>
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              onChange={onPickDesktop}
               className="w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-brand-green file:text-white file:cursor-pointer cursor-pointer dark:text-gray-300"
             />
+            <p className="mt-1 text-xs text-gray-400">Shown on tablets &amp; desktops. JPG/PNG/WEBP, max 5 MB.</p>
+            {desktopWarn && (
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1">
+                <FiAlertCircle size={12} className="flex-shrink-0 mt-0.5" />
+                <span>{desktopWarn}</span>
+              </p>
+            )}
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Mobile Image <span className="font-normal text-gray-500">(750 × 1000 px, portrait)</span>
+            </label>
+            <input
+              ref={mobileFileRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              onChange={onPickMobile}
+              className="w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-brand-green file:text-white file:cursor-pointer cursor-pointer dark:text-gray-300"
+            />
+            <p className="mt-1 text-xs text-gray-400">Optional. Shown on phones. JPG/PNG/WEBP, max 5 MB.</p>
+            {mobileWarn && (
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1">
+                <FiAlertCircle size={12} className="flex-shrink-0 mt-0.5" />
+                <span>{mobileWarn}</span>
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title (optional)</label>
             <input
@@ -216,15 +281,32 @@ export default function AdminBannersPage() {
                   </button>
                 </div>
 
-                {/* Image Preview */}
-                <div className="relative w-40 h-20 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
-                  <Image
-                    src={banner.image?.url}
-                    alt={banner.title || 'Banner'}
-                    fill
-                    className="object-cover"
-                    sizes="160px"
-                  />
+                {/* Image Preview — desktop + mobile thumbnails side by side */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="relative w-32 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700" title="Desktop">
+                    <Image
+                      src={banner.image?.url}
+                      alt={banner.title || 'Banner'}
+                      fill
+                      className="object-cover"
+                      sizes="128px"
+                    />
+                  </div>
+                  {banner.mobileImage?.url ? (
+                    <div className="relative w-12 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700" title="Mobile">
+                      <Image
+                        src={banner.mobileImage.url}
+                        alt={(banner.title || 'Banner') + ' (mobile)'}
+                        fill
+                        className="object-cover"
+                        sizes="48px"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-16 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center text-[9px] text-gray-400 text-center px-0.5" title="No mobile image">
+                      No mobile
+                    </div>
+                  )}
                 </div>
 
                 {/* Info */}
