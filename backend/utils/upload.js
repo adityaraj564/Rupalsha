@@ -239,6 +239,23 @@ const aboutCoverOptimized = buildOptimizedImageUploader({
   ],
 });
 
+// About: portrait mobile cover. 4:5 keeps the subject prominent on
+// phones without becoming a tiny letterboxed strip cropped from a
+// 1920x800 wide image.
+const aboutCoverMobileOptimized = buildOptimizedImageUploader({
+  folder: 'rupalsha/about/covers',
+  transformation: [
+    {
+      width: 800,
+      height: 1000,
+      crop: 'fill',
+      gravity: 'auto',
+      quality: 'auto:good',
+      fetch_format: 'auto',
+    },
+  ],
+});
+
 const aboutTeamOptimized = buildOptimizedImageUploader({
   folder: 'rupalsha/about/team',
   transformation: [
@@ -282,6 +299,7 @@ module.exports = {
   blogsOptimized,
   about: createUploader('about'),
   aboutCoverOptimized,
+  aboutCoverMobileOptimized,
   aboutTeamOptimized,
   reviews: createUploader('reviews'),
   reviewsOptimized,

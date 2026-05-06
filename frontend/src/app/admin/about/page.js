@@ -29,6 +29,7 @@ export default function AdminAboutPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingCoverMobile, setUploadingCoverMobile] = useState(false);
   const [uploadingTeam, setUploadingTeam] = useState(null);
   const [savingTeamVisibility, setSavingTeamVisibility] = useState(false);
   const [form, setForm] = useState({
@@ -42,6 +43,7 @@ export default function AdminAboutPage() {
   });
 
   const coverInputRef = useRef(null);
+  const coverMobileInputRef = useRef(null);
   const teamImageRefs = useRef({});
 
   useEffect(() => {
@@ -119,11 +121,39 @@ export default function AdminAboutPage() {
     try {
       const data = await aboutAPI.uploadCover(formData);
       setAbout(data.about);
-      showMessage('Cover image updated!');
+      showMessage('Desktop cover image updated!');
     } catch (err) {
       showMessage('Upload failed: ' + err.message);
     } finally {
       setUploadingCover(false);
+    }
+  };
+
+  const handleCoverMobileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingCoverMobile(true);
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const data = await aboutAPI.uploadCoverMobile(formData);
+      setAbout(data.about);
+      showMessage('Mobile cover image updated!');
+    } catch (err) {
+      showMessage('Upload failed: ' + err.message);
+    } finally {
+      setUploadingCoverMobile(false);
+    }
+  };
+
+  const handleRemoveCoverMobile = async () => {
+    if (!confirm('Remove the mobile cover image? Phones will fall back to the desktop image.')) return;
+    try {
+      const data = await aboutAPI.removeCoverMobile();
+      setAbout(data.about);
+      showMessage('Mobile cover removed.');
+    } catch (err) {
+      showMessage('Failed to remove: ' + err.message);
     }
   };
 
@@ -220,34 +250,91 @@ export default function AdminAboutPage() {
         </div>
       )}
 
-      {/* Cover Image */}
+      {/* Cover Image — dual upload: a wide desktop banner and an
+          optional portrait mobile banner. The public About page picks
+          the right one with a <picture> source query so phones never
+          see a desktop image cropped to a tiny strip. */}
       <div className="bg-white rounded-2xl border p-6">
-        <h2 className="font-semibold text-lg text-brand-charcoal mb-4 flex items-center gap-2">
-          <FiImage size={18} /> Cover Image
+        <h2 className="font-semibold text-lg text-brand-charcoal mb-2 flex items-center gap-2">
+          <FiImage size={18} /> Cover Images
         </h2>
-        <div className="relative w-full h-48 md:h-64 bg-gray-100 rounded-xl overflow-hidden mb-4">
-          {uploadingCover ? (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
-              <div className="w-8 h-8 border-3 border-gray-300 border-t-brand-green rounded-full animate-spin mb-2" />
-              <span className="text-sm">Uploading...</span>
+        <p className="text-xs text-gray-500 mb-5">
+          Upload separate images so the banner fits perfectly on every screen size. Cloudinary auto-crops smartly, but matching the recommended dimensions guarantees nothing important is cut off.
+        </p>
+
+        <div className="grid md:grid-cols-2 gap-5">
+          {/* Desktop */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-brand-charcoal">Desktop / tablet</span>
+              <span className="text-[11px] text-gray-400">1920 × 800 px (12:5)</span>
             </div>
-          ) : about?.coverImage?.url ? (
-            <Image src={about.coverImage.url} alt="Cover" fill className="object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400">
-              No cover image uploaded
+            <div className="relative w-full aspect-[12/5] bg-gray-100 rounded-xl overflow-hidden mb-3">
+              {uploadingCover ? (
+                <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                  <div className="w-8 h-8 border-2 border-gray-300 border-t-brand-green rounded-full animate-spin mb-2" />
+                  <span className="text-sm">Uploading...</span>
+                </div>
+              ) : about?.coverImage?.url ? (
+                <Image src={about.coverImage.url} alt="Desktop cover" fill className="object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                  No desktop cover uploaded
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <input type="file" accept="image/*" ref={coverInputRef} onChange={handleCoverUpload} className="hidden" />
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => coverInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
-          >
-            <FiUpload size={14} /> Upload Cover Image
-          </button>
-          <span className="text-xs text-gray-400">Recommended: 1920 × 600 px (landscape, 3.2:1 ratio)</span>
+            <input type="file" accept="image/*" ref={coverInputRef} onChange={handleCoverUpload} className="hidden" />
+            <button
+              onClick={() => coverInputRef.current?.click()}
+              disabled={uploadingCover}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <FiUpload size={14} /> {about?.coverImage?.url ? 'Replace desktop image' : 'Upload desktop image'}
+            </button>
+          </div>
+
+          {/* Mobile */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-brand-charcoal">Mobile</span>
+              <span className="text-[11px] text-gray-400">800 × 1000 px (4:5 portrait)</span>
+            </div>
+            <div className="relative w-full aspect-[12/5] bg-gray-100 rounded-xl overflow-hidden mb-3 flex items-center justify-center">
+              {uploadingCoverMobile ? (
+                <div className="flex flex-col items-center justify-center text-gray-400">
+                  <div className="w-8 h-8 border-2 border-gray-300 border-t-brand-green rounded-full animate-spin mb-2" />
+                  <span className="text-sm">Uploading...</span>
+                </div>
+              ) : about?.coverImageMobile?.url ? (
+                // Constrain the portrait preview so it doesn’t blow out
+                // the card height; the card slot is wide so we centre it.
+                <div className="relative h-full aspect-[4/5] rounded-md overflow-hidden">
+                  <Image src={about.coverImageMobile.url} alt="Mobile cover" fill className="object-cover" />
+                </div>
+              ) : (
+                <span className="text-gray-400 text-sm">No mobile cover uploaded (optional)</span>
+              )}
+            </div>
+            <input type="file" accept="image/*" ref={coverMobileInputRef} onChange={handleCoverMobileUpload} className="hidden" />
+            <div className="flex gap-2">
+              <button
+                onClick={() => coverMobileInputRef.current?.click()}
+                disabled={uploadingCoverMobile}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                <FiUpload size={14} /> {about?.coverImageMobile?.url ? 'Replace mobile image' : 'Upload mobile image'}
+              </button>
+              {about?.coverImageMobile?.url && (
+                <button
+                  onClick={handleRemoveCoverMobile}
+                  className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50"
+                  title="Remove mobile cover (phones will fall back to the desktop image)"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

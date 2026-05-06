@@ -3,6 +3,7 @@ const About = require('../models/About');
 const { subAdminAuth } = require('../middleware/auth');
 const uploaders = require('../utils/upload');
 const uploadCover = uploaders.aboutCoverOptimized;
+const uploadCoverMobile = uploaders.aboutCoverMobileOptimized;
 const uploadTeam = uploaders.aboutTeamOptimized;
 const cloudinary = require('../config/cloudinary');
 const { logActivity } = require('../utils/activityLog');
@@ -87,6 +88,46 @@ router.put('/cover', subAdminAuth, runUpload(uploadCover.single('image')), async
     };
     await about.save();
     logActivity({ action: 'update', section: 'about', description: 'Updated about page cover image', user: req.user });
+    res.json({ about });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/about/cover-mobile - Admin: upload mobile (portrait) cover
+router.put('/cover-mobile', subAdminAuth, runUpload(uploadCoverMobile.single('image')), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Image is required' });
+    let about = await About.findOne();
+    if (!about) about = new About();
+
+    if (about.coverImageMobile?.public_id) {
+      await cloudinary.uploader.destroy(about.coverImageMobile.public_id);
+    }
+
+    about.coverImageMobile = {
+      url: req.file.path,
+      public_id: req.file.filename,
+    };
+    await about.save();
+    logActivity({ action: 'update', section: 'about', description: 'Updated about page mobile cover image', user: req.user });
+    res.json({ about });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// DELETE /api/about/cover-mobile - Admin: remove the mobile cover
+router.delete('/cover-mobile', subAdminAuth, async (req, res, next) => {
+  try {
+    const about = await About.findOne();
+    if (!about) return res.json({ about: null });
+    if (about.coverImageMobile?.public_id) {
+      await cloudinary.uploader.destroy(about.coverImageMobile.public_id);
+    }
+    about.coverImageMobile = undefined;
+    await about.save();
+    logActivity({ action: 'update', section: 'about', description: 'Removed about page mobile cover image', user: req.user });
     res.json({ about });
   } catch (error) {
     next(error);

@@ -30,6 +30,11 @@ const pageContentSchema = new mongoose.Schema({
   offerDescription: String,
   offerLink: String,
   offerImage: String,
+  // Optional mobile-only background for the special-offer banner.
+  // When set, the home page renders it via a <picture> source query
+  // so phones get a portrait image fitted to a tall mobile slot
+  // instead of a desktop landscape image cropped to a strip.
+  offerImageMobile: String,
   // Home hero
   heroEyebrow: String,
   heroTitle: String,

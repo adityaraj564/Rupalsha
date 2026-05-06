@@ -381,13 +381,25 @@ export default function HomePageClient({
       <section className="py-0 md:py-12">
         <div className="mx-auto md:px-4 sm:px-6 lg:px-20 xl:px-32 px-0">
           <div className="relative md:rounded-3xl overflow-hidden bg-brand-green h-[125vw] min-h-[500px] md:h-auto md:min-h-[400px] flex items-center">
+            {/* Native <picture> so the browser picks the mobile portrait
+                or desktop landscape image *before* paint. The wrapper is
+                opacity-20 (background pattern), so the image style stays
+                identical to the previous next/image version, just sized
+                correctly per breakpoint. */}
             <div className="absolute inset-0 opacity-20">
-              <Image
-                src={specialOffer?.offerImage || '/defaults/banner-2.jpg'}
-                alt="Pattern"
-                fill
-                className="object-cover"
-              />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <picture>
+                {specialOffer?.offerImageMobile && (
+                  <source media="(max-width: 767px)" srcSet={specialOffer.offerImageMobile} />
+                )}
+                <img
+                  src={specialOffer?.offerImage || specialOffer?.offerImageMobile || '/defaults/banner-2.jpg'}
+                  alt="Pattern"
+                  className="absolute inset-0 w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </picture>
             </div>
             <div className="relative px-8 md:px-16 py-16 max-w-xl">
               <p className="text-brand-gold text-sm font-medium tracking-widest uppercase mb-4">{specialOffer?.title || 'Special Offer'}</p>

@@ -77,22 +77,34 @@ export default function AboutPage() {
         {/* Full-bleed banner. We deliberately drop the max-w container,
             rounded corners, and outer padding so the cover image lives
             edge-to-edge — a cinematic moment that opens the page.
-            Aspect ratios chosen to keep the image readable on phones
-            (16/9) without becoming a wall of pixels on desktop (21/9).
-            min-h fallback guarantees the band has height even if the
-            arbitrary aspect-ratio utility ever fails to compile, and a
-            styled placeholder renders when no cover has been uploaded
-            yet so the page never looks broken in dev. */}
-        <div className="relative w-full aspect-[16/9] md:aspect-[21/9] lg:aspect-[24/9] min-h-[220px] md:min-h-[320px] lg:min-h-[360px] overflow-hidden bg-brand-cream dark:bg-gray-900">
-          {about.coverImage?.url ? (
-            <Image
-              src={about.coverImage.url}
-              alt={about.companyName}
-              fill
-              sizes="100vw"
-              className="object-cover"
-              priority
-            />
+
+            Aspect ratios:
+              - phone (portrait): aspect-[4/5] when a mobile image is
+                uploaded, so the dedicated mobile asset shows in full.
+                Falls back to 16/9 when only the desktop image exists.
+              - tablet/desktop: 21/9 → 24/9, keeping it cinematic
+                without becoming a wall of pixels on huge monitors.
+
+            We render with a native <picture> so the browser picks the
+            mobile or desktop file *before* paint — there's no JS
+            viewport check, no flicker, no double-download. */}
+        <div
+          className={`relative w-full ${about.coverImageMobile?.url ? 'aspect-[4/5]' : 'aspect-[16/9]'} sm:aspect-[16/9] md:aspect-[21/9] lg:aspect-[24/9] min-h-[220px] md:min-h-[320px] lg:min-h-[360px] overflow-hidden bg-brand-cream dark:bg-gray-900`}
+        >
+          {about.coverImage?.url || about.coverImageMobile?.url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <picture>
+              {about.coverImageMobile?.url && (
+                <source media="(max-width: 767px)" srcSet={about.coverImageMobile.url} />
+              )}
+              <img
+                src={about.coverImage?.url || about.coverImageMobile?.url}
+                alt={about.companyName}
+                className="absolute inset-0 w-full h-full object-cover"
+                fetchpriority="high"
+                decoding="async"
+              />
+            </picture>
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="font-serif text-4xl md:text-6xl text-brand-green/20 dark:text-brand-gold/30 tracking-wide">

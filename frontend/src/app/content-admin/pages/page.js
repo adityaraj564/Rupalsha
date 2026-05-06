@@ -33,6 +33,7 @@ export default function ContentAdminPagesPage() {
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [uploadingOfferImage, setUploadingOfferImage] = useState(false);
+  const [uploadingOfferImageMobile, setUploadingOfferImageMobile] = useState(false);
 
   useEffect(() => { fetchPages(); }, []);
 
@@ -57,6 +58,7 @@ export default function ContentAdminPagesPage() {
       offerDescription: page.offerDescription || '',
       offerLink: page.offerLink || '',
       offerImage: page.offerImage || '',
+      offerImageMobile: page.offerImageMobile || '',
       heroEyebrow: page.heroEyebrow || '',
       heroTitle: page.heroTitle || '',
       heroAccent: page.heroAccent || '',
@@ -121,50 +123,116 @@ export default function ContentAdminPagesPage() {
                   <input type="text" value={form.offerLink} onChange={(e) => setForm({ ...form, offerLink: e.target.value })} placeholder="e.g. /products" className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm" />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1 flex items-center gap-1"><FiImage size={14} /> Background Image</label>
-                  <div className="flex items-start gap-3">
-                    {form.offerImage && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={form.offerImage} alt="offer" className="w-24 h-16 object-cover rounded-lg border border-gray-200 dark:border-gray-600 flex-shrink-0" />
-                    )}
-                    <div className="flex-1 space-y-2">
-                      <label className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600">
-                        <FiImage size={14} />
-                        {uploadingOfferImage ? 'Uploading…' : 'Upload image'}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          disabled={uploadingOfferImage}
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            e.target.value = '';
-                            if (!file) return;
-                            setUploadingOfferImage(true);
-                            try {
-                              const fd = new FormData();
-                              fd.append('image', file);
-                              const res = await subAdminAPI.uploadContentImage(fd);
-                              setForm((f) => ({ ...f, offerImage: res.url }));
-                              toast.success('Image uploaded');
-                            } catch (err) {
-                              toast.error(err.message || 'Upload failed');
-                            } finally {
-                              setUploadingOfferImage(false);
-                            }
-                          }}
-                        />
-                      </label>
-                      {form.offerImage && (
-                        <button
-                          type="button"
-                          onClick={() => setForm({ ...form, offerImage: '' })}
-                          className="ml-2 text-xs text-red-600 hover:underline"
-                        >
-                          Remove
-                        </button>
-                      )}
-                      <input type="text" value={form.offerImage} onChange={(e) => setForm({ ...form, offerImage: e.target.value })} placeholder="Or paste an image URL…" className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-xs" />
+                  <label className="block text-sm font-medium mb-1 flex items-center gap-1"><FiImage size={14} /> Background Images</label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Upload separate images for desktop and mobile so the banner fits perfectly on every screen and nothing important gets cropped.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Desktop offer image */}
+                    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-gray-700 dark:text-gray-200">Desktop / tablet</span>
+                        <span className="text-[11px] text-gray-400">1920 × 800 px (12:5)</span>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        {form.offerImage && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={form.offerImage} alt="offer desktop" className="w-24 h-16 object-cover rounded-lg border border-gray-200 dark:border-gray-600 flex-shrink-0" />
+                        )}
+                        <div className="flex-1 space-y-2">
+                          <label className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <FiImage size={14} />
+                            {uploadingOfferImage ? 'Uploading…' : (form.offerImage ? 'Replace image' : 'Upload image')}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingOfferImage}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                e.target.value = '';
+                                if (!file) return;
+                                setUploadingOfferImage(true);
+                                try {
+                                  const fd = new FormData();
+                                  fd.append('image', file);
+                                  const res = await subAdminAPI.uploadContentImage(fd);
+                                  setForm((f) => ({ ...f, offerImage: res.url }));
+                                  toast.success('Desktop image uploaded');
+                                } catch (err) {
+                                  toast.error(err.message || 'Upload failed');
+                                } finally {
+                                  setUploadingOfferImage(false);
+                                }
+                              }}
+                            />
+                          </label>
+                          {form.offerImage && (
+                            <button
+                              type="button"
+                              onClick={() => setForm({ ...form, offerImage: '' })}
+                              className="ml-2 text-xs text-red-600 hover:underline"
+                            >
+                              Remove
+                            </button>
+                          )}
+                          <input type="text" value={form.offerImage} onChange={(e) => setForm({ ...form, offerImage: e.target.value })} placeholder="Or paste an image URL…" className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-xs" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Mobile offer image */}
+                    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-gray-700 dark:text-gray-200">Mobile</span>
+                        <span className="text-[11px] text-gray-400">800 × 1000 px (4:5 portrait)</span>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        {form.offerImageMobile && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={form.offerImageMobile} alt="offer mobile" className="w-16 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-600 flex-shrink-0" />
+                        )}
+                        <div className="flex-1 space-y-2">
+                          <label className="inline-flex items-center gap-2 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600">
+                            <FiImage size={14} />
+                            {uploadingOfferImageMobile ? 'Uploading…' : (form.offerImageMobile ? 'Replace image' : 'Upload image')}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingOfferImageMobile}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                e.target.value = '';
+                                if (!file) return;
+                                setUploadingOfferImageMobile(true);
+                                try {
+                                  const fd = new FormData();
+                                  fd.append('image', file);
+                                  const res = await subAdminAPI.uploadContentImage(fd);
+                                  setForm((f) => ({ ...f, offerImageMobile: res.url }));
+                                  toast.success('Mobile image uploaded');
+                                } catch (err) {
+                                  toast.error(err.message || 'Upload failed');
+                                } finally {
+                                  setUploadingOfferImageMobile(false);
+                                }
+                              }}
+                            />
+                          </label>
+                          {form.offerImageMobile && (
+                            <button
+                              type="button"
+                              onClick={() => setForm({ ...form, offerImageMobile: '' })}
+                              className="ml-2 text-xs text-red-600 hover:underline"
+                            >
+                              Remove
+                            </button>
+                          )}
+                          <input type="text" value={form.offerImageMobile} onChange={(e) => setForm({ ...form, offerImageMobile: e.target.value })} placeholder="Or paste an image URL…" className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-xs" />
+                          <p className="text-[11px] text-gray-400">Optional. Phones fall back to the desktop image when this is empty.</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

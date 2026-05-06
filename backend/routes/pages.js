@@ -132,7 +132,7 @@ router.put('/admin/:key', subAdminAuth, async (req, res, next) => {
     const { key } = req.params;
     if (!DEFAULTS[key]) return res.status(404).json({ error: 'Page not found' });
 
-    const { title, content, contactEmail, contactPhone, supportHours, offerHeading, offerCode, offerDescription, offerLink, offerImage, heroEyebrow, heroTitle, heroAccent, features, brandName } = req.body;
+    const { title, content, contactEmail, contactPhone, supportHours, offerHeading, offerCode, offerDescription, offerLink, offerImage, offerImageMobile, heroEyebrow, heroTitle, heroAccent, features, brandName } = req.body;
     const update = {};
     if (title !== undefined) update.title = title;
     if (content !== undefined) update.content = content;
@@ -144,6 +144,7 @@ router.put('/admin/:key', subAdminAuth, async (req, res, next) => {
     if (offerDescription !== undefined) update.offerDescription = offerDescription;
     if (offerLink !== undefined) update.offerLink = offerLink;
     if (offerImage !== undefined) update.offerImage = offerImage;
+    if (offerImageMobile !== undefined) update.offerImageMobile = offerImageMobile;
     if (heroEyebrow !== undefined) update.heroEyebrow = heroEyebrow;
     if (heroTitle !== undefined) update.heroTitle = heroTitle;
     if (heroAccent !== undefined) update.heroAccent = heroAccent;

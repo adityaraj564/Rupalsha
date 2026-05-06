@@ -479,6 +479,8 @@ export const aboutAPI = {
   get: () => swr('about', () => request('/about'), CACHE_TTL.long),
   update: (data) => request('/about', { method: 'PUT', body: data }).then(d => { clearApiCache('about'); return d; }),
   uploadCover: (formData) => request('/about/cover', { method: 'PUT', body: formData }).then(d => { clearApiCache('about'); return d; }),
+  uploadCoverMobile: (formData) => request('/about/cover-mobile', { method: 'PUT', body: formData }).then(d => { clearApiCache('about'); return d; }),
+  removeCoverMobile: () => request('/about/cover-mobile', { method: 'DELETE' }).then(d => { clearApiCache('about'); return d; }),
   updateTeamMember: (index, data) => request(`/about/team/${index}`, { method: 'PUT', body: data }).then(d => { clearApiCache('about'); return d; }),
   uploadTeamImage: (index, formData) => request(`/about/team/${index}/image`, { method: 'PUT', body: formData }).then(d => { clearApiCache('about'); return d; }),
   addTeamMember: (data) => request('/about/team', { method: 'POST', body: data }).then(d => { clearApiCache('about'); return d; }),
