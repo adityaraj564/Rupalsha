@@ -206,10 +206,14 @@ export default function AuthModal() {
       aria-modal="true"
       aria-labelledby="auth-modal-title"
     >
-      {/* Backdrop — clicking it closes the modal but keeps the user on the
-          same page (no navigation). */}
+      {/* Backdrop — clicking it closes the modal but keeps the user on
+          the same page (no navigation). We deliberately don't use
+          `backdrop-blur` here: Chromium repaints the blur layer one
+          frame after mount, which read as a "flicker" the first time
+          the popup appears. A solid tint paints in a single frame and
+          looks identical visually. */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/60"
         onClick={close}
       />
 
