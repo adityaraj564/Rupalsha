@@ -71,22 +71,33 @@ export default function HelpPage() {
       {returns && (
         <section id="returns" className="mb-16">
           <h2 className="font-serif text-2xl font-semibold mb-4 dark:text-white">{returns.title}</h2>
-          <div className="card p-6 text-sm text-gray-600 dark:text-gray-400 prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: returns.content }} />
-          {unboxingNoticeOn && (
-            <div className="mt-4 rounded-xl border-2 border-red-500 bg-red-50 dark:bg-red-950/30 p-5">
-              <div className="flex items-start gap-3">
-                <FiAlertTriangle className="flex-shrink-0 text-red-600 dark:text-red-400 mt-0.5" size={20} />
-                <div className="text-sm">
-                  <p className="font-semibold text-red-700 dark:text-red-300 mb-1">
-                    Mandatory: Unboxing Video Required
-                  </p>
-                  <p className="text-red-700/90 dark:text-red-200/90 leading-relaxed">
-                    You must record a video while opening your package. This unboxing video is mandatory for processing any return or exchange request. Claims without an unboxing video will not be accepted.
-                  </p>
-                </div>
+          <div
+            className="card p-6 text-sm text-gray-600 dark:text-gray-400 prose dark:prose-invert max-w-none"
+            dangerouslySetInnerHTML={{
+              // Strip any legacy "Mandatory unboxing video" warning block that
+              // may still live in older PageContent rows in the database, so
+              // the softened notice below is the single source of truth.
+              __html: (returns.content || '').replace(
+                /<div class=["']warning["']>[\s\S]*?<\/div>/gi,
+                ''
+              ),
+            }}
+          />
+          {/* Unboxing video guidance — always shown so customers see this
+              helpful recommendation regardless of the legacy admin toggle. */}
+          <div className="mt-4 rounded-xl border-2 border-orange-400 bg-orange-50 dark:bg-orange-950/30 p-5">
+            <div className="flex items-start gap-3">
+              <FiAlertTriangle className="flex-shrink-0 text-orange-600 dark:text-orange-400 mt-0.5" size={20} />
+              <div className="text-sm">
+                <p className="font-semibold text-orange-700 dark:text-orange-300 mb-1">
+                  Unboxing Video Guidance
+                </p>
+                <p className="text-orange-700/90 dark:text-orange-200/90 leading-relaxed">
+                  For a smoother return or exchange process, we recommend recording an unboxing video while opening your package. This helps us verify any issues related to damaged, missing, or incorrect products.
+                </p>
               </div>
             </div>
-          )}
+          </div>
         </section>
       )}
 

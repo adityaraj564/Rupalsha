@@ -741,7 +741,7 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
             {product.isReturnable !== false && (
               <div className="flex items-start gap-3 text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
                 <FiVideo className="text-orange-500 flex-shrink-0 mt-0.5" size={18} />
-                <span><strong>Mandatory:</strong> Please record an unboxing video while opening the package. This is required for all return/exchange claims.</span>
+                <span><strong>Tip:</strong> We strongly recommend recording an unboxing video while opening the package — it helps us resolve damaged or missing item claims quickly.</span>
               </div>
             )}
           </div>

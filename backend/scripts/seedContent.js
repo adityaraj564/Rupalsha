@@ -17,7 +17,7 @@ const FAQS = [
   },
   {
     question: 'What is your return policy?',
-    answer: 'Our return policy varies from product to product — the return window (number of days) is mentioned on each product page. Products must be unused, unwashed, and with original tags attached. Intimates and accessories are non-returnable. Recording an unboxing video while opening the package is mandatory for all return claims.',
+    answer: 'Our return policy varies from product to product — the return window (number of days) is mentioned on each product page. Products must be unused, unwashed, and with original tags attached. Intimates and accessories are non-returnable. We strongly recommend recording an unboxing video while opening the package — it helps us resolve damaged or missing item claims quickly.',
     category: 'Returns',
     sortOrder: 2,
   },
@@ -68,7 +68,7 @@ const PAGES = [
   {
     pageKey: 'returns',
     title: 'Returns & Exchange',
-    content: '<p>We want you to love what you buy. If not, returns are easy!</p><ul><li>Return window varies per product (check the product page for exact days)</li><li>Products must be unused with original tags</li><li>Refund processed within 5-7 business days</li><li>Intimates and accessories are non-returnable</li></ul><div class="warning"><p><strong>⚠️ Mandatory: Unboxing Video Required</strong></p><p>You must record a video while opening your package. This unboxing video is mandatory for processing any return or exchange request. Claims without an unboxing video will not be accepted.</p></div>',
+    content: '<p>We want you to love what you buy. If not, returns are easy!</p><ul><li>Return window varies per product (check the product page for exact days)</li><li>Products must be unused with original tags</li><li>Refund processed within 5-7 business days</li><li>Intimates and accessories are non-returnable</li></ul><div class="warning"><p><strong>📹 Unboxing Video Recommended</strong></p><p>We strongly recommend recording an unboxing video while opening your package. It helps us resolve damaged or missing item claims quickly and smoothly.</p></div>',
   },
   {
     pageKey: 'contact',

@@ -194,7 +194,7 @@ export default function AdminSettingsPage() {
             <div className="flex-1">
               <h2 className="font-semibold text-lg text-brand-charcoal dark:text-white">Unboxing Video Notice</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                When enabled, a red-bordered mandatory unboxing video notice is shown at the bottom of the Returns &amp; Exchange section on the Help page.
+                When enabled, a friendly notice recommending customers record an unboxing video is shown at the bottom of the Returns &amp; Exchange section on the Help page.
               </p>
             </div>
             <Toggle

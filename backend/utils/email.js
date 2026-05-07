@@ -133,7 +133,7 @@ const sendReturnConfirmation = async (order, userEmail, reason) => {
         <p style="color: #2B2B2B;">We've received your return request for order <strong>${order.orderNumber}</strong>.</p>
         <p style="color: #2B2B2B;"><strong>Reason:</strong> ${reason}</p>
         <p style="color: #2B2B2B;">Our team will review your request and get back to you shortly. Refund will be processed once the return is approved.</p>
-        <p style="color: #D97706; background: #FFF7ED; padding: 12px; border-radius: 8px; border: 1px solid #FED7AA;"><strong>⚠️ Reminder:</strong> Please ensure you have an unboxing video recorded while opening the package. This is mandatory for processing your return claim.</p>
+        <p style="color: #D97706; background: #FFF7ED; padding: 12px; border-radius: 8px; border: 1px solid #FED7AA;"><strong>📹 Tip:</strong> If you recorded an unboxing video while opening the package, please keep it handy — it helps us resolve damaged or missing item claims quickly.</p>
       `),
     });
   } catch (error) {

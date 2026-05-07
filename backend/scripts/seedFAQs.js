@@ -12,7 +12,7 @@ const FAQS = [
   },
   {
     question: 'What is your return policy?',
-    answer: 'Our return policy varies from product to product — the return window (number of days) is mentioned on each product page. Products must be unused, unwashed, and with original tags attached. Intimates and accessories are non-returnable. Recording an unboxing video while opening the package is mandatory for all return claims.',
+    answer: 'Our return policy varies from product to product — the return window (number of days) is mentioned on each product page. Products must be unused, unwashed, and with original tags attached. Intimates and accessories are non-returnable. We strongly recommend recording an unboxing video while opening the package — it helps us resolve damaged or missing item claims quickly.',
     category: 'Returns',
     sortOrder: 2,
   },

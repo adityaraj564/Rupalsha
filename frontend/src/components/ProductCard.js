@@ -229,8 +229,8 @@ function ProductCard({ product }) {
             <button
               onClick={handleWishlist}
               aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-              className={`pointer-events-auto w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm shadow-md flex items-center justify-center transition-colors ${
-                inWishlist ? 'text-red-500' : 'text-gray-700 hover:text-red-500'
+              className={`pointer-events-auto w-7 h-7 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-md flex items-center justify-center transition-colors ${
+                inWishlist ? 'text-red-500' : 'text-gray-700 dark:text-white hover:text-red-500 dark:hover:text-red-400'
               }`}
             >
               <FiHeart size={13} fill={inWishlist ? 'currentColor' : 'none'} />
@@ -243,8 +243,8 @@ function ProductCard({ product }) {
               aria-label={isOutOfStock ? 'Out of stock' : 'Add to bag'}
               className={`pointer-events-auto inline-flex items-center px-2.5 py-1 rounded-full text-[9px] md:text-[10px] font-semibold tracking-wider uppercase backdrop-blur-sm shadow-sm transition-colors ${
                 isOutOfStock
-                  ? 'bg-gray-200/80 text-gray-500 cursor-not-allowed'
-                  : 'bg-white/80 text-gray-800 hover:bg-white hover:text-brand-green'
+                  ? 'bg-gray-200/80 text-gray-500 dark:bg-gray-700/80 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-white/80 text-gray-800 hover:bg-white hover:text-brand-green dark:bg-gray-800/90 dark:text-white dark:hover:bg-gray-800 dark:hover:text-[#F8F0E8]'
               }`}
             >
               {isOutOfStock ? 'Sold out' : adding ? 'Adding…' : 'Add to bag'}
