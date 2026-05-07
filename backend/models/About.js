@@ -70,10 +70,10 @@ const aboutSchema = new mongoose.Schema({
   promises: {
     type: [promiseSchema],
     default: () => ([
-      { icon: 'award',  label: 'BIS Hallmarked' },
+      { icon: 'truck',  label: 'Faster Delivery' },
       { icon: 'heart',  label: 'Hand-picked Designs' },
-      { icon: 'truck',  label: 'Free Insured Shipping' },
-      { icon: 'shield', label: '7-Day Easy Returns' },
+      { icon: 'shield', label: 'Easy Return' },
+      { icon: 'smile',  label: 'Dedicated Support' },
     ]),
   },
   team: [teamMemberSchema],
