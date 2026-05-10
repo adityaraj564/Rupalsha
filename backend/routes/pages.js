@@ -3,6 +3,7 @@ const PageContent = require('../models/PageContent');
 const { subAdminAuth } = require('../middleware/auth');
 const { logActivity } = require('../utils/activityLog');
 const { broadcastToAllUsers } = require('../utils/notification');
+const { revalidateTags } = require('../utils/revalidate');
 
 const router = express.Router();
 
@@ -165,6 +166,9 @@ router.put('/admin/:key', subAdminAuth, async (req, res, next) => {
       { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
     );
     logActivity({ action: 'update', section: 'page', description: `Updated page: ${key}`, user: req.user });
+    // Drop the Next.js ISR cache for the home page / pages content so the
+    // edit appears immediately instead of waiting for the TTL window.
+    revalidateTags(['pages']);
 
     // Broadcast policy changes (only for legally meaningful pages, and only
     // when the actual title or content changed — not contact details, etc.)
