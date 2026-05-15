@@ -19,26 +19,15 @@ const revalidateTags = (tags) => {
   const list = Array.isArray(tags) ? tags.filter(Boolean) : [tags].filter(Boolean);
   if (list.length === 0) return;
 
-  // Fire-and-forget. We deliberately do not return the promise.
-  (async () => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2000);
-    try {
-      await fetch(`${FRONTEND_URL}/api/revalidate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-revalidate-secret': SECRET,
-        },
-        body: JSON.stringify({ tags: list }),
-        signal: controller.signal,
-      });
-    } catch {
-      // Swallow — non-fatal. ISR will refresh on its natural TTL.
-    } finally {
-      clearTimeout(timer);
-    }
-  })();
+  // Fire-and-forget. Hand off to the queue abstraction:
+  //  - With Redis enabled, the ping is retryable (5 attempts) so a brief
+  //    frontend hiccup no longer drops the cache-bust.
+  //  - Without Redis, utils/queueWorkers.js runs the same fetch inline,
+  //    matching the original behaviour (best-effort, ISR TTL fallback).
+  const { enqueue } = require('./queue');
+  enqueue('revalidate:tags', { tags: list }).catch(() => {
+    // Swallow — non-fatal. ISR will refresh on its natural TTL.
+  });
 };
 
 module.exports = { revalidateTags };

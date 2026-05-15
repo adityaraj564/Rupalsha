@@ -281,11 +281,23 @@ const REASON_LABELS = {
   different_from_description: 'Item different from description',
 };
 
+// Route all SMTP sends through the queue abstraction.
+//
+//  - When Redis/BullMQ is enabled: the email is enqueued (5 retries with
+//    exponential backoff) so transient SMTP failures are recovered
+//    automatically. The original call site no longer blocks on SMTP.
+//  - When Redis is NOT configured: utils/queue.js executes the handler
+//    inline, which performs `transporter.sendMail` synchronously — the
+//    exact behaviour this codebase had before the queue was introduced.
+//
+// Errors are swallowed in both modes (matching the previous contract).
+const { enqueue } = require('./queue');
+
 const sendSmtp = async ({ to, subject, html }) => {
   try {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
-    const transporter = createTransporter();
-    await transporter.sendMail({ from: FROM(), to, subject, html });
+    if (!to || !subject || !html) return;
+    await enqueue('email:send', { to, subject, html });
   } catch (err) {
     console.error('SMTP send error:', err.message);
   }

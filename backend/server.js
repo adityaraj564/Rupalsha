@@ -9,6 +9,12 @@ const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
+const { registerJobHandlers, startInProcessWorkers } = require('./utils/queueWorkers');
+
+// Register queue job handlers BEFORE any route uses them. Safe whether or
+// not Redis is configured — when it isn't, handlers run inline (current
+// behaviour preserved exactly).
+registerJobHandlers();
 
 const app = express();
 
@@ -152,6 +158,14 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+  // Boot in-process BullMQ workers when Redis is enabled. No-op otherwise,
+  // so deployments without REDIS_URL keep behaving exactly as today.
+  try {
+    startInProcessWorkers();
+  } catch (err) {
+    // Never let worker boot kill the API.
+    console.error('[queue] failed to start in-process workers:', err.message);
+  }
 });
 
 // Sweep stale pending wallet recharges every 10 minutes (expires any > 2h old).

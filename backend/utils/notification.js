@@ -1,5 +1,6 @@
 const Notification = require('../models/Notification');
-const User = require('../models/User');
+// Note: User is loaded lazily inside the broadcast handler in queueWorkers.js
+// to keep this module free of side-effects when imported by worker processes.
 
 /**
  * Default priority per category.
@@ -98,18 +99,16 @@ async function createBulkNotifications(userIds, payload) {
  */
 function broadcastToAllUsers(payload, opts = {}) {
   const usersOnly = opts.usersOnly !== false;
-  setImmediate(async () => {
-    try {
-      const filter = { isBlocked: { $ne: true } };
-      if (usersOnly) filter.role = 'user';
-      const users = await User.find(filter).select('_id').lean();
-      const ids = users.map((u) => u._id);
-      if (ids.length === 0) return;
-      await createBulkNotifications(ids, payload);
-    } catch (err) {
+  // Hand off to the queue abstraction. When Redis is enabled this becomes a
+  // retryable background job; when it isn't, utils/queue.js runs the handler
+  // inline — we still wrap in setImmediate to preserve the original
+  // fire-and-forget semantics (caller never awaits, never sees errors).
+  setImmediate(() => {
+    const { enqueue } = require('./queue');
+    enqueue('notification:broadcast', { payload, usersOnly }).catch((err) => {
       // eslint-disable-next-line no-console
-      console.error('[notification] broadcast failed:', err.message);
-    }
+      console.error('[notification] broadcast enqueue failed:', err.message);
+    });
   });
 }
 
