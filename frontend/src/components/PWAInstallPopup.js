@@ -3,7 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const DISMISS_KEY = 'rupalsha_pwa_dismiss';
-const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+const DISMISS_COUNT_KEY = 'rupalsha_pwa_dismiss_count';
+const DAILY_DURATION = 24 * 60 * 60 * 1000; // 1 day
+const LONG_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MAX_DAILY_DISMISSALS = 3;
 
 function isIOS() {
   if (typeof window === 'undefined') return false;
@@ -23,7 +26,13 @@ function wasDismissed() {
     const dismissed = localStorage.getItem(DISMISS_KEY);
     if (!dismissed) return false;
     const timestamp = parseInt(dismissed, 10);
-    if (Date.now() - timestamp < DISMISS_DURATION) return true;
+    const count = parseInt(localStorage.getItem(DISMISS_COUNT_KEY) || '0', 10);
+    const duration = count >= MAX_DAILY_DISMISSALS ? LONG_DURATION : DAILY_DURATION;
+    if (Date.now() - timestamp < duration) return true;
+    // Reset count after long cooldown
+    if (count >= MAX_DAILY_DISMISSALS) {
+      localStorage.removeItem(DISMISS_COUNT_KEY);
+    }
     localStorage.removeItem(DISMISS_KEY);
     return false;
   } catch {
@@ -89,6 +98,8 @@ export default function PWAInstallPopup() {
     setTimeout(() => {
       setVisible(false);
       try {
+        const count = parseInt(localStorage.getItem(DISMISS_COUNT_KEY) || '0', 10) + 1;
+        localStorage.setItem(DISMISS_COUNT_KEY, count.toString());
         localStorage.setItem(DISMISS_KEY, Date.now().toString());
       } catch {}
     }, 350);
