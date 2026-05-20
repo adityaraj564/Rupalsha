@@ -6,7 +6,7 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
 
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://rupalsha.com').replace(/\/$/, '');
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.rupalsha.com').replace(/\/$/, '');
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://rupalsha-backend.onrender.com/api';
 
 const STATIC_PATHS = [

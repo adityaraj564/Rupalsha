@@ -6,6 +6,7 @@ import WhatsAppFloat from '@/components/WhatsAppFloat';
 import AuthInit from '@/components/AuthInit';
 import AuthModal from '@/components/AuthModal';
 import TopProgressBar from '@/components/TopProgressBar';
+import PWAInstallPopup from '@/components/PWAInstallPopup';
 
 const ADSENSE_CLIENT_ID =
   process.env.NEXT_PUBLIC_ADSENSE_ID || 'ca-pub-5385129928466192';
@@ -146,6 +147,7 @@ export default function RootLayout({ children }) {
         <Footer />
         <WhatsAppFloat />
         <AuthModal />
+        <PWAInstallPopup />
       </body>
     </html>
   );
