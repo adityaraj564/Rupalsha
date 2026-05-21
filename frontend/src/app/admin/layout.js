@@ -3,7 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers, FiClipboard, FiSun, FiMoon, FiImage, FiFileText, FiActivity, FiRotateCcw, FiCreditCard, FiSettings } from 'react-icons/fi';
+import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers, FiClipboard, FiSun, FiMoon, FiImage, FiFileText, FiActivity, FiRotateCcw, FiCreditCard, FiSettings, FiTrendingUp } from 'react-icons/fi';
 import { useAuthStore, useThemeStore, useAuthModalStore } from '@/lib/store';
 import { AdminDashboardSkeleton } from '@/components/Skeleton';
 
@@ -11,6 +11,7 @@ const ADMIN_NAV = [
   { href: '/admin', label: 'Dashboard', icon: FiGrid },
   { href: '/admin/products', label: 'Products', icon: FiPackage },
   { href: '/admin/inventory', label: 'Inventory', icon: FiClipboard },
+  { href: '/admin/calculator', label: 'Pricing Calc', icon: FiTrendingUp },
   { href: '/admin/categories', label: 'Categories', icon: FiLayers },
   { href: '/admin/orders', label: 'Orders', icon: FiShoppingCart },
   { href: '/admin/returns', label: 'Returns', icon: FiRotateCcw },

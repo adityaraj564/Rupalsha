@@ -93,7 +93,7 @@ export default function AdminProductsPage() {
     subcategory: '', childCategory: '', categoryRef: '',
     fabric: '', careInstructions: '', isFeatured: false, isTrending: false,
     sizes: ALL_SIZES.map(s => ({ size: s, stock: 0 })),
-    tags: '', sku: '', lowStockThreshold: '5',
+    tags: '', sku: '', rupalshaCode: '', lowStockThreshold: '5',
     isReturnable: true,
     returnDays: '7',
     returnPolicy: 'Easy return policy. Product must be unused with original tags. We strongly recommend recording an unboxing video while opening the package — it helps us resolve damaged or missing item claims quickly.',
@@ -207,7 +207,7 @@ export default function AdminProductsPage() {
       subcategory: '', childCategory: '', categoryRef: '',
       fabric: '', careInstructions: '', isFeatured: false, isTrending: false,
       sizes: ALL_SIZES.map(s => ({ size: s, stock: 0 })),
-      tags: '', sku: '', lowStockThreshold: '5',
+      tags: '', sku: '', rupalshaCode: '', lowStockThreshold: '5',
       isReturnable: true,
       returnDays: '7',
       returnPolicy: 'Easy return policy. Product must be unused with original tags. We strongly recommend recording an unboxing video while opening the package — it helps us resolve damaged or missing item claims quickly.',
@@ -246,6 +246,7 @@ export default function AdminProductsPage() {
       }),
       tags: product.tags?.join(', ') || '',
       sku: product.sku || '',
+      rupalshaCode: product.rupalshaCode || '',
       lowStockThreshold: product.lowStockThreshold || '5',
       isReturnable: product.isReturnable !== false,
       returnDays: product.returnDays || '7',
@@ -323,6 +324,8 @@ export default function AdminProductsPage() {
     };
     if (form.comparePrice) payload.comparePrice = form.comparePrice;
     if (form.sku) payload.sku = form.sku;
+    // Always include rupalshaCode (even when blank) so edits can clear it
+    payload.rupalshaCode = form.rupalshaCode || '';
     if (form.lowStockThreshold) payload.lowStockThreshold = form.lowStockThreshold;
     if (form.subcategory) payload.subcategory = form.subcategory;
     if (form.childCategory) payload.childCategory = form.childCategory;
@@ -509,6 +512,19 @@ export default function AdminProductsPage() {
                       onChange={(e) => setForm({ ...form, sku: e.target.value })}
                       className="input-field text-sm py-2"
                       placeholder="e.g. ACC-JWL-EAR-001"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-600">
+                      Rupalsha Code (R Code) <span className="text-gray-400">— admin only</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.rupalshaCode}
+                      onChange={(e) => setForm({ ...form, rupalshaCode: e.target.value.toUpperCase() })}
+                      className="input-field text-sm py-2 font-mono uppercase"
+                      placeholder="e.g. RUP-1234 (from your Excel)"
+                      title="Internal code from your pricing Excel sheet. Never shown to customers."
                     />
                   </div>
                   <div>

@@ -41,6 +41,7 @@ export default function AdminInventoryPage() {
     ? inventory.filter(item =>
         item.name.toLowerCase().includes(search.toLowerCase()) ||
         item.productCode.toLowerCase().includes(search.toLowerCase()) ||
+        (item.rupalshaCode || '').toLowerCase().includes(search.toLowerCase()) ||
         item.category.toLowerCase().includes(search.toLowerCase()) ||
         item.sku.toLowerCase().includes(search.toLowerCase())
       )
@@ -49,6 +50,7 @@ export default function AdminInventoryPage() {
   const downloadExcel = () => {
     const data = filtered.map(item => ({
       'Product Code': item.productCode,
+      'R Code': item.rupalshaCode || '',
       'Product Name': item.name,
       'SKU': item.sku,
       'Category': item.category,
@@ -67,7 +69,7 @@ export default function AdminInventoryPage() {
 
     // Set column widths
     ws['!cols'] = [
-      { wch: 14 }, { wch: 35 }, { wch: 18 }, { wch: 30 }, { wch: 12 }, { wch: 14 },
+      { wch: 14 }, { wch: 16 }, { wch: 35 }, { wch: 18 }, { wch: 30 }, { wch: 12 }, { wch: 14 },
       { wch: 12 }, { wch: 35 }, { wch: 12 }, { wch: 14 }, { wch: 15 },
       { wch: 14 }, { wch: 14 },
     ];
@@ -256,7 +258,7 @@ export default function AdminInventoryPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, code, SKU or category..."
+          placeholder="Search by name, code, R code, SKU or category..."
           className="input-field pl-10"
         />
       </div>
@@ -269,6 +271,7 @@ export default function AdminInventoryPage() {
               <tr className="bg-gray-50 dark:bg-gray-700 text-left text-gray-500 dark:text-gray-300">
                 <th className="p-4 font-medium">Product</th>
                 <th className="p-4 font-medium">Code</th>
+                <th className="p-4 font-medium" title="Internal Rupalsha code from your Excel sheet (admin only)">R Code</th>
                 <th className="p-4 font-medium">Category</th>
                 <th className="p-4 font-medium">Price</th>
                 <th className="p-4 font-medium" title="Internal cost / actual price (admin only)">Actual Price</th>
@@ -280,7 +283,7 @@ export default function AdminInventoryPage() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-gray-400">
+                  <td colSpan={9} className="p-8 text-center text-gray-400">
                     No products found for this filter.
                   </td>
                 </tr>
@@ -302,6 +305,15 @@ export default function AdminInventoryPage() {
                       <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded font-semibold">
                         {item.productCode || '—'}
                       </span>
+                    </td>
+                    <td className="p-4">
+                      {item.rupalshaCode ? (
+                        <span className="font-mono text-xs bg-brand-green/10 text-brand-green dark:bg-brand-green/20 px-2 py-1 rounded font-semibold">
+                          {item.rupalshaCode}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
                     </td>
                     <td className="p-4">
                       <span className="text-gray-600 text-xs">{item.category}</span>

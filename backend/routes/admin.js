@@ -103,7 +103,12 @@ router.get('/products', async (req, res, next) => {
     const limitNum = Math.min(100, Number(limit));
 
     const [products, total] = await Promise.all([
-      Product.find(filter).sort({ createdAt: -1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean(),
+      Product.find(filter)
+        .select('+rupalshaCode +actualPrice')
+        .sort({ createdAt: -1 })
+        .skip((pageNum - 1) * limitNum)
+        .limit(limitNum)
+        .lean(),
       Product.countDocuments(filter),
     ]);
 
@@ -119,7 +124,7 @@ router.get('/products', async (req, res, next) => {
 // `{ url, public_id }` arrays.
 router.post('/products', async (req, res, next) => {
   try {
-    const { name, description, price, comparePrice, category, subcategory, childCategory, categoryRef, sku, lowStockThreshold, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, isReturnable, returnDays, returnPolicy, shippingCharge, highlights, specifications } = req.body;
+    const { name, description, price, comparePrice, category, subcategory, childCategory, categoryRef, sku, rupalshaCode, lowStockThreshold, sizes, colors, fabric, careInstructions, tags, isFeatured, isTrending, isReturnable, returnDays, returnPolicy, shippingCharge, highlights, specifications } = req.body;
 
     const sanitizeMedia = (arr) =>
       Array.isArray(arr)
@@ -166,6 +171,7 @@ router.post('/products', async (req, res, next) => {
       childCategory,
       categoryRef: categoryRef || undefined,
       sku,
+      rupalshaCode: rupalshaCode ? String(rupalshaCode).trim().toUpperCase() : undefined,
       lowStockThreshold: lowStockThreshold ? Number(lowStockThreshold) : 5,
       images,
       videos,
@@ -194,10 +200,10 @@ router.post('/products', async (req, res, next) => {
 // PUT /api/admin/products/:id
 router.put('/products/:id', async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).select('+rupalshaCode +actualPrice');
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
-    const updateFields = ['name', 'description', 'price', 'comparePrice', 'category', 'subcategory', 'childCategory', 'categoryRef', 'sku', 'lowStockThreshold', 'fabric', 'careInstructions', 'isFeatured', 'isTrending', 'isReturnable', 'isActive', 'returnDays', 'returnPolicy', 'shippingCharge'];
+    const updateFields = ['name', 'description', 'price', 'comparePrice', 'category', 'subcategory', 'childCategory', 'categoryRef', 'sku', 'rupalshaCode', 'lowStockThreshold', 'fabric', 'careInstructions', 'isFeatured', 'isTrending', 'isReturnable', 'isActive', 'returnDays', 'returnPolicy', 'shippingCharge'];
 
     updateFields.forEach(field => {
       if (req.body[field] !== undefined) {
@@ -205,6 +211,8 @@ router.put('/products/:id', async (req, res, next) => {
           product[field] = req.body[field] === 'true' || req.body[field] === true;
         } else if (['price', 'comparePrice', 'lowStockThreshold', 'shippingCharge', 'returnDays'].includes(field)) {
           product[field] = Number(req.body[field]);
+        } else if (field === 'rupalshaCode') {
+          product[field] = req.body[field] ? String(req.body[field]).trim().toUpperCase() : '';
         } else {
           product[field] = req.body[field];
         }
@@ -328,7 +336,7 @@ router.get('/inventory', async (req, res, next) => {
     const { filter: stockFilter = 'all' } = req.query;
 
     const products = await Product.find({ isActive: true })
-      .select('+actualPrice')
+      .select('+actualPrice +rupalshaCode')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -338,6 +346,7 @@ router.get('/inventory', async (req, res, next) => {
       return {
         _id: p._id,
         productCode: p.productCode || '',
+        rupalshaCode: p.rupalshaCode || '',
         name: p.name,
         category: [p.category, p.subcategory, p.childCategory].filter(Boolean).join(' → '),
         price: p.price,

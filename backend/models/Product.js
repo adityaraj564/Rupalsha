@@ -53,6 +53,16 @@ const productSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  // Admin-only internal code (matches the code maintained in the owner's pricing
+  // Excel sheet). Never exposed on customer-facing endpoints — guarded by
+  // `select: false`; admin routes explicitly `+rupalshaCode`.
+  rupalshaCode: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    maxlength: 50,
+    select: false,
+  },
   shippingCharge: {
     type: Number,
     default: 0,
