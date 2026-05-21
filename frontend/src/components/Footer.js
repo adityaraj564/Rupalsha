@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FiInstagram, FiMail, FiPhone, FiMapPin } from 'react-icons/fi';
+import { FiInstagram, FiMail, FiPhone, FiMapPin, FiYoutube } from 'react-icons/fi';
 import { usePathname } from 'next/navigation';
 import { pagesAPI } from '@/lib/api';
 
@@ -54,6 +54,15 @@ export default function Footer() {
                 className="w-10 h-10 rounded-full border border-gray-500 flex items-center justify-center hover:border-brand-gold hover:text-brand-gold transition-colors"
               >
                 <FiInstagram size={18} />
+              </a>
+              <a
+                href="https://www.youtube.com/@RupalshaJourney"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="YouTube"
+                className="w-10 h-10 rounded-full border border-gray-500 flex items-center justify-center hover:border-brand-gold hover:text-brand-gold transition-colors"
+              >
+                <FiYoutube size={18} />
               </a>
               <a
                 href="mailto:support@rupalsha.com"
