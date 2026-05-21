@@ -469,7 +469,7 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
                 src={current?.url || '/placeholder.jpg'}
                 alt={product.name}
                 fill
-                className="object-cover pointer-events-none transition-transform duration-150"
+                className="object-contain pointer-events-none transition-transform duration-150"
                 style={{ transform: `scale(${pinchScale})`, transformOrigin: pinchOrigin }}
                 priority
                 sizes="(max-width: 768px) 100vw, 50vw"
@@ -538,9 +538,9 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
 
         {/* Details */}
         <div className="mt-8 md:mt-0 md:flex-1 min-w-0">
-          <p className="text-brand-gold text-sm font-medium uppercase tracking-wider mb-2">{product.category}</p>
+          <p className="text-brand-gold text-xs font-medium uppercase tracking-wider mb-2">{product.category}</p>
           <h1
-            className="allow-copy font-serif text-3xl md:text-4xl font-bold text-brand-charcoal dark:text-gray-100 mb-4"
+            className="allow-copy font-serif text-2xl md:text-3xl font-bold text-brand-charcoal dark:text-gray-100 mb-4"
             onCopy={(e) => e.stopPropagation()}
             onCut={(e) => e.stopPropagation()}
             onContextMenu={(e) => e.stopPropagation()}
@@ -566,22 +566,22 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
 
           {/* Price */}
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-3xl font-bold text-brand-charcoal dark:text-gray-100">₹{product.price.toLocaleString()}</span>
+            <span className="text-2xl font-bold text-brand-charcoal dark:text-gray-100">₹{product.price.toLocaleString()}</span>
             {product.comparePrice && (
-              <span className="text-xl text-gray-400 line-through">₹{product.comparePrice.toLocaleString()}</span>
+              <span className="text-lg text-gray-400 line-through">₹{product.comparePrice.toLocaleString()}</span>
             )}
           </div>
           {product.comparePrice && discount > 0 && (
             <div className="flex items-center gap-2 mb-6">
-              <span className="bg-green-100 text-green-700 text-base font-semibold px-3 py-1 rounded-full">
+              <span className="bg-green-100 text-green-700 text-sm font-semibold px-3 py-1 rounded-full">
                 Save {discount}%
               </span>
               {discount > 30 && (
-                <span className="bg-green-100 text-green-700 text-base font-bold px-3 py-1 rounded-full">
+                <span className="bg-green-100 text-green-700 text-sm font-bold px-3 py-1 rounded-full">
                   Hot Deal
                 </span>
               )}
-              <span className="text-sm text-gray-500">
+              <span className="text-xs text-gray-500">
                 MRP: <span className="line-through">₹{product.comparePrice.toLocaleString()}</span>
               </span>
             </div>
@@ -640,7 +640,7 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
           </div>
 
           {/* Actions */}
-          <div className="mb-8 sticky bottom-0 bg-brand-cream dark:bg-gray-900 md:static md:bg-transparent md:dark:bg-transparent py-4 md:py-0 -mx-4 px-4 md:mx-0 md:px-0 border-t md:border-0 border-gray-200 dark:border-gray-700 space-y-3">
+          <div className="mb-8 space-y-3">
             <div className="flex gap-3">
               {isOutOfStock ? (
                 <button

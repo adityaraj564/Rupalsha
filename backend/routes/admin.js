@@ -328,6 +328,7 @@ router.get('/inventory', async (req, res, next) => {
     const { filter: stockFilter = 'all' } = req.query;
 
     const products = await Product.find({ isActive: true })
+      .select('+actualPrice')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -340,6 +341,7 @@ router.get('/inventory', async (req, res, next) => {
         name: p.name,
         category: [p.category, p.subcategory, p.childCategory].filter(Boolean).join(' → '),
         price: p.price,
+        actualPrice: p.actualPrice || 0,
         totalStock,
         lowStockThreshold: p.lowStockThreshold || 5,
         sizeBreakdown,
@@ -371,7 +373,67 @@ router.get('/inventory', async (req, res, next) => {
   }
 });
 
-// ===== ORDERS =====
+// POST /api/admin/inventory/import-actual-prices
+// Bulk-update internal "actual price" (cost price) from an uploaded Excel sheet.
+// Body: { rows: [{ productCode: 'AB12', actualPrice: 450 }, ...] }
+router.post('/inventory/import-actual-prices', async (req, res, next) => {
+  try {
+    const { rows } = req.body || {};
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ message: 'rows must be a non-empty array' });
+    }
+    if (rows.length > 5000) {
+      return res.status(400).json({ message: 'Too many rows (max 5000 per upload)' });
+    }
+
+    const results = {
+      updated: 0,
+      notFound: [],
+      invalid: [],
+    };
+
+    const ops = [];
+    for (let i = 0; i < rows.length; i++) {
+      const raw = rows[i] || {};
+      const code = String(raw.productCode || '').trim().toUpperCase();
+      const priceNum = Number(raw.actualPrice);
+
+      if (!/^[A-Z]{2}\d{2}$/.test(code) || !Number.isFinite(priceNum) || priceNum < 0) {
+        results.invalid.push({ row: i + 1, productCode: raw.productCode, actualPrice: raw.actualPrice });
+        continue;
+      }
+
+      ops.push({
+        updateOne: {
+          filter: { productCode: code },
+          update: { $set: { actualPrice: priceNum } },
+        },
+      });
+    }
+
+    if (ops.length > 0) {
+      const bulkResult = await Product.bulkWrite(ops, { ordered: false });
+      results.updated = bulkResult.modifiedCount || 0;
+
+      // Find which codes did not match any product
+      const requestedCodes = ops.map(o => o.updateOne.filter.productCode);
+      const existing = await Product.find({ productCode: { $in: requestedCodes } })
+        .select('productCode')
+        .lean();
+      const existingSet = new Set(existing.map(p => p.productCode));
+      results.notFound = requestedCodes.filter(c => !existingSet.has(c));
+    }
+
+    res.json({
+      message: `Updated ${results.updated} product(s)`,
+      ...results,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+
 // GET /api/admin/orders
 router.get('/orders', async (req, res, next) => {
   try {

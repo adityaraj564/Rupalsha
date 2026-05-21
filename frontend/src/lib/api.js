@@ -509,6 +509,8 @@ export const adminAPI = {
     const query = new URLSearchParams(params).toString();
     return request(`/admin/inventory?${query}`);
   },
+  importActualPrices: (rows) =>
+    request('/admin/inventory/import-actual-prices', { method: 'POST', body: { rows } }),
   // Orders
   getOrders: (params) => {
     const query = new URLSearchParams(params).toString();

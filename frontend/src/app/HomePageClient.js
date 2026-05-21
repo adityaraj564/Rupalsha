@@ -69,7 +69,6 @@ export default function HomePageClient({
   const [specialOffer, setSpecialOffer] = useState(initialSpecialOffer);
   const [features, setFeatures] = useState(initialFeatures);
   const [marqueeItems, setMarqueeItems] = useState(initialMarqueeItems);
-  const [showAllCategories, setShowAllCategories] = useState(false);
   const bannerInterval = useRef(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -289,57 +288,7 @@ export default function HomePageClient({
         <h2 className="section-title">Shop by Category</h2>
         <p className="section-subtitle">Find the perfect piece from our curated collections</p>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-10">
-          {categories.map((cat, idx) => {
-            // Limit visibility unless expanded:
-            // - mobile: show first 4
-            // - md/desktop: show first 5
-            let hideClass = '';
-            if (!showAllCategories) {
-              if (idx >= 5) hideClass = 'hidden';
-              else if (idx >= 4) hideClass = 'hidden md:block';
-            }
-            return (
-              <Link
-                key={cat.slug}
-                href={`/products?category=${cat.slug}`}
-                className={`group relative aspect-[3/4] rounded-2xl overflow-hidden ${hideClass}`}
-              >
-                <Image
-                  src={cat.image}
-                  alt={cat.name}
-                  fill
-                  className="object-cover group-hover:scale-110 transition-transform duration-700"
-                  sizes="(max-width: 640px) 50vw, 20vw"
-                />
-                <div className={`absolute inset-0 bg-gradient-to-t ${cat.color} to-transparent`} />
-                <div className="absolute bottom-0 left-0 right-0 p-4">
-                  <h3 className="font-serif text-white text-xl font-semibold">{cat.name}</h3>
-                  <p className="text-white/70 text-sm mt-1 group-hover:text-brand-gold transition-colors">
-                    Explore →
-                  </p>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-        {!showAllCategories && (categories.length > 4) && (
-          <div
-            className={`justify-center mt-10 ${
-              categories.length > 5
-                ? 'flex'
-                : 'flex md:hidden'
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setShowAllCategories(true)}
-              className="inline-flex items-center justify-center gap-2 px-8 py-3 border-2 border-black dark:border-white text-black dark:text-white text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors duration-300"
-            >
-              View All
-            </button>
-          </div>
-        )}
+        <CategoryCircleScroller categories={categories} />
       </section>
       )}
 
@@ -506,3 +455,61 @@ export default function HomePageClient({
     </div>
   );
 }
+
+// Horizontally scrollable circular category list, centered when content fits.
+function CategoryCircleScroller({ categories }) {
+  const scrollerRef = useRef(null);
+  const [overflowing, setOverflowing] = useState(false);
+
+  const updateOverflow = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    setOverflowing(el.scrollWidth > el.clientWidth + 1);
+  }, []);
+
+  useEffect(() => {
+    updateOverflow();
+    window.addEventListener('resize', updateOverflow);
+    return () => window.removeEventListener('resize', updateOverflow);
+  }, [updateOverflow, categories.length]);
+
+  return (
+    <div className="relative mt-8 md:mt-10 -mx-4 sm:-mx-6 lg:-mx-20 xl:-mx-32">
+      <div
+        ref={scrollerRef}
+        className={`category-scroller flex gap-5 sm:gap-7 md:gap-9 overflow-x-auto scroll-smooth px-4 sm:px-6 lg:px-20 xl:px-32 pb-2 ${
+          overflowing ? '' : 'justify-center'
+        }`}
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
+      >
+        {categories.map((cat) => (
+          <Link
+            key={cat.slug}
+            href={`/products?category=${cat.slug}`}
+            className="group flex-shrink-0 flex flex-col items-center w-20 sm:w-24 md:w-28"
+          >
+            <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-gray-700 group-hover:ring-brand-gold transition-all duration-300 shadow-sm group-hover:shadow-md">
+              <Image
+                src={cat.image}
+                alt={cat.name}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                sizes="(max-width: 640px) 80px, (max-width: 768px) 96px, 112px"
+              />
+            </div>
+            <span className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium text-brand-charcoal dark:text-gray-200 text-center line-clamp-2 leading-tight">
+              {cat.name}
+            </span>
+          </Link>
+        ))}
+      </div>
+
+      <style jsx>{`
+        .category-scroller::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+    </div>
+  );
+}
+

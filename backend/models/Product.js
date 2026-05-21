@@ -26,6 +26,13 @@ const productSchema = new mongoose.Schema({
     type: Number,
     min: 0,
   },
+  // Internal cost / actual purchase price — admin only, never exposed publicly
+  actualPrice: {
+    type: Number,
+    min: 0,
+    default: 0,
+    select: false,
+  },
   category: {
     type: String,
     required: [true, 'Category is required'],
