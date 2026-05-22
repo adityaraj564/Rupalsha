@@ -155,7 +155,11 @@ const productSchema = new mongoose.Schema({
 
 // Generate slug and auto-generate unique productCode before saving
 productSchema.pre('save', async function (next) {
-  if (this.isModified('name')) {
+  // Only generate a slug on creation. Regenerating it on every name edit
+  // would break any URL already opened in another tab/device (the next
+  // refresh would 404), and would also kill SEO/share links. The admin
+  // can still change the displayed name freely — the slug stays put.
+  if (this.isNew && !this.slug) {
     this.slug = slugify(this.name, { lower: true, strict: true }) + '-' + Date.now().toString(36);
   }
   if (!this.productCode) {
