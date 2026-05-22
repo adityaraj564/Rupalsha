@@ -583,8 +583,8 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
                   Hot Deal
                 </span>
               )}
-              <span className="text-xs text-gray-500">
-                MRP: <span className="line-through">₹{product.comparePrice.toLocaleString()}</span>
+              <span className="text-xs font-medium text-green-700">
+                You save ₹{(product.comparePrice - product.price).toLocaleString()}
               </span>
             </div>
           )}

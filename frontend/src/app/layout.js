@@ -7,6 +7,7 @@ import AuthInit from '@/components/AuthInit';
 import AuthModal from '@/components/AuthModal';
 import TopProgressBar from '@/components/TopProgressBar';
 import PWAInstallPopup from '@/components/PWAInstallPopup';
+import { serverFetchSafe } from '@/lib/serverApi';
 
 const ADSENSE_CLIENT_ID =
   process.env.NEXT_PUBLIC_ADSENSE_ID || 'ca-pub-5385129928466192';
@@ -57,7 +58,16 @@ export const metadata = {
 // during the Vercel build, and avoids dev-mode hydration mismatches.
 export const dynamic = 'force-dynamic';
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  // Server-fetch the free-shipping threshold so the first paint already
+  // shows the admin-configured value (e.g. ₹599) instead of flashing the
+  // hardcoded fallback ₹999 for a moment before the client hook resolves.
+  const settings = await serverFetchSafe('/settings', { revalidate: 30 });
+  const freeShippingThreshold = Number(settings?.freeShippingThreshold);
+  const seededThreshold = Number.isFinite(freeShippingThreshold) && freeShippingThreshold >= 0
+    ? freeShippingThreshold
+    : 999;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -127,6 +137,13 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body className="min-h-screen flex flex-col bg-brand-cream dark:bg-gray-950 text-brand-charcoal dark:text-gray-100 transition-colors duration-300">
+        {/* Seed the free-shipping threshold before any client component renders
+            so useFreeShippingThreshold() returns the real value on first paint. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__FREE_SHIPPING_THRESHOLD__=${seededThreshold};`,
+          }}
+        />
         <TopProgressBar />
         <AuthInit />
         <Toaster

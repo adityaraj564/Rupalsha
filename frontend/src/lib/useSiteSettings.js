@@ -15,7 +15,14 @@ import { settingsAPI } from './api';
 
 const DEFAULT_THRESHOLD = 999;
 
+// Seed the in-module cache from the server-rendered window global (set in
+// app/layout.js). This is what makes the first client render already show
+// the admin-configured threshold instead of flashing the fallback.
 let cached = null;
+if (typeof window !== 'undefined') {
+  const seeded = Number(window.__FREE_SHIPPING_THRESHOLD__);
+  if (Number.isFinite(seeded) && seeded >= 0) cached = seeded;
+}
 let inflight = null;
 const subscribers = new Set();
 
