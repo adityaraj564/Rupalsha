@@ -85,22 +85,23 @@ export default function AdminInventoryPage() {
 
   const downloadTemplate = () => {
     const sample = [
-      { 'Product Code': 'AB12', 'Actual Price': 450 },
-      { 'Product Code': 'CD34', 'Actual Price': 1200 },
+      { 'Product Code': 'AB12',   'Actual Price': 450 },
+      { 'Product Code': 'RUPSHA', 'Actual Price': 1200 },
     ];
     const ws = XLSX.utils.json_to_sheet(sample);
-    ws['!cols'] = [{ wch: 16 }, { wch: 16 }];
+    ws['!cols'] = [{ wch: 18 }, { wch: 16 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Actual Prices');
     XLSX.writeFile(wb, 'Rupalsha_ActualPrice_Template.xlsx');
   };
 
   const normalizeRow = (row) => {
-    // Accept various header names: "Product Code"/"productCode"/"Code" and "Actual Price"/"actualPrice"/"Price"
+    // Accept various header names: "Product Code"/"R Code"/"Rupalsha Code"/"Code"
+    // and "Actual Price"/"Cost Price"/"Price".
     const keys = Object.keys(row);
     const findKey = (candidates) =>
       keys.find((k) => candidates.some((c) => k.toLowerCase().replace(/[^a-z0-9]/g, '') === c));
-    const codeKey = findKey(['productcode', 'code']);
+    const codeKey = findKey(['productcode', 'rcode', 'rupalshacode', 'code']);
     const priceKey = findKey(['actualprice', 'price', 'costprice', 'cost']);
     if (!codeKey || !priceKey) return null;
     return {
@@ -201,7 +202,7 @@ export default function AdminInventoryPage() {
           )}
           {importResult.invalid?.length > 0 && (
             <p className="text-red-600 text-xs">
-              Invalid rows ({importResult.invalid.length}) skipped. Check that Product Code matches AB12 format and Actual Price is a number.
+              Invalid rows ({importResult.invalid.length}) skipped. Code must be either the auto Product Code (AB12 format — 2 letters + 2 digits) or the R Code (letters only, e.g. RUPSHA), and Actual Price must be a number.
             </p>
           )}
         </div>

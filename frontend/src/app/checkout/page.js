@@ -26,6 +26,7 @@ export default function CheckoutPage() {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('razorpay');
   const [codEnabled, setCodEnabled] = useState(false);
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState(999);
   const [couponCode, setCouponCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [couponApplied, setCouponApplied] = useState('');
@@ -75,7 +76,11 @@ export default function CheckoutPage() {
       updateUser(fresh);
     }).catch(() => {});
     settingsAPI.get()
-      .then((data) => setCodEnabled(!!data.codEnabled))
+      .then((data) => {
+        setCodEnabled(!!data.codEnabled);
+        const n = Number(data?.freeShippingThreshold);
+        if (Number.isFinite(n) && n >= 0) setFreeShippingThreshold(n);
+      })
       .catch(() => {});
     walletAPI.get().then(({ balance }) => setWalletBalance(balance || 0)).catch(() => {});
     // Force a fresh cart pull on checkout entry. We never want to commit a
@@ -125,7 +130,7 @@ export default function CheckoutPage() {
 
   const subtotal = items.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
   const maxProductShipping = Math.max(...items.map(item => item.product?.shippingCharge || 0), 0);
-  const shipping = subtotal >= 999 ? 0 : maxProductShipping;
+  const shipping = subtotal >= freeShippingThreshold ? 0 : maxProductShipping;
   const total = subtotal + shipping - discount;
   const walletApplied = useWallet ? Math.min(walletBalance, total) : 0;
   const amountPayable = total - walletApplied;

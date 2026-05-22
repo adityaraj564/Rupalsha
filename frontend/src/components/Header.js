@@ -8,6 +8,7 @@ import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon, F
 import { useAuthStore, useAuthModalStore, useCartStore, useWishlistStore, useThemeStore } from '@/lib/store';
 import NotificationBell from './NotificationBell';
 import { couponsAPI, categoriesAPI } from '@/lib/api';
+import { useFreeShippingThreshold } from '@/lib/useSiteSettings';
 import toast from 'react-hot-toast';
 
 const NAV_LINKS = [
@@ -46,6 +47,7 @@ export default function Header() {
   const cartCount = useCartStore((s) => s.getCount());
   const wishlistCount = useWishlistStore((s) => s.items.length);
   const { isDark, toggle: toggleTheme } = useThemeStore();
+  const freeShippingThreshold = useFreeShippingThreshold();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -371,7 +373,7 @@ export default function Header() {
             <span className="font-semibold text-brand-gold">{coupons[currentCoupon].code}</span>
           </span>
         ) : (
-          <span>Free Shipping on orders above ₹999</span>
+          <span>Free Shipping on orders above ₹{freeShippingThreshold.toLocaleString()}</span>
         )}
       </div>
       )}

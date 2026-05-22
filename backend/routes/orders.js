@@ -14,7 +14,10 @@ const { orderMetrics } = require('../utils/orderMetrics');
 
 const router = express.Router();
 
-const FREE_SHIPPING_THRESHOLD = 999;
+// Default for the free-shipping threshold (₹). The authoritative value
+// lives in SiteSettings.freeShippingThreshold and is fetched per order
+// placement so admin edits take effect immediately, without restart.
+const FREE_SHIPPING_FALLBACK = 999;
 
 /**
  * Lazy backfill of `refund` for old cancelled/returned orders that pre-date
@@ -152,8 +155,8 @@ router.post('/', auth, [
     }
 
     // Block COD if it's disabled in site settings
+    const settings = await SiteSettings.getSingleton();
     if (paymentMethod === 'cod') {
-      const settings = await SiteSettings.getSingleton();
       if (!settings.codEnabled) {
         return res.status(400).json({ error: 'Cash on Delivery is currently unavailable' });
       }
@@ -191,7 +194,10 @@ router.post('/', auth, [
     let itemsTotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     // Use the highest per-product shipping charge from the cart items
     const maxProductShipping = Math.max(...cart.items.map(item => item.product.shippingCharge || 0));
-    let shippingCharge = itemsTotal >= FREE_SHIPPING_THRESHOLD ? 0 : maxProductShipping;
+    const freeShippingThreshold = Number.isFinite(settings.freeShippingThreshold)
+      ? settings.freeShippingThreshold
+      : FREE_SHIPPING_FALLBACK;
+    let shippingCharge = itemsTotal >= freeShippingThreshold ? 0 : maxProductShipping;
     let discount = 0;
 
     // Apply coupon

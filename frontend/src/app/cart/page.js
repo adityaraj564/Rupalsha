@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FiMinus, FiPlus, FiTrash2, FiArrowLeft, FiShoppingBag } from 'react-icons/fi';
 import { useCartStore, useAuthStore, useAuthModalStore } from '@/lib/store';
+import { useFreeShippingThreshold } from '@/lib/useSiteSettings';
 import { CartSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
 
@@ -13,6 +14,7 @@ export default function CartPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authLoading = useAuthStore((s) => s.isLoading);
   const openAuthModal = useAuthModalStore((s) => s.open);
+  const freeShippingThreshold = useFreeShippingThreshold();
 
   useEffect(() => {
     // Synchronously paint the cached cart, then revalidate against the
@@ -49,7 +51,7 @@ export default function CartPage() {
 
   const subtotal = items.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
   const maxProductShipping = Math.max(...items.map(item => item.product?.shippingCharge || 0), 0);
-  const shipping = subtotal >= 999 ? 0 : maxProductShipping;
+  const shipping = subtotal >= freeShippingThreshold ? 0 : maxProductShipping;
   const total = subtotal + shipping;
 
   const handleQuantity = async (itemId, newQty) => {
@@ -149,7 +151,7 @@ export default function CartPage() {
               </div>
               {shipping > 0 && (
                 <p className="text-xs text-gray-400">
-                  Add ₹{(999 - subtotal).toLocaleString()} more for free shipping
+                  Add ₹{(freeShippingThreshold - subtotal).toLocaleString()} more for free shipping
                 </p>
               )}
               <hr className="my-2" />

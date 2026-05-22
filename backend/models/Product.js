@@ -56,12 +56,19 @@ const productSchema = new mongoose.Schema({
   // Admin-only internal code (matches the code maintained in the owner's pricing
   // Excel sheet). Never exposed on customer-facing endpoints — guarded by
   // `select: false`; admin routes explicitly `+rupalshaCode`.
+  // Letters-only (A-Z). Empty/unset is allowed; if set, must contain no
+  // digits or symbols so it can be cleanly matched against the owner's
+  // Excel sheet during inventory import.
   rupalshaCode: {
     type: String,
     trim: true,
     uppercase: true,
     maxlength: 50,
     select: false,
+    validate: {
+      validator: (v) => !v || /^[A-Z]+$/.test(v),
+      message: 'R Code must contain only letters (A-Z), no digits or symbols.',
+    },
   },
   shippingCharge: {
     type: Number,
@@ -131,7 +138,7 @@ const productSchema = new mongoose.Schema({
   },
   returnDays: {
     type: Number,
-    default: 7,
+    default: 2,
     min: 0,
   },
   returnPolicy: {

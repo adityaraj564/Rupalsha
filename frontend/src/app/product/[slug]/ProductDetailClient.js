@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { FiHeart, FiShoppingBag, FiTruck, FiRefreshCw, FiChevronLeft, FiChevronRight, FiStar, FiMapPin, FiCheck, FiX, FiShare2, FiCamera, FiBell, FiVideo, FiChevronDown, FiPlay, FiPause } from 'react-icons/fi';
 import { productsAPI, reviewsAPI } from '@/lib/api';
 import { useAuthStore, useAuthModalStore, useCartStore, useWishlistStore } from '@/lib/store';
+import { useFreeShippingThreshold } from '@/lib/useSiteSettings';
 import SizeGuideModal from '@/components/SizeGuideModal';
 import ProductCard from '@/components/ProductCard';
 import { ProductDetailSkeleton } from '@/components/Skeleton';
@@ -15,6 +16,7 @@ import toast from 'react-hot-toast';
 export default function ProductDetailPage({ initialProduct = null } = {}) {
   const { slug } = useParams();
   const router = useRouter();
+  const freeShippingThreshold = useFreeShippingThreshold();
   const [product, setProduct] = useState(initialProduct);
   const [loading, setLoading] = useState(!initialProduct);
   const [initialLoad, setInitialLoad] = useState(!initialProduct);
@@ -732,7 +734,7 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
           <div className="space-y-3 py-6 border-t border-gray-200">
             <div className="flex items-center gap-3 text-sm text-gray-600">
               <FiTruck className="text-brand-green flex-shrink-0" size={18} />
-              <span>Free shipping on orders above ₹999</span>
+              <span>Free shipping on orders above ₹{freeShippingThreshold.toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-3 text-sm text-gray-600">
               <FiRefreshCw className={`${product.isReturnable === false ? 'text-red-400' : 'text-brand-green'} flex-shrink-0`} size={18} />

@@ -15,6 +15,7 @@ router.get('/', async (req, res, next) => {
       cancellationFeeCap: settings.cancellationFeeCap,
       codEnabled: settings.codEnabled,
       unboxingVideoNoticeEnabled: settings.unboxingVideoNoticeEnabled !== false,
+      freeShippingThreshold: settings.freeShippingThreshold ?? 999,
     });
   } catch (err) {
     next(err);
@@ -31,6 +32,7 @@ router.put(
     body('cancellationFeeCap').optional().isFloat({ min: 0 }),
     body('codEnabled').optional().isBoolean(),
     body('unboxingVideoNoticeEnabled').optional().isBoolean(),
+    body('freeShippingThreshold').optional().isFloat({ min: 0 }),
   ],
   async (req, res, next) => {
     try {
@@ -53,6 +55,10 @@ router.put(
       if (req.body.unboxingVideoNoticeEnabled !== undefined) {
         settings.unboxingVideoNoticeEnabled = Boolean(req.body.unboxingVideoNoticeEnabled);
       }
+      if (req.body.freeShippingThreshold !== undefined) {
+        const n = Number(req.body.freeShippingThreshold);
+        if (Number.isFinite(n) && n >= 0) settings.freeShippingThreshold = n;
+      }
       await settings.save();
 
       res.json({
@@ -61,6 +67,7 @@ router.put(
         cancellationFeeCap: settings.cancellationFeeCap,
         codEnabled: settings.codEnabled,
         unboxingVideoNoticeEnabled: settings.unboxingVideoNoticeEnabled !== false,
+        freeShippingThreshold: settings.freeShippingThreshold ?? 999,
       });
     } catch (err) {
       next(err);

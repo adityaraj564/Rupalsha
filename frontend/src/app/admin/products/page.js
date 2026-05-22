@@ -18,15 +18,25 @@ const DEFAULT_HIGHLIGHT_KEYS = ['Base Material', 'Color', 'Plating', 'Occasion']
 const DEFAULT_SPEC_GROUPS = [
   {
     group: 'General',
-    keys: ['Base Material', 'Type', 'Color', 'Ideal For', 'Plating', 'Net Quantity', 'Earring Type', 'Kamarband', 'Maang Tikka', 'Necklace & Chain Type', 'Necklace Clasp Type', 'Payal', 'Pendant Shape', 'Trend'],
+    keys: ['Base Material', 'Type', 'Color', 'Ideal For', 'Plating', 'Net Quantity', 'Trend'],
   },
   {
     group: 'Product Details',
-    keys: ['Sales Package', 'Collection', 'Occasion', 'Finish', 'Weight', 'Other Features', 'Earring Clasp Type', 'Earring Length'],
+    keys: ['Sales Package', 'Collection', 'Occasion', 'Finish', 'Weight', 'Other Features'],
   },
 ];
 
 const buildDefaultHighlights = () => DEFAULT_HIGHLIGHT_KEYS.map(key => ({ key, value: '' }));
+
+// Default return policy is derived from the chosen return-days value so the
+// admin doesn't have to retype the same sentence — e.g. typing "2" gives
+// "2-day return policy. ...". When `isReturnable` is off we return the
+// not-eligible text instead.
+const buildReturnPolicy = (days, isReturnable) => {
+  if (!isReturnable) return 'This product is not eligible for returns.';
+  const n = Math.max(0, Number(days) || 0);
+  return `${n}-day return policy. Product must be unused with original tags. We strongly recommend recording an unboxing video while opening the package — it helps us resolve damaged or missing item claims quickly.`;
+};
 
 const buildDefaultSpecs = () => DEFAULT_SPEC_GROUPS.map(g => ({
   group: g.group,
@@ -95,8 +105,7 @@ export default function AdminProductsPage() {
     sizes: ALL_SIZES.map(s => ({ size: s, stock: 0 })),
     tags: '', sku: '', rupalshaCode: '', lowStockThreshold: '5',
     isReturnable: true,
-    returnDays: '7',
-    returnPolicy: 'Easy return policy. Product must be unused with original tags. We strongly recommend recording an unboxing video while opening the package — it helps us resolve damaged or missing item claims quickly.',
+    returnDays: '2',
     shippingCharge: '0',
     highlights: buildDefaultHighlights(),
     specifications: buildDefaultSpecs(),
@@ -209,8 +218,7 @@ export default function AdminProductsPage() {
       sizes: ALL_SIZES.map(s => ({ size: s, stock: 0 })),
       tags: '', sku: '', rupalshaCode: '', lowStockThreshold: '5',
       isReturnable: true,
-      returnDays: '7',
-      returnPolicy: 'Easy return policy. Product must be unused with original tags. We strongly recommend recording an unboxing video while opening the package — it helps us resolve damaged or missing item claims quickly.',
+      returnDays: '2',
       shippingCharge: '0',
       highlights: buildDefaultHighlights(),
       specifications: buildDefaultSpecs(),
@@ -249,8 +257,7 @@ export default function AdminProductsPage() {
       rupalshaCode: product.rupalshaCode || '',
       lowStockThreshold: product.lowStockThreshold || '5',
       isReturnable: product.isReturnable !== false,
-      returnDays: product.returnDays || '7',
-      returnPolicy: product.returnPolicy || 'Easy return policy. Product must be unused with original tags. We strongly recommend recording an unboxing video while opening the package — it helps us resolve damaged or missing item claims quickly.',
+      returnDays: product.returnDays || '2',
       shippingCharge: product.shippingCharge || '0',
       highlights: mergeHighlights(product.highlights || []),
       specifications: mergeSpecifications(product.specifications || []),
@@ -310,7 +317,7 @@ export default function AdminProductsPage() {
       isTrending: form.isTrending,
       isReturnable: form.isReturnable,
       returnDays: form.returnDays,
-      returnPolicy: form.returnPolicy,
+      returnPolicy: buildReturnPolicy(form.returnDays, form.isReturnable),
       shippingCharge: form.shippingCharge,
       sizes: form.sizes.filter((s) => s.stock > 0),
       tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
@@ -516,15 +523,16 @@ export default function AdminProductsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium mb-1 text-gray-600">
-                      Rupalsha Code (R Code) <span className="text-gray-400">— admin only</span>
+                      Rupalsha Code (R Code) <span className="text-gray-400">— letters only, admin only</span>
                     </label>
                     <input
                       type="text"
                       value={form.rupalshaCode}
-                      onChange={(e) => setForm({ ...form, rupalshaCode: e.target.value.toUpperCase() })}
+                      onChange={(e) => setForm({ ...form, rupalshaCode: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })}
                       className="input-field text-sm py-2 font-mono uppercase"
-                      placeholder="e.g. RUP-1234 (from your Excel)"
-                      title="Internal code from your pricing Excel sheet. Never shown to customers."
+                      placeholder="e.g. RUPSHA (letters only, from your Excel)"
+                      title="Internal code from your pricing Excel sheet. Letters A-Z only. Never shown to customers."
+                      pattern="[A-Za-z]*"
                     />
                   </div>
                   <div>
@@ -997,12 +1005,17 @@ export default function AdminProductsPage() {
               {/* Return Policy & Shipping */}
               <div className="mb-3">
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={form.isReturnable} onChange={(e) => setForm({ ...form, isReturnable: e.target.checked, returnPolicy: e.target.checked ? form.returnPolicy : 'This product is not eligible for returns.' })} className="accent-brand-green" />
+                  <input
+                    type="checkbox"
+                    checked={form.isReturnable}
+                    onChange={(e) => setForm({ ...form, isReturnable: e.target.checked })}
+                    className="accent-brand-green"
+                  />
                   Returnable Product
                 </label>
                 <p className="text-xs text-gray-400 mt-0.5">{form.isReturnable ? 'Customers can request returns for this product' : 'Returns are disabled — customers cannot return this product'}</p>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Return Days</label>
                   <input
@@ -1011,21 +1024,14 @@ export default function AdminProductsPage() {
                     onChange={(e) => setForm({ ...form, returnDays: e.target.value })}
                     className="input-field"
                     min="0"
-                    placeholder="e.g. 7"
+                    placeholder="e.g. 2"
                     disabled={!form.isReturnable}
                   />
-                  <p className="text-xs text-gray-400 mt-0.5">Days from delivery for return</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Return Policy</label>
-                  <textarea
-                    value={form.returnPolicy}
-                    onChange={(e) => setForm({ ...form, returnPolicy: e.target.value })}
-                    className="input-field"
-                    rows={2}
-                    placeholder="e.g. Easy return policy..."
-                    disabled={!form.isReturnable}
-                  />
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {form.isReturnable
+                      ? `Auto-generates: "${form.returnDays || 0}-day return policy" shown to customers`
+                      : 'Returns disabled'}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Shipping Charge (₹)</label>

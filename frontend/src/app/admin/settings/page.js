@@ -36,6 +36,7 @@ export default function AdminSettingsPage() {
     cancellationFeeCap: 100,
     codEnabled: false,
     unboxingVideoNoticeEnabled: true,
+    freeShippingThreshold: 999,
   };
   const [form, setForm] = useState(initialForm);
   const [savedForm, setSavedForm] = useState(initialForm);
@@ -49,6 +50,7 @@ export default function AdminSettingsPage() {
           cancellationFeeCap: data.cancellationFeeCap ?? 100,
           codEnabled: !!data.codEnabled,
           unboxingVideoNoticeEnabled: data.unboxingVideoNoticeEnabled !== false,
+          freeShippingThreshold: data.freeShippingThreshold ?? 999,
         };
         setForm(next);
         setSavedForm(next);
@@ -62,18 +64,24 @@ export default function AdminSettingsPage() {
     Number(form.cancellationFeePercent) !== Number(savedForm.cancellationFeePercent) ||
     Number(form.cancellationFeeCap) !== Number(savedForm.cancellationFeeCap) ||
     form.codEnabled !== savedForm.codEnabled ||
-    form.unboxingVideoNoticeEnabled !== savedForm.unboxingVideoNoticeEnabled;
+    form.unboxingVideoNoticeEnabled !== savedForm.unboxingVideoNoticeEnabled ||
+    Number(form.freeShippingThreshold) !== Number(savedForm.freeShippingThreshold);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const pct = Number(form.cancellationFeePercent);
     const cap = Number(form.cancellationFeeCap);
+    const fst = Number(form.freeShippingThreshold);
     if (Number.isNaN(pct) || pct < 0 || pct > 100) {
       toast.error('Percent must be between 0 and 100');
       return;
     }
     if (Number.isNaN(cap) || cap < 0) {
       toast.error('Cap must be a non-negative number');
+      return;
+    }
+    if (Number.isNaN(fst) || fst < 0) {
+      toast.error('Free shipping threshold must be a non-negative number');
       return;
     }
     setSaving(true);
@@ -84,6 +92,7 @@ export default function AdminSettingsPage() {
         cancellationFeeCap: cap,
         codEnabled: form.codEnabled,
         unboxingVideoNoticeEnabled: form.unboxingVideoNoticeEnabled,
+        freeShippingThreshold: fst,
       });
       const saved = {
         cancellationFeeEnabled: form.cancellationFeeEnabled,
@@ -91,6 +100,7 @@ export default function AdminSettingsPage() {
         cancellationFeeCap: cap,
         codEnabled: form.codEnabled,
         unboxingVideoNoticeEnabled: form.unboxingVideoNoticeEnabled,
+        freeShippingThreshold: fst,
       };
       setForm(saved);
       setSavedForm(saved);
@@ -112,6 +122,37 @@ export default function AdminSettingsPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
+        {/* Free Shipping Threshold */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="font-semibold text-lg text-brand-charcoal dark:text-white">Free Shipping Threshold</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Orders whose items total reaches this amount ship free. Below it, the standard product shipping charge applies.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 max-w-xs">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Minimum order amount for free shipping (₹)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={form.freeShippingThreshold}
+              onChange={(e) => setForm({ ...form, freeShippingThreshold: e.target.value })}
+              className="input-field"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">e.g. 999 for free shipping above ₹999</p>
+          </div>
+          <div className="mt-4 p-3 rounded-xl bg-brand-cream/50 dark:bg-gray-900/50 border border-brand-cream dark:border-gray-700 text-xs text-gray-700 dark:text-gray-300">
+            Updates everywhere automatically: header strip, product page, cart, checkout total, and the actual shipping charge on new orders.
+            <br />
+            <span className="opacity-80">Tip: the marquee strip on the homepage and the "Shipping Policy" page are separately editable from Content Admin → Pages → marquee_items / shipping_policy. Update them too if you change this number.</span>
+          </div>
+        </div>
+
         {/* Cash on Delivery */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
           <div className="flex items-start justify-between gap-4">

@@ -171,7 +171,7 @@ router.post('/products', async (req, res, next) => {
       childCategory,
       categoryRef: categoryRef || undefined,
       sku,
-      rupalshaCode: rupalshaCode ? String(rupalshaCode).trim().toUpperCase() : undefined,
+      rupalshaCode: rupalshaCode ? String(rupalshaCode).trim().toUpperCase().replace(/[^A-Z]/g, '') : undefined,
       lowStockThreshold: lowStockThreshold ? Number(lowStockThreshold) : 5,
       images,
       videos,
@@ -183,7 +183,7 @@ router.post('/products', async (req, res, next) => {
       isFeatured: isFeatured === 'true',
       isTrending: isTrending === 'true',
       isReturnable: isReturnable !== 'false',
-      returnDays: returnDays ? Number(returnDays) : 7,
+      returnDays: returnDays ? Number(returnDays) : 2,
       returnPolicy,
       shippingCharge: shippingCharge ? Number(shippingCharge) : 0,
       highlights: parsedHighlights || [],
@@ -212,7 +212,12 @@ router.put('/products/:id', async (req, res, next) => {
         } else if (['price', 'comparePrice', 'lowStockThreshold', 'shippingCharge', 'returnDays'].includes(field)) {
           product[field] = Number(req.body[field]);
         } else if (field === 'rupalshaCode') {
-          product[field] = req.body[field] ? String(req.body[field]).trim().toUpperCase() : '';
+          // Letters-only (A-Z). Strip anything else so the saved value
+          // always satisfies the schema validator, even if pasted from
+          // an older Excel that had digits or punctuation.
+          product[field] = req.body[field]
+            ? String(req.body[field]).trim().toUpperCase().replace(/[^A-Z]/g, '')
+            : '';
         } else {
           product[field] = req.body[field];
         }
@@ -384,7 +389,12 @@ router.get('/inventory', async (req, res, next) => {
 
 // POST /api/admin/inventory/import-actual-prices
 // Bulk-update internal "actual price" (cost price) from an uploaded Excel sheet.
-// Body: { rows: [{ productCode: 'AB12', actualPrice: 450 }, ...] }
+// Body: { rows: [{ productCode: 'AB12' | 'RUPLETTERS', actualPrice: 450 }, ...] }
+//
+// The `productCode` field in each row may be either:
+//   - the auto-generated productCode (e.g. AB12 — 2 letters + 2 digits), or
+//   - the admin-set rupalshaCode / R Code (letters only, e.g. RUPSHA).
+// We auto-detect the format and look up against the correct field.
 router.post('/inventory/import-actual-prices', async (req, res, next) => {
   try {
     const { rows } = req.body || {};
@@ -401,20 +411,32 @@ router.post('/inventory/import-actual-prices', async (req, res, next) => {
       invalid: [],
     };
 
+    const AUTO_RE = /^[A-Z]{2}\d{2}$/;   // productCode
+    const RCODE_RE = /^[A-Z]+$/;          // rupalshaCode (letters only)
+
     const ops = [];
+    const productCodes = [];
+    const rupalshaCodes = [];
+
     for (let i = 0; i < rows.length; i++) {
       const raw = rows[i] || {};
       const code = String(raw.productCode || '').trim().toUpperCase();
       const priceNum = Number(raw.actualPrice);
 
-      if (!/^[A-Z]{2}\d{2}$/.test(code) || !Number.isFinite(priceNum) || priceNum < 0) {
+      const isAuto = AUTO_RE.test(code);
+      const isRCode = !isAuto && RCODE_RE.test(code);
+
+      if ((!isAuto && !isRCode) || !Number.isFinite(priceNum) || priceNum < 0) {
         results.invalid.push({ row: i + 1, productCode: raw.productCode, actualPrice: raw.actualPrice });
         continue;
       }
 
+      const filter = isAuto ? { productCode: code } : { rupalshaCode: code };
+      if (isAuto) productCodes.push(code); else rupalshaCodes.push(code);
+
       ops.push({
         updateOne: {
-          filter: { productCode: code },
+          filter,
           update: { $set: { actualPrice: priceNum } },
         },
       });
@@ -424,13 +446,21 @@ router.post('/inventory/import-actual-prices', async (req, res, next) => {
       const bulkResult = await Product.bulkWrite(ops, { ordered: false });
       results.updated = bulkResult.modifiedCount || 0;
 
-      // Find which codes did not match any product
-      const requestedCodes = ops.map(o => o.updateOne.filter.productCode);
-      const existing = await Product.find({ productCode: { $in: requestedCodes } })
-        .select('productCode')
+      // Determine which codes did not match any product (check both fields).
+      const existing = await Product.find({
+        $or: [
+          { productCode: { $in: productCodes } },
+          { rupalshaCode: { $in: rupalshaCodes } },
+        ],
+      })
+        .select('+rupalshaCode productCode')
         .lean();
-      const existingSet = new Set(existing.map(p => p.productCode));
-      results.notFound = requestedCodes.filter(c => !existingSet.has(c));
+      const foundAuto = new Set(existing.map(p => p.productCode).filter(Boolean));
+      const foundR = new Set(existing.map(p => p.rupalshaCode).filter(Boolean));
+      results.notFound = [
+        ...productCodes.filter(c => !foundAuto.has(c)),
+        ...rupalshaCodes.filter(c => !foundR.has(c)),
+      ];
     }
 
     res.json({
