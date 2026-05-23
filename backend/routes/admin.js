@@ -118,42 +118,6 @@ router.get('/products', async (req, res, next) => {
   }
 });
 
-// GET /api/admin/products/lookup?slug=...&code=...&name=...
-// Diagnostic: finds products regardless of isActive (and reports if missing).
-// Use when a public product URL returns 404 to determine whether the product
-// was deactivated, renamed, or deleted.
-router.get('/products/lookup', async (req, res, next) => {
-  try {
-    const { slug, code, name } = req.query;
-    if (!slug && !code && !name) {
-      return res.status(400).json({ error: 'Provide slug, code, or name' });
-    }
-
-    const or = [];
-    if (slug) or.push({ slug });
-    if (code) or.push({ productCode: String(code).toUpperCase() });
-    if (name) or.push({ name: { $regex: String(name), $options: 'i' } });
-
-    const matches = await Product.find({ $or: or })
-      .select('name slug productCode isActive stock createdAt updatedAt')
-      .sort({ updatedAt: -1 })
-      .limit(20)
-      .lean();
-
-    res.json({
-      found: matches.length,
-      matches,
-      hint: matches.length === 0
-        ? 'No product matches in DB — it was likely deleted.'
-        : matches.every(m => !m.isActive)
-          ? 'Product exists but isActive=false — toggle Active in admin to restore.'
-          : 'Active match found.',
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
 // POST /api/admin/products
 // Receives plain JSON. Media is uploaded directly to Cloudinary by the
 // browser using the signature endpoint above; client just sends back
