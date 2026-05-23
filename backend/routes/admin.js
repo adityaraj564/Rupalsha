@@ -94,13 +94,13 @@ router.get('/dashboard', async (req, res, next) => {
 // GET /api/admin/products
 router.get('/products', async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, category, search } = req.query;
+    const { page = 1, limit = 1000, category, search } = req.query;
     const filter = {};
     if (category) filter.category = category;
     if (search) filter.$text = { $search: search };
 
     const pageNum = Math.max(1, Number(page));
-    const limitNum = Math.min(100, Number(limit));
+    const limitNum = Math.min(1000, Math.max(1, Number(limit)));
 
     const [products, total] = await Promise.all([
       Product.find(filter)

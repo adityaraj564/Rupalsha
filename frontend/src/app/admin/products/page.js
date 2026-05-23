@@ -140,9 +140,9 @@ export default function AdminProductsPage() {
 
   const fetchProducts = async () => {
     try {
-      const params = {};
-      if (search) params.search = search;
-      const data = await adminAPI.getProducts(params);
+      // Fetch all products once; filtering happens client-side so search
+      // is instant and matches the admin/inventory UX.
+      const data = await adminAPI.getProducts({ limit: 1000 });
       setProducts(data.products);
     } catch (err) {
       toast.error('Failed to load products');
@@ -150,6 +150,20 @@ export default function AdminProductsPage() {
       setLoading(false);
     }
   };
+
+  // Live, case-insensitive filter across name + codes + SKU + category.
+  const q = search.trim().toLowerCase();
+  const filteredProducts = q
+    ? products.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.productCode || '').toLowerCase().includes(q) ||
+        (p.rupalshaCode || '').toLowerCase().includes(q) ||
+        (p.sku || '').toLowerCase().includes(q) ||
+        (p.category || '').toLowerCase().includes(q) ||
+        (p.subcategory || '').toLowerCase().includes(q) ||
+        (p.childCategory || '').toLowerCase().includes(q)
+      )
+    : products;
 
   const fetchCategories = async () => {
     try {
@@ -394,7 +408,9 @@ export default function AdminProductsPage() {
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-brand-charcoal">Products ({products.length})</h1>
+        <h1 className="text-2xl font-bold text-brand-charcoal">
+          Products ({q ? `${filteredProducts.length} of ${products.length}` : products.length})
+        </h1>
         <button
           onClick={() => { resetForm(); setShowForm(true); }}
           className="btn-primary text-sm py-2 flex items-center gap-2"
@@ -410,10 +426,19 @@ export default function AdminProductsPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && fetchProducts()}
-          placeholder="Search products..."
-          className="input-field pl-10"
+          placeholder="Search by name, code, SKU, category..."
+          className="input-field pl-10 pr-10"
         />
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            aria-label="Clear search"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+          >
+            <FiX size={18} />
+          </button>
+        )}
       </div>
 
       {/* Product Form Modal */}
@@ -1087,7 +1112,7 @@ export default function AdminProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {products.map((product) => {
+              {filteredProducts.map((product) => {
                 const totalStock = product.sizes?.reduce((sum, s) => sum + s.stock, 0) || 0;
                 const catPath = [product.category, product.subcategory, product.childCategory].filter(Boolean).join(' → ');
                 return (
