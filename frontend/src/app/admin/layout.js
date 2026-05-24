@@ -3,7 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers, FiClipboard, FiSun, FiMoon, FiImage, FiFileText, FiActivity, FiRotateCcw, FiCreditCard, FiSettings, FiTrendingUp } from 'react-icons/fi';
+import { FiGrid, FiPackage, FiShoppingCart, FiUsers, FiStar, FiTag, FiUser, FiLogOut, FiChevronDown, FiInfo, FiLayers, FiClipboard, FiSun, FiMoon, FiImage, FiFileText, FiActivity, FiRotateCcw, FiCreditCard, FiSettings, FiTrendingUp, FiMenu, FiX } from 'react-icons/fi';
 import { useAuthStore, useThemeStore, useAuthModalStore } from '@/lib/store';
 import { AdminDashboardSkeleton } from '@/components/Skeleton';
 
@@ -32,6 +32,7 @@ export default function AdminLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const profileRef = useRef(null);
   // One-shot guard: prevents the redirect-loop seen when /auth/login
   // bounced back here while React was still re-rendering after logout.
@@ -44,6 +45,12 @@ export default function AdminLayout({ children }) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Close the mobile drawer whenever the user navigates — including
+  // tapping the link for the page they are already on.
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   // Send the user home and pop the auth modal there. Pushing them to
   // /auth/login (which itself bounces back) caused the URL to flip
@@ -79,7 +86,15 @@ export default function AdminLayout({ children }) {
       {/* Admin Header */}
       <header className="bg-brand-green text-white">
         <div className="w-full px-4 sm:px-6 lg:px-[50px] py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open menu"
+              className="md:hidden p-2 -ml-2 rounded-lg hover:bg-white/20 transition-colors"
+            >
+              <FiMenu size={22} />
+            </button>
             <h1 className="font-serif text-xl font-bold">Rupalsha Admin</h1>
           </div>
           <div className="flex items-center gap-3">
@@ -145,26 +160,52 @@ export default function AdminLayout({ children }) {
             </nav>
           </aside>
 
-          {/* Mobile Nav */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t dark:border-gray-700 z-40">
-            <div className="flex">
-              {ADMIN_NAV.slice(0, 5).map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs ${
-                    pathname === item.href ? 'text-brand-green' : 'text-gray-400'
-                  }`}
-                >
-                  <item.icon size={18} />
-                  {item.label}
-                </Link>
-              ))}
+          {/* Mobile Drawer */}
+          {mobileMenuOpen && (
+            <div
+              className="md:hidden fixed inset-0 z-50"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div
+                className="absolute inset-0 bg-black/50"
+                onClick={() => setMobileMenuOpen(false)}
+              />
+              <aside className="absolute left-0 top-0 bottom-0 w-72 max-w-[85vw] bg-white dark:bg-gray-900 shadow-xl flex flex-col animate-slide-down">
+                <div className="flex items-center justify-between px-4 py-4 bg-brand-green text-white">
+                  <span className="font-serif text-lg font-bold">Admin Menu</span>
+                  <button
+                    type="button"
+                    onClick={() => setMobileMenuOpen(false)}
+                    aria-label="Close menu"
+                    className="p-2 -mr-2 rounded-lg hover:bg-white/20"
+                  >
+                    <FiX size={20} />
+                  </button>
+                </div>
+                <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
+                  {ADMIN_NAV.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                        pathname === item.href
+                          ? 'bg-brand-green text-white'
+                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      <item.icon size={18} />
+                      {item.label}
+                    </Link>
+                  ))}
+                </nav>
+              </aside>
             </div>
-          </div>
+          )}
 
           {/* Content */}
-          <main className="flex-1 min-w-0 pb-20 md:pb-0">
+          <main className="flex-1 min-w-0">
             {children}
           </main>
         </div>

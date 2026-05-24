@@ -126,7 +126,6 @@ function ProductsContent({ initialProducts = null, initialTotal = 0, initialTota
             <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-gold">
               {searchParams.get('trending') ? 'Trending' : searchParams.get('featured') ? 'New Arrivals' : 'Shop All'}
             </h1>
-            <p className="text-gray-500 mt-2">{total} product{total !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex items-center gap-3">
             <button

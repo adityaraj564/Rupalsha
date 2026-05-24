@@ -669,6 +669,7 @@ export default function Header() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
                   className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg transition-colors font-medium"
                 >
                   {link.label}
@@ -677,9 +678,9 @@ export default function Header() {
               <hr className="my-2" />
               {isAuthenticated ? (
                 <>
-                  <Link href="/profile" className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">My Account</Link>
-                  <Link href="/orders" className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">My Orders</Link>
-                  <Link href="/wishlist" className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">Wishlist</Link>
+                  <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">My Account</Link>
+                  <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">My Orders</Link>
+                  <Link href="/wishlist" onClick={() => setMobileMenuOpen(false)} className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">Wishlist</Link>
                 </>
               ) : (
                 <button
