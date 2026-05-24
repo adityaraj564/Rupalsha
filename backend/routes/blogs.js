@@ -255,6 +255,14 @@ router.put('/admin/:id', subAdminAuth, runUpload(upload.single('featuredImage'))
       };
     }
 
+    // Refresh the displayed "published" date whenever a published post
+    // is edited so the blog listing always surfaces the most recently
+    // updated articles at the top. Drafts keep their existing date so
+    // they get a real timestamp when they're actually published.
+    if (blog.status === 'published') {
+      blog.publishedAt = new Date();
+    }
+
     await blog.save();
     cache.clear();
     logActivity({ action: 'update', section: 'blog', description: `Updated blog: ${blog.title}`, user: req.user });
