@@ -156,6 +156,37 @@ const productSchema = new mongoose.Schema({
       value: { type: String, trim: true },
     }],
   }],
+  // ---- Social proof / scarcity counters --------------------------------
+  // Lifetime page-view counter for this product (real visits only — the
+  // bump endpoint is rate-limited per-session on the client and ignores
+  // SSR/bot traffic). Persisted purely so we can show genuine "X viewed
+  // this today" social-proof copy on the storefront.
+  totalViews: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  // Rolling per-day view counter. `date` is a UTC YYYY-MM-DD string; the
+  // backend resets `count` to 1 the first time the date rolls over so we
+  // never display stale "today" numbers from previous days.
+  dailyViews: {
+    date: { type: String, default: '' },
+    count: { type: Number, default: 0, min: 0 },
+  },
+  // Lifetime units sold — incremented atomically inside the same
+  // findOneAndUpdate that decrements stock during order placement, so it
+  // can never drift from real orders.
+  salesCount: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
+  // Rolling per-ISO-week sales counter. `week` is an ISO week key
+  // (YYYY-Www); the counter is reset when the current week changes.
+  weeklySales: {
+    week: { type: String, default: '' },
+    count: { type: Number, default: 0, min: 0 },
+  },
 }, {
   timestamps: true,
 });

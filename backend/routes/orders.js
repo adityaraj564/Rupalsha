@@ -19,6 +19,39 @@ const router = express.Router();
 // placement so admin edits take effect immediately, without restart.
 const FREE_SHIPPING_FALLBACK = 999;
 
+// ISO-8601 week key (YYYY-Www) in UTC. Used as the bucket for the
+// product `weeklySales` counter that powers "Selling fast" social proof.
+function isoWeekKey(d = new Date()) {
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - day);
+  const year = t.getUTCFullYear();
+  const week = Math.ceil(((t - Date.UTC(year, 0, 1)) / 86400000 + 1) / 7);
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
+// Bump the rolling weekly sales counter for a product. Either increments
+// the existing bucket (when the stored week matches the current ISO week)
+// or resets it to `qty`. Errors are swallowed — this is purely cosmetic
+// social-proof copy and must never break order placement.
+async function bumpWeeklySales(productId, qty) {
+  try {
+    const week = isoWeekKey();
+    const res = await Product.updateOne(
+      { _id: productId, 'weeklySales.week': week },
+      { $inc: { 'weeklySales.count': qty } }
+    );
+    if (res.matchedCount === 0) {
+      await Product.updateOne(
+        { _id: productId },
+        { $set: { weeklySales: { week, count: qty } } }
+      );
+    }
+  } catch (err) {
+    console.error('weeklySales bump failed', { productId, qty, err: err.message });
+  }
+}
+
 /**
  * Lazy backfill of `refund` for old cancelled/returned orders that pre-date
  * the refund-tracker feature. Mutates and saves the order in-place if needed.
@@ -274,7 +307,10 @@ router.post('/', auth, [
           isActive: true,
           sizes: { $elemMatch: { size: item.size, stock: { $gte: item.quantity } } },
         },
-        { $inc: { 'sizes.$.stock': -item.quantity } },
+        // Bump the lifetime salesCount in the same atomic write that
+        // reserves stock — guarantees the counter can never claim more
+        // sales than orders actually placed.
+        { $inc: { 'sizes.$.stock': -item.quantity, salesCount: item.quantity } },
         { new: true }
       );
       if (!updated) {
@@ -308,6 +344,9 @@ router.post('/', auth, [
         });
       }
       reserved.push({ productId: item.product, size: item.size, quantity: item.quantity });
+      // Fire-and-forget rolling weekly counter bump — purely cosmetic
+      // social-proof signal, never block the order.
+      bumpWeeklySales(item.product, item.quantity);
     }
 
     // ---- Wallet debit (atomic with $gte guard inside applyWalletTransaction)

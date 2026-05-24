@@ -238,4 +238,36 @@ function getDescendantIds(allCategories, parentId) {
   return ids;
 }
 
+// POST /api/products/:id/view — bump real view counters for social-proof copy.
+// Public on purpose: it must work for guests browsing without logging in.
+// Client-side gates this with sessionStorage so a single visitor reloading
+// the page only counts once per session per product.
+router.post('/:id/view', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      // Silently succeed — view tracking must never block the page.
+      return res.json({ ok: true });
+    }
+    const today = new Date().toISOString().slice(0, 10); // UTC YYYY-MM-DD
+    // Atomic-ish: lifetime counter always increments; the per-day counter
+    // either rolls over (when the stored date is not today) or bumps.
+    const product = await Product.findById(id).select('dailyViews totalViews');
+    if (!product) return res.json({ ok: true });
+    const current = product.dailyViews || { date: '', count: 0 };
+    const next = current.date === today
+      ? { date: today, count: (current.count || 0) + 1 }
+      : { date: today, count: 1 };
+    await Product.updateOne(
+      { _id: id },
+      { $set: { dailyViews: next }, $inc: { totalViews: 1 } }
+    );
+    res.json({ ok: true, dailyViews: next, totalViews: (product.totalViews || 0) + 1 });
+  } catch (error) {
+    // Never surface failures to the client — they would only pollute logs
+    // and break nothing visible.
+    res.json({ ok: true });
+  }
+});
+
 module.exports = router;

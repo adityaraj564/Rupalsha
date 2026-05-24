@@ -57,6 +57,20 @@ function ProductCard({ product }) {
 
   const totalStock = product.sizes?.reduce((sum, s) => sum + s.stock, 0) || 0;
   const isOutOfStock = totalStock === 0;
+  // ---- Social-proof signals (all derived from real data) ---------------
+  // Low-stock threshold falls back to 5 when the admin hasn't customised
+  // it on the product. We only show scarcity copy when at least one unit
+  // is still available — otherwise the "Out of Stock" badge takes over.
+  const lowStockThreshold = product.lowStockThreshold ?? 5;
+  const isLowStock = !isOutOfStock && totalStock <= lowStockThreshold;
+  // "Selling fast" comes from the rolling weekly sales bucket (set in
+  // backend at order placement). Only surface it once at least 5 real
+  // units have shipped this week — keeps the copy honest.
+  const weeklySold = product.weeklySales?.count || 0;
+  const isSellingFast = !isOutOfStock && weeklySold >= 5;
+  // "Popular" reflects lifetime real sales. Threshold is intentionally
+  // conservative so the badge stays meaningful on a small catalogue.
+  const isPopular = !isOutOfStock && (product.salesCount || 0) >= 20;
   // First in-stock size — used to add to bag directly when the product
   // only has a single size. If multiple sizes exist we send the user to
   // the product page so they can choose.
@@ -214,7 +228,22 @@ function ProductCard({ product }) {
                 Save {discount}%
               </span>
             )}
-            {product.isTrending && (
+            {/* Social proof — show the single strongest signal so badges
+                never stack into a wall of stickers. Priority:
+                Only X left  >  Selling fast  >  Popular  >  Trending */}
+            {isLowStock ? (
+              <span className="bg-orange-100 text-orange-700 text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm">
+                Only {totalStock} left
+              </span>
+            ) : isSellingFast ? (
+              <span className="bg-rose-100 text-rose-700 text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm">
+                Selling fast
+              </span>
+            ) : isPopular ? (
+              <span className="bg-amber-100 text-amber-800 text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm">
+                Popular
+              </span>
+            ) : product.isTrending && (
               <span className="bg-brand-green text-white text-xs font-semibold px-2 py-1 rounded-full">
                 Trending
               </span>

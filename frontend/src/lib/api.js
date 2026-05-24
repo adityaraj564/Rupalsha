@@ -312,6 +312,12 @@ export const productsAPI = {
     swr(`similar:${slug}:${limit}`, () => request(`/products/${slug}/similar?limit=${limit}`), CACHE_TTL.medium, { alwaysRevalidate: true, onFresh }),
   getCategories: () =>
     swr('productCategories', () => request('/products/categories'), CACHE_TTL.medium),
+  // Bump real view counters for social-proof copy. Public + idempotent
+  // per-session on the client (gated via sessionStorage) so a single
+  // visitor refreshing the page does not inflate "viewed today" numbers.
+  // Failures are silent — this is purely cosmetic.
+  trackView: (id) =>
+    request(`/products/${id}/view`, { method: 'POST' }).catch(() => null),
 };
 
 // Categories

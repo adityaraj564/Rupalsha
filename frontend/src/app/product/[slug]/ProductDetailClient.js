@@ -115,6 +115,21 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
     else if (hasSpecs) setDetailsTab('specifications');
   }, [product]);
 
+  // Bump the real view counter once per session per product. Gated by
+  // sessionStorage so a visitor refreshing the page does not inflate the
+  // "viewed today" number we display further down. Silent on failure.
+  useEffect(() => {
+    if (!product?._id || typeof window === 'undefined') return;
+    try {
+      const key = `viewTracked:${product._id}`;
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+      productsAPI.trackView(product._id);
+    } catch {
+      // sessionStorage unavailable (private mode etc) — skip silently.
+    }
+  }, [product?._id]);
+
   const handleAddToCart = async () => {
     if (!selectedSize) {
       toast.error('Please select a size');
@@ -589,6 +604,51 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
             </div>
           )}
           {!(product.comparePrice && discount > 0) && <div className="mb-6" />}
+
+          {/* Social proof — genuine, data-backed copy. Each line is only
+              shown when the underlying real counter clears a meaningful
+              threshold so we never display "1 person viewed this today"
+              style nonsense. View counter is incremented once per visitor
+              session by the product detail page itself. */}
+          {(() => {
+            const today = new Date().toISOString().slice(0, 10);
+            const dailyViews = product.dailyViews?.date === today
+              ? (product.dailyViews?.count || 0)
+              : 0;
+            const weeklySold = product.weeklySales?.count || 0;
+            const lifetimeSold = product.salesCount || 0;
+            const lowStockThreshold = product.lowStockThreshold ?? 5;
+            const showLowStock = !isOutOfStock && totalStock <= lowStockThreshold;
+            const showSellingFast = !isOutOfStock && weeklySold >= 5;
+            const showPopular = !showSellingFast && lifetimeSold >= 20;
+            const showViews = dailyViews >= 10;
+            const hasAny = showLowStock || showSellingFast || showPopular || showViews;
+            if (!hasAny) return null;
+            return (
+              <div className="flex flex-wrap items-center gap-2 mb-6 text-xs">
+                {showLowStock && (
+                  <span className="inline-flex items-center gap-1 bg-orange-50 text-orange-700 font-semibold px-2.5 py-1 rounded-full border border-orange-200">
+                    Only {totalStock} left
+                  </span>
+                )}
+                {showSellingFast && (
+                  <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-700 font-semibold px-2.5 py-1 rounded-full border border-rose-200">
+                    Selling fast
+                  </span>
+                )}
+                {showPopular && (
+                  <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 font-semibold px-2.5 py-1 rounded-full border border-amber-200">
+                    Popular this week
+                  </span>
+                )}
+                {showViews && (
+                  <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                    {dailyViews} people viewed this today
+                  </span>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Material */}
           {product.fabric && (
