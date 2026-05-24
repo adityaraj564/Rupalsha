@@ -348,6 +348,12 @@ router.get('/inventory', async (req, res, next) => {
     const inventory = products.map(p => {
       const totalStock = p.sizes?.reduce((sum, s) => sum + s.stock, 0) || 0;
       const sizeBreakdown = p.sizes?.map(s => `${s.size}: ${s.stock}`).join(', ') || '';
+      // Always derive the actual price from the R-code on the fly so
+      // legacy products that were last saved before the cipher hook
+      // existed still show the correct cost in the admin views.
+      const derivedActualPrice = p.rupalshaCode
+        ? Product.computeActualPriceFromRCode(p.rupalshaCode)
+        : (p.actualPrice || 0);
       return {
         _id: p._id,
         productCode: p.productCode || '',
@@ -355,7 +361,7 @@ router.get('/inventory', async (req, res, next) => {
         name: p.name,
         category: [p.category, p.subcategory, p.childCategory].filter(Boolean).join(' → '),
         price: p.price,
-        actualPrice: p.actualPrice || 0,
+        actualPrice: derivedActualPrice,
         totalStock,
         lowStockThreshold: p.lowStockThreshold || 5,
         sizeBreakdown,
@@ -387,91 +393,13 @@ router.get('/inventory', async (req, res, next) => {
   }
 });
 
-// POST /api/admin/inventory/import-actual-prices
-// Bulk-update internal "actual price" (cost price) from an uploaded Excel sheet.
-// Body: { rows: [{ productCode: 'AB12' | 'RUPLETTERS', actualPrice: 450 }, ...] }
-//
-// The `productCode` field in each row may be either:
-//   - the auto-generated productCode (e.g. AB12 — 2 letters + 2 digits), or
-//   - the admin-set rupalshaCode / R Code (letters only, e.g. RUPSHA).
-// We auto-detect the format and look up against the correct field.
-router.post('/inventory/import-actual-prices', async (req, res, next) => {
-  try {
-    const { rows } = req.body || {};
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return res.status(400).json({ message: 'rows must be a non-empty array' });
-    }
-    if (rows.length > 5000) {
-      return res.status(400).json({ message: 'Too many rows (max 5000 per upload)' });
-    }
-
-    const results = {
-      updated: 0,
-      notFound: [],
-      invalid: [],
-    };
-
-    const AUTO_RE = /^[A-Z]{2}\d{2}$/;   // productCode
-    const RCODE_RE = /^[A-Z]+$/;          // rupalshaCode (letters only)
-
-    const ops = [];
-    const productCodes = [];
-    const rupalshaCodes = [];
-
-    for (let i = 0; i < rows.length; i++) {
-      const raw = rows[i] || {};
-      const code = String(raw.productCode || '').trim().toUpperCase();
-      const priceNum = Number(raw.actualPrice);
-
-      const isAuto = AUTO_RE.test(code);
-      const isRCode = !isAuto && RCODE_RE.test(code);
-
-      if ((!isAuto && !isRCode) || !Number.isFinite(priceNum) || priceNum < 0) {
-        results.invalid.push({ row: i + 1, productCode: raw.productCode, actualPrice: raw.actualPrice });
-        continue;
-      }
-
-      const filter = isAuto ? { productCode: code } : { rupalshaCode: code };
-      if (isAuto) productCodes.push(code); else rupalshaCodes.push(code);
-
-      ops.push({
-        updateOne: {
-          filter,
-          update: { $set: { actualPrice: priceNum } },
-        },
-      });
-    }
-
-    if (ops.length > 0) {
-      const bulkResult = await Product.bulkWrite(ops, { ordered: false });
-      results.updated = bulkResult.modifiedCount || 0;
-
-      // Determine which codes did not match any product (check both fields).
-      const existing = await Product.find({
-        $or: [
-          { productCode: { $in: productCodes } },
-          { rupalshaCode: { $in: rupalshaCodes } },
-        ],
-      })
-        .select('+rupalshaCode productCode')
-        .lean();
-      const foundAuto = new Set(existing.map(p => p.productCode).filter(Boolean));
-      const foundR = new Set(existing.map(p => p.rupalshaCode).filter(Boolean));
-      results.notFound = [
-        ...productCodes.filter(c => !foundAuto.has(c)),
-        ...rupalshaCodes.filter(c => !foundR.has(c)),
-      ];
-    }
-
-    res.json({
-      message: `Updated ${results.updated} product(s)`,
-      ...results,
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
+// POST /api/admin/inventory/import-actual-prices — REMOVED
+// Cost prices ("actual price") are now derived automatically from each
+// product's rupalshaCode using the GOLDMASTER cipher defined in the
+// Product model (G=1, O=2, L=3, D=4, M=5, A=6, S=7, T=8, E=9, R=0). The
+// import endpoint and matching Excel template are therefore no longer
+// needed — admins maintain the R-code on the product itself and the
+// numeric cost is computed at save time and at read time.
 
 // GET /api/admin/orders
 router.get('/orders', async (req, res, next) => {

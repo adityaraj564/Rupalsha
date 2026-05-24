@@ -191,6 +191,32 @@ const productSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+// ----- GOLDMASTER cipher --------------------------------------------------
+// The owner maintains internal cost prices encoded as letters using a
+// fixed substitution cipher (G=1, O=2, L=3, D=4, M=5, A=6, S=7, T=8,
+// E=9, R=0). The rupalshaCode field on every product is the encoded cost
+// — so we can derive the real numeric "actual price" purely from the
+// code. Examples: GSM -> 175, SR -> 70, GLD -> 134, TER -> 890.
+//
+// Exposed as a static so admin routes/UI helpers can reuse the same
+// mapping (e.g. to back-fill stored actualPrice for products that were
+// created before this cipher existed).
+const GOLDMASTER_MAP = {
+  G: 1, O: 2, L: 3, D: 4, M: 5, A: 6, S: 7, T: 8, E: 9, R: 0,
+};
+function computeActualPriceFromRCode(code) {
+  if (!code) return 0;
+  const cleaned = String(code).trim().toUpperCase().replace(/[^A-Z]/g, '');
+  if (!cleaned) return 0;
+  let digits = '';
+  for (const ch of cleaned) {
+    if (!(ch in GOLDMASTER_MAP)) return 0; // unknown letter — refuse to guess
+    digits += String(GOLDMASTER_MAP[ch]);
+  }
+  const num = Number(digits);
+  return Number.isFinite(num) ? num : 0;
+}
+
 // Generate slug and auto-generate unique productCode before saving
 productSchema.pre('save', async function (next) {
   // Only generate a slug on creation. Regenerating it on every name edit
@@ -213,8 +239,20 @@ productSchema.pre('save', async function (next) {
     }
     this.productCode = code;
   }
+  // Derive actualPrice from rupalshaCode whenever the R-code is set so
+  // the admin never has to maintain the cost price in two places. Old
+  // imported prices are overwritten on save — the cipher is the single
+  // source of truth going forward.
+  if (this.rupalshaCode) {
+    this.actualPrice = computeActualPriceFromRCode(this.rupalshaCode);
+  } else if (this.isModified('rupalshaCode')) {
+    // Code was cleared on this save — reset the derived price too.
+    this.actualPrice = 0;
+  }
   next();
 });
+
+productSchema.statics.computeActualPriceFromRCode = computeActualPriceFromRCode;
 
 // Index for search
 productSchema.index({ name: 'text', description: 'text', tags: 'text' });

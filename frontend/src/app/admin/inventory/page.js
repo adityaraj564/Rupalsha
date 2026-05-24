@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { FiDownload, FiPackage, FiAlertTriangle, FiXCircle, FiCheckCircle, FiSearch, FiUpload, FiFileText } from 'react-icons/fi';
+import { useEffect, useState } from 'react';
+import { FiDownload, FiPackage, FiAlertTriangle, FiXCircle, FiCheckCircle, FiSearch } from 'react-icons/fi';
 import { adminAPI } from '@/lib/api';
 import { AdminTableSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
@@ -13,9 +13,6 @@ export default function AdminInventoryPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState(null);
-  const fileInputRef = useRef(null);
 
   const fetchInventory = async (stockFilter) => {
     try {
@@ -83,63 +80,6 @@ export default function AdminInventoryPage() {
     toast.success('Excel file downloaded!');
   };
 
-  const downloadTemplate = () => {
-    const sample = [
-      { 'Product Code': 'AB12',   'Actual Price': 450 },
-      { 'Product Code': 'RUPSHA', 'Actual Price': 1200 },
-    ];
-    const ws = XLSX.utils.json_to_sheet(sample);
-    ws['!cols'] = [{ wch: 18 }, { wch: 16 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Actual Prices');
-    XLSX.writeFile(wb, 'Rupalsha_ActualPrice_Template.xlsx');
-  };
-
-  const normalizeRow = (row) => {
-    // Accept various header names: "Product Code"/"R Code"/"Rupalsha Code"/"Code"
-    // and "Actual Price"/"Cost Price"/"Price".
-    const keys = Object.keys(row);
-    const findKey = (candidates) =>
-      keys.find((k) => candidates.some((c) => k.toLowerCase().replace(/[^a-z0-9]/g, '') === c));
-    const codeKey = findKey(['productcode', 'rcode', 'rupalshacode', 'code']);
-    const priceKey = findKey(['actualprice', 'price', 'costprice', 'cost']);
-    if (!codeKey || !priceKey) return null;
-    return {
-      productCode: String(row[codeKey] ?? '').trim().toUpperCase(),
-      actualPrice: Number(row[priceKey]),
-    };
-  };
-
-  const handleFileSelected = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // allow re-selecting same file
-    if (!file) return;
-    setImportResult(null);
-    setImporting(true);
-    try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      if (!ws) throw new Error('Spreadsheet is empty');
-      const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      const rows = raw.map(normalizeRow).filter(Boolean);
-      if (rows.length === 0) {
-        toast.error('No valid rows found. Ensure columns: "Product Code" and "Actual Price".');
-        setImporting(false);
-        return;
-      }
-      const result = await adminAPI.importActualPrices(rows);
-      setImportResult(result);
-      toast.success(result.message || `Updated ${result.updated} product(s)`);
-      fetchInventory();
-    } catch (err) {
-      console.error(err);
-      toast.error(err?.message || 'Failed to import Excel');
-    } finally {
-      setImporting(false);
-    }
-  };
-
   if (loading) return <AdminTableSkeleton />;
 
   return (
@@ -147,30 +87,6 @@ export default function AdminInventoryPage() {
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-brand-charcoal">Inventory Management</h1>
         <div className="flex items-center gap-2 flex-wrap">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleFileSelected}
-            className="hidden"
-          />
-          <button
-            onClick={downloadTemplate}
-            className="text-sm py-2 px-3 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
-            type="button"
-            title="Download a sample Excel with the expected columns"
-          >
-            <FiFileText size={16} /> Template
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="text-sm py-2 px-3 rounded-lg bg-brand-charcoal text-white hover:opacity-90 disabled:opacity-60 flex items-center gap-2"
-            type="button"
-            title="Upload an Excel sheet with Product Code and Actual Price"
-          >
-            <FiUpload size={16} /> {importing ? 'Importing…' : 'Import Actual Prices'}
-          </button>
           <button
             onClick={downloadExcel}
             className="btn-primary text-sm py-2 flex items-center gap-2"
@@ -180,33 +96,6 @@ export default function AdminInventoryPage() {
           </button>
         </div>
       </div>
-
-      {importResult && (
-        <div className="mb-4 p-4 rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 text-sm">
-          <div className="flex items-center justify-between mb-2">
-            <p className="font-semibold">
-              Import complete — {importResult.updated} product(s) updated
-            </p>
-            <button
-              onClick={() => setImportResult(null)}
-              className="text-xs text-gray-400 hover:text-gray-600"
-            >
-              Dismiss
-            </button>
-          </div>
-          {importResult.notFound?.length > 0 && (
-            <p className="text-amber-600 text-xs mb-1">
-              Not found ({importResult.notFound.length}): {importResult.notFound.slice(0, 20).join(', ')}
-              {importResult.notFound.length > 20 ? '…' : ''}
-            </p>
-          )}
-          {importResult.invalid?.length > 0 && (
-            <p className="text-red-600 text-xs">
-              Invalid rows ({importResult.invalid.length}) skipped. Code must be either the auto Product Code (AB12 format — 2 letters + 2 digits) or the R Code (letters only, e.g. RUPSHA), and Actual Price must be a number.
-            </p>
-          )}
-        </div>
-      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
