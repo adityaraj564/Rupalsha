@@ -693,6 +693,9 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
                 </button>
               ))}
             </div>
+            {selectedSize && getStockForSize(selectedSize) <= 5 && getStockForSize(selectedSize) > 0 && (
+              <p className="text-orange-500 text-sm mt-2">Only {getStockForSize(selectedSize)} left in stock!</p>
+            )}
           </div>
 
           {/* Actions */}
