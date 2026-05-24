@@ -58,11 +58,11 @@ function ProductCard({ product }) {
   const totalStock = product.sizes?.reduce((sum, s) => sum + s.stock, 0) || 0;
   const isOutOfStock = totalStock === 0;
   // ---- Social-proof signals (all derived from real data) ---------------
-  // Low-stock threshold falls back to 5 when the admin hasn't customised
-  // it on the product. We only show scarcity copy when at least one unit
-  // is still available — otherwise the "Out of Stock" badge takes over.
-  const lowStockThreshold = product.lowStockThreshold ?? 5;
-  const isLowStock = !isOutOfStock && totalStock <= lowStockThreshold;
+  // Note: we intentionally do NOT show "Only X left" on cards because the
+  // catalogue ships mostly 1-of-1 inventory, which would make the badge
+  // appear on essentially every product and stop being meaningful. The
+  // scarcity copy still appears on the product detail page where it's
+  // contextual to the user's selected size.
   // "Selling fast" comes from the rolling weekly sales bucket (set in
   // backend at order placement). Only surface it once at least 5 real
   // units have shipped this week — keeps the copy honest.
@@ -230,12 +230,10 @@ function ProductCard({ product }) {
             )}
             {/* Social proof — show the single strongest signal so badges
                 never stack into a wall of stickers. Priority:
-                Only X left  >  Selling fast  >  Popular  >  Trending */}
-            {isLowStock ? (
-              <span className="bg-orange-100 text-orange-700 text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm">
-                Only {totalStock} left
-              </span>
-            ) : isSellingFast ? (
+                Selling fast  >  Popular  >  Trending
+                ("Only X left" intentionally omitted here — see comment
+                above where the signals are computed.) */}
+            {isSellingFast ? (
               <span className="bg-rose-100 text-rose-700 text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm">
                 Selling fast
               </span>
