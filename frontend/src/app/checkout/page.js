@@ -7,6 +7,7 @@ import { useAuthStore, useCartStore } from '@/lib/store';
 import { ordersAPI, couponsAPI, paymentAPI, authAPI, walletAPI, settingsAPI } from '@/lib/api';
 import { CartSkeleton } from '@/components/Skeleton';
 import { useRequireAuth } from '@/components/RequireAuth';
+import { lookupPincode } from '@/lib/pincodeLookup';
 import toast from 'react-hot-toast';
 
 // Generate a per-attempt UUID. Used as the `Idempotency-Key` so that retried
@@ -57,11 +58,9 @@ export default function CheckoutPage() {
     if (pin.length === 6) {
       setFetchingPincode(true);
       try {
-        const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
-        const data = await res.json();
-        if (data[0]?.Status === 'Success' && data[0].PostOffice?.length > 0) {
-          const po = data[0].PostOffice[0];
-          setNewAddress((prev) => ({ ...prev, city: po.District, state: po.State }));
+        const result = await lookupPincode(pin);
+        if (result && result.success) {
+          setNewAddress((prev) => ({ ...prev, city: result.city, state: result.state, addressLine2: result.area || prev.addressLine2 }));
         }
       } catch {}
       setFetchingPincode(false);

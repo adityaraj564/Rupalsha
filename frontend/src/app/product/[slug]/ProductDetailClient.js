@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { FiHeart, FiShoppingBag, FiTruck, FiRefreshCw, FiChevronLeft, FiChevronRight, FiStar, FiMapPin, FiCheck, FiX, FiShare2, FiCamera, FiBell, FiVideo, FiChevronDown, FiPlay, FiPause } from 'react-icons/fi';
 import { productsAPI, reviewsAPI } from '@/lib/api';
+import { lookupPincode } from '@/lib/pincodeLookup';
 import { useAuthStore, useAuthModalStore, useCartStore, useWishlistStore } from '@/lib/store';
 import { useFreeShippingThreshold } from '@/lib/useSiteSettings';
 import SizeGuideModal from '@/components/SizeGuideModal';
@@ -196,13 +197,11 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
     setCheckingPincode(true);
     setPincodeResult(null);
     try {
-      const res = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
-      const data = await res.json();
-      if (data[0]?.Status === 'Success') {
-        const postOffice = data[0].PostOffice[0];
+      const result = await lookupPincode(pincode);
+      if (result && result.success) {
         setPincodeResult({
           deliverable: true,
-          message: `Delivery available to ${postOffice.Name}, ${postOffice.District}, ${postOffice.State}. Estimated delivery in 5-7 business days.`,
+          message: `Delivery available to ${result.area}, ${result.city}, ${result.state}. Estimated delivery in 5-7 business days.`,
         });
       } else {
         setPincodeResult({
