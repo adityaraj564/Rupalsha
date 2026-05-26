@@ -5,6 +5,7 @@ import Footer from '@/components/Footer';
 import WhatsAppFloat from '@/components/WhatsAppFloat';
 import AuthInit from '@/components/AuthInit';
 import AuthModal from '@/components/AuthModal';
+import LoginPrompt from '@/components/LoginPrompt';
 import TopProgressBar from '@/components/TopProgressBar';
 import PWAInstallPopup from '@/components/PWAInstallPopup';
 import { serverFetchSafe } from '@/lib/serverApi';
@@ -164,6 +165,7 @@ export default async function RootLayout({ children }) {
         <Footer />
         <WhatsAppFloat />
         <AuthModal />
+        <LoginPrompt />
         <PWAInstallPopup />
       </body>
     </html>
