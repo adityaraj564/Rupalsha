@@ -72,7 +72,7 @@ function productToXml(p) {
 
   // Map to Google product category (https://www.google.com/basepages/producttype/taxonomy.en-US.txt)
   // Broad fashion fallback — Google will still accept; for better targeting override per-category later.
-  const googleCategory = 'Apparel & Accessories > Clothing';
+  const googleCategory = 'Apparel & Accessories > Jewelry';
 
   const brand = 'Rupalsha';
 
@@ -120,7 +120,7 @@ export async function GET() {
   <channel>
     <title>Rupalsha — Product Feed</title>
     <link>${SITE_URL}</link>
-    <description>Elegant ethnic and modern fashion. Sarees, kurtis, lehengas and more.</description>
+    <description>Shop modern anti-tarnish jewellery at RUPALSHA. Waterproof, skin-friendly and everyday jewellery.</description>
     ${products.map(productToXml).join('\n')}
   </channel>
 </rss>`;

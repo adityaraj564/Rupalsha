@@ -15,17 +15,17 @@ const ADSENSE_CLIENT_ID =
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.rupalsha.com';
 const SITE_NAME = 'Rupalsha';
-const SITE_DESCRIPTION = 'Discover elegant ethnic and modern fashion at Rupalsha. Shop sarees, kurtis, lehengas, dresses and more. Premium quality, affordable luxury.';
+const SITE_DESCRIPTION = 'Shop modern anti-tarnish jewellery at RUPALSHA. Waterproof, skin-friendly & everyday jewellery designed for comfort, style, and lasting shine.';
 const LOGO_URL = `${SITE_URL}/Rupalsha.png`;
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Rupalsha — Where Comfort Meets Style',
+    default: 'Rupalsha - Where Comfort Meets Style',
     template: '%s | Rupalsha',
   },
   description: SITE_DESCRIPTION,
-  keywords: 'fashion, ethnic wear, sarees, kurtis, lehengas, dresses, women fashion, Indian fashion, Rupalsha',
+  keywords: 'jewellery, anti-tarnish jewellery, waterproof jewellery, skin-friendly jewellery, everyday jewellery, modern jewellery, Rupalsha',
   applicationName: SITE_NAME,
   icons: {
     icon: [
@@ -39,13 +39,13 @@ export const metadata = {
     type: 'website',
     url: SITE_URL,
     siteName: SITE_NAME,
-    title: 'Rupalsha — Where Comfort Meets Style',
+    title: 'Rupalsha - Where Comfort Meets Style',
     description: SITE_DESCRIPTION,
     images: [{ url: LOGO_URL, width: 512, height: 512, alt: 'Rupalsha' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Rupalsha — Where Comfort Meets Style',
+    title: 'Rupalsha - Where Comfort Meets Style',
     description: SITE_DESCRIPTION,
     images: [LOGO_URL],
   },

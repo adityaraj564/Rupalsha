@@ -154,7 +154,7 @@ const sendWelcomeEmail = async (name, email) => {
           <h2 style="color: #1F3A2F; margin-top: 12px;">Welcome, ${name}!</h2>
         </div>
         <p style="color: #2B2B2B; text-align: center; font-size: 16px;">Thank you for joining Rupalsha. We're thrilled to have you!</p>
-        <p style="color: #2B2B2B; text-align: center;">Discover our exquisite collection of ethnic and modern fashion, curated just for you.</p>
+        <p style="color: #2B2B2B; text-align: center;">Discover our exquisite collection of anti-tarnish, waterproof jewellery designed for everyday elegance.</p>
         <div style="text-align: center; margin-top: 24px;">
           <a href="${process.env.FRONTEND_URL}/products" style="display: inline-block; background: #1F3A2F; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: bold;">Start Shopping</a>
         </div>
