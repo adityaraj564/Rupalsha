@@ -61,9 +61,13 @@ function productToXml(p) {
   const availability = hasStock ? 'in_stock' : 'out_of_stock';
 
   // Price — Google requires "1234.00 INR"
-  const price = `${Number(p.price).toFixed(2)} INR`;
-  const salePrice = p.comparePrice && p.comparePrice > p.price
+  // g:price = original/regular price, g:sale_price = discounted selling price
+  const hasDiscount = p.comparePrice && p.comparePrice > p.price;
+  const price = hasDiscount
     ? `${Number(p.comparePrice).toFixed(2)} INR`
+    : `${Number(p.price).toFixed(2)} INR`;
+  const salePrice = hasDiscount
+    ? `${Number(p.price).toFixed(2)} INR`
     : null;
 
   // Map to Google product category (https://www.google.com/basepages/producttype/taxonomy.en-US.txt)

@@ -297,6 +297,9 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
       url: `${siteUrl}/product/${product.slug}`,
       priceCurrency: 'INR',
       price: Number(product.price).toFixed(2),
+      ...(product.comparePrice && product.comparePrice > product.price
+        ? { priceValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }
+        : {}),
       availability: productHasStock
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
