@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FiInstagram, FiMail, FiPhone, FiMapPin, FiYoutube } from 'react-icons/fi';
 import { usePathname } from 'next/navigation';
-import { pagesAPI } from '@/lib/api';
+import { pagesAPI, settingsAPI } from '@/lib/api';
 
 const HELP_LINKS = [
   { href: '/help', label: 'FAQ' },
@@ -27,10 +27,14 @@ const PAYMENT_METHODS = [
 export default function Footer() {
   const pathname = usePathname();
   const [brand, setBrand] = useState(null);
+  const [address, setAddress] = useState('');
 
   useEffect(() => {
     pagesAPI.get('footer-about').then((data) => {
       if (data?.page) setBrand(data.page);
+    }).catch(() => {});
+    settingsAPI.get().then((data) => {
+      if (data?.businessAddress) setAddress(data.businessAddress);
     }).catch(() => {});
   }, []);
 
@@ -118,7 +122,7 @@ export default function Footer() {
               </li>
               <li className="flex items-start gap-3">
                 <FiMapPin className="mt-0.5 flex-shrink-0" />
-                <span>India</span>
+                <span>{address ? address.split('\n').map((line, i) => <span key={i}>{line}{i < address.split('\n').length - 1 && <br />}</span>) : 'India'}</span>
               </li>
             </ul>
           </div>

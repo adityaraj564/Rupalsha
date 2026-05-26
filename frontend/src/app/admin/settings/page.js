@@ -37,6 +37,7 @@ export default function AdminSettingsPage() {
     codEnabled: false,
     unboxingVideoNoticeEnabled: true,
     freeShippingThreshold: 999,
+    businessAddress: '',
   };
   const [form, setForm] = useState(initialForm);
   const [savedForm, setSavedForm] = useState(initialForm);
@@ -51,6 +52,7 @@ export default function AdminSettingsPage() {
           codEnabled: !!data.codEnabled,
           unboxingVideoNoticeEnabled: data.unboxingVideoNoticeEnabled !== false,
           freeShippingThreshold: data.freeShippingThreshold ?? 999,
+          businessAddress: data.businessAddress || '',
         };
         setForm(next);
         setSavedForm(next);
@@ -65,7 +67,8 @@ export default function AdminSettingsPage() {
     Number(form.cancellationFeeCap) !== Number(savedForm.cancellationFeeCap) ||
     form.codEnabled !== savedForm.codEnabled ||
     form.unboxingVideoNoticeEnabled !== savedForm.unboxingVideoNoticeEnabled ||
-    Number(form.freeShippingThreshold) !== Number(savedForm.freeShippingThreshold);
+    Number(form.freeShippingThreshold) !== Number(savedForm.freeShippingThreshold) ||
+    form.businessAddress !== savedForm.businessAddress;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -93,6 +96,7 @@ export default function AdminSettingsPage() {
         codEnabled: form.codEnabled,
         unboxingVideoNoticeEnabled: form.unboxingVideoNoticeEnabled,
         freeShippingThreshold: fst,
+        businessAddress: form.businessAddress,
       });
       const saved = {
         cancellationFeeEnabled: form.cancellationFeeEnabled,
@@ -101,6 +105,7 @@ export default function AdminSettingsPage() {
         codEnabled: form.codEnabled,
         unboxingVideoNoticeEnabled: form.unboxingVideoNoticeEnabled,
         freeShippingThreshold: fst,
+        businessAddress: form.businessAddress,
       };
       setForm(saved);
       setSavedForm(saved);
@@ -150,6 +155,26 @@ export default function AdminSettingsPage() {
             Updates everywhere automatically: header strip, product page, cart, checkout total, and the actual shipping charge on new orders.
             <br />
             <span className="opacity-80">Tip: the marquee strip on the homepage and the "Shipping Policy" page are separately editable from Content Admin → Pages → marquee_items / shipping_policy. Update them too if you change this number.</span>
+          </div>
+        </div>
+
+        {/* Business Address */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+          <div className="flex-1">
+            <h2 className="font-semibold text-lg text-brand-charcoal dark:text-white">Business Address</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Displayed in the website footer. Required by Google Merchant Center for trust verification.
+            </p>
+          </div>
+          <div className="mt-4">
+            <textarea
+              rows={3}
+              value={form.businessAddress}
+              onChange={(e) => setForm({ ...form, businessAddress: e.target.value })}
+              placeholder="e.g. Ganja Gali Dharamshala Road, Chirkunda&#10;Dist: Dhanbad, Jharkhand — 828202"
+              className="input-field w-full resize-none"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Use line breaks for multi-line address</p>
           </div>
         </div>
 

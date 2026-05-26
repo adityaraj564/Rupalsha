@@ -16,6 +16,7 @@ router.get('/', async (req, res, next) => {
       codEnabled: settings.codEnabled,
       unboxingVideoNoticeEnabled: settings.unboxingVideoNoticeEnabled !== false,
       freeShippingThreshold: settings.freeShippingThreshold ?? 999,
+      businessAddress: settings.businessAddress || '',
     });
   } catch (err) {
     next(err);
@@ -33,6 +34,7 @@ router.put(
     body('codEnabled').optional().isBoolean(),
     body('unboxingVideoNoticeEnabled').optional().isBoolean(),
     body('freeShippingThreshold').optional().isFloat({ min: 0 }),
+    body('businessAddress').optional().isString().trim(),
   ],
   async (req, res, next) => {
     try {
@@ -59,6 +61,9 @@ router.put(
         const n = Number(req.body.freeShippingThreshold);
         if (Number.isFinite(n) && n >= 0) settings.freeShippingThreshold = n;
       }
+      if (req.body.businessAddress !== undefined) {
+        settings.businessAddress = String(req.body.businessAddress).trim();
+      }
       await settings.save();
 
       res.json({
@@ -68,6 +73,7 @@ router.put(
         codEnabled: settings.codEnabled,
         unboxingVideoNoticeEnabled: settings.unboxingVideoNoticeEnabled !== false,
         freeShippingThreshold: settings.freeShippingThreshold ?? 999,
+        businessAddress: settings.businessAddress || '',
       });
     } catch (err) {
       next(err);

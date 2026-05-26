@@ -25,6 +25,9 @@ const siteSettingsSchema = new mongoose.Schema({
   // Editable from Admin → Site Settings. Default mirrors the original
   // hard-coded ₹999 so existing live behaviour is unchanged on first deploy.
   freeShippingThreshold: { type: Number, default: 999, min: 0 },
+
+  // Business address displayed in the footer. Editable from Admin → Settings.
+  businessAddress: { type: String, default: '' },
 }, { timestamps: true });
 
 siteSettingsSchema.statics.getSingleton = async function () {
