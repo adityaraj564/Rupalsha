@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { FiHeart, FiShoppingBag, FiTruck, FiRefreshCw, FiChevronLeft, FiChevronRight, FiStar, FiMapPin, FiCheck, FiX, FiShare2, FiCamera, FiBell, FiVideo, FiChevronDown, FiPlay, FiPause } from 'react-icons/fi';
 import { productsAPI, reviewsAPI } from '@/lib/api';
+import { gaViewItem, gaAddToCart } from '@/lib/analytics';
 import { lookupPincode } from '@/lib/pincodeLookup';
 import { useAuthStore, useAuthModalStore, useCartStore, useWishlistStore } from '@/lib/store';
 import { useFreeShippingThreshold } from '@/lib/useSiteSettings';
@@ -126,6 +127,7 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
       if (sessionStorage.getItem(key)) return;
       sessionStorage.setItem(key, '1');
       productsAPI.trackView(product._id);
+      gaViewItem(product);
     } catch {
       // sessionStorage unavailable (private mode etc) — skip silently.
     }
@@ -146,6 +148,7 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
     setAddingToCart(true);
     try {
       await addToCart(product._id, selectedSize);
+      gaAddToCart(product, { size: selectedSize, quantity: 1 });
       toast.success('Added to cart!');
     } catch (err) {
       toast.error(err.message);
@@ -165,6 +168,7 @@ export default function ProductDetailPage({ initialProduct = null } = {}) {
     }
     try {
       await addToCart(product._id, selectedSize);
+      gaAddToCart(product, { size: selectedSize, quantity: 1 });
       router.push('/checkout');
     } catch (err) {
       toast.error(err.message);

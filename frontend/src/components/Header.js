@@ -9,6 +9,7 @@ import { useAuthStore, useAuthModalStore, useCartStore, useWishlistStore, useThe
 import NotificationBell from './NotificationBell';
 import { couponsAPI, categoriesAPI } from '@/lib/api';
 import { useFreeShippingThreshold } from '@/lib/useSiteSettings';
+import { gaSearch } from '@/lib/analytics';
 import toast from 'react-hot-toast';
 
 const NAV_LINKS = [
@@ -251,6 +252,7 @@ export default function Header() {
     const trimmed = searchQuery.trim();
     if (trimmed.length === 0) return;
     addToSearchHistory(trimmed);
+    gaSearch(trimmed);
     // Pressing Enter just makes sure we're on the products page with the
     // current query — the live debounced effect below already keeps the
     // URL in sync as the user types. We deliberately do NOT close the

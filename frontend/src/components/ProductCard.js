@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FiHeart } from 'react-icons/fi';
 import { useAuthStore, useAuthModalStore, useCartStore, useWishlistStore } from '@/lib/store';
+import { gaSelectItem, gaAddToCart, gaAddToWishlist } from '@/lib/analytics';
 import toast from 'react-hot-toast';
 
 // Module-level cache for the device's hover capability. `matchMedia` is
@@ -44,6 +45,7 @@ function ProductCard({ product }) {
         toast.success('Removed from wishlist');
       } else {
         await addItem(product._id);
+        gaAddToWishlist(product);
         toast.success('Added to wishlist');
       }
     } catch (err) {
@@ -175,6 +177,7 @@ function ProductCard({ product }) {
     setAdding(true);
     try {
       await addToCart(product._id, firstInStockSize);
+      gaAddToCart(product, { size: firstInStockSize, quantity: 1 });
       toast.success('Added to bag!');
     } catch (err) {
       toast.error(err.message || 'Could not add to bag');
@@ -184,7 +187,12 @@ function ProductCard({ product }) {
   };
 
   return (
-    <Link href={`/product/${product.slug}`} className="group block" ref={cardRef}>
+    <Link
+      href={`/product/${product.slug}`}
+      className="group block"
+      ref={cardRef}
+      onClick={() => gaSelectItem(product, 'product_grid')}
+    >
       <div className={`card overflow-hidden ${isOutOfStock ? 'opacity-60' : ''}`}>
         {/* Image */}
         <div

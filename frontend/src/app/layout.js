@@ -8,6 +8,7 @@ import AuthModal from '@/components/AuthModal';
 import LoginPrompt from '@/components/LoginPrompt';
 import TopProgressBar from '@/components/TopProgressBar';
 import PWAInstallPopup from '@/components/PWAInstallPopup';
+import Analytics from '@/components/Analytics';
 import { serverFetchSafe } from '@/lib/serverApi';
 
 const ADSENSE_CLIENT_ID =
@@ -168,6 +169,7 @@ export default async function RootLayout({ children }) {
         <AuthModal />
         <LoginPrompt />
         <PWAInstallPopup />
+        <Analytics />
       </body>
     </html>
   );

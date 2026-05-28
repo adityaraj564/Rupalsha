@@ -8,6 +8,7 @@ import { ordersAPI, couponsAPI, paymentAPI, authAPI, walletAPI, settingsAPI } fr
 import { CartSkeleton } from '@/components/Skeleton';
 import { useRequireAuth } from '@/components/RequireAuth';
 import { lookupPincode } from '@/lib/pincodeLookup';
+import { gaBeginCheckout, gaPurchase } from '@/lib/analytics';
 import toast from 'react-hot-toast';
 
 // Generate a per-attempt UUID. Used as the `Idempotency-Key` so that retried
@@ -51,6 +52,21 @@ export default function CheckoutPage() {
   // Hard guard against double submit even if `processing` state hasn't
   // updated yet (React 18 batches state).
   const inflightRef = useRef(false);
+
+  // Fire GA4 begin_checkout once per checkout session (the first time we
+  // have a non-empty cart on this page). Re-runs if the cart is mutated
+  // back to empty and refilled, which matches Google's intent.
+  const beginCheckoutFiredRef = useRef(false);
+  useEffect(() => {
+    if (beginCheckoutFiredRef.current) return;
+    if (!items || items.length === 0) return;
+    beginCheckoutFiredRef.current = true;
+    const sub = items.reduce(
+      (s, it) => s + (it.product?.price || 0) * (it.quantity || 1),
+      0
+    );
+    gaBeginCheckout(items, sub);
+  }, [items]);
 
   const handlePincodeLookup = async (value) => {
     const pin = value.replace(/\D/g, '').slice(0, 6);
@@ -253,12 +269,14 @@ export default function CheckoutPage() {
       }
 
       if (effectivePaymentMethod === 'wallet' || order.isPaid) {
+        gaPurchase(order);
         toast.success('Order placed successfully!');
         router.push(`/orders/${order._id}?success=true`);
         return;
       }
 
       if (effectivePaymentMethod === 'cod') {
+        gaPurchase(order);
         toast.success('Order placed successfully!');
         router.push(`/orders/${order._id}?success=true`);
         return;
@@ -296,6 +314,7 @@ export default function CheckoutPage() {
               razorpay_signature: response.razorpay_signature,
               orderId: order._id,
             });
+            gaPurchase(order);
             toast.success('Payment successful!');
             router.push(`/orders/${order._id}?success=true`);
           } catch {
