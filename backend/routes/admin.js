@@ -427,6 +427,22 @@ router.get('/orders', async (req, res, next) => {
   }
 });
 
+// GET /api/admin/orders/:id — full order details for any user (admin view).
+// Used by the printable shipping-label page so admins can print a packing
+// slip for the courier before dispatch.
+router.get('/orders/:id', async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate('user', 'name email phone')
+      .populate('items.product', 'slug images productCode')
+      .lean();
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    res.json({ order });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // PUT /api/admin/orders/:id/status
 router.put('/orders/:id/status', [
   body('status').isIn(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned']),

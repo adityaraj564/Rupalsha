@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FiTrash2, FiAlertTriangle, FiX, FiEye, FiMapPin, FiUser, FiPhone, FiMail, FiPackage, FiCreditCard, FiCopy, FiTruck, FiDollarSign } from 'react-icons/fi';
+import Link from 'next/link';
+import { FiTrash2, FiAlertTriangle, FiX, FiEye, FiMapPin, FiUser, FiPhone, FiMail, FiPackage, FiCreditCard, FiCopy, FiTruck, FiDollarSign, FiPrinter } from 'react-icons/fi';
 import { adminAPI } from '@/lib/api';
 import { AdminTableSkeleton } from '@/components/Skeleton';
 import toast from 'react-hot-toast';
@@ -173,6 +174,15 @@ export default function AdminOrdersPage() {
                       >
                         <FiEye size={14} />
                       </button>
+                      <Link
+                        href={`/admin/orders/${order._id}/label`}
+                        target="_blank"
+                        rel="noopener"
+                        className="p-1.5 hover:bg-purple-50 rounded-lg text-purple-600 transition-colors"
+                        title="Print shipping label"
+                      >
+                        <FiPrinter size={14} />
+                      </Link>
                       {['cancelled', 'returned'].includes(order.status) && (
                         <button
                           onClick={() => setSelectedOrder(order)}
@@ -227,6 +237,15 @@ export default function AdminOrdersPage() {
                 <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[selectedOrder.status]}`}>
                   {selectedOrder.status}
                 </span>
+                <Link
+                  href={`/admin/orders/${selectedOrder._id}/label`}
+                  target="_blank"
+                  rel="noopener"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg transition-colors"
+                  title="Open printable shipping label in a new tab"
+                >
+                  <FiPrinter size={14} /> Print Label
+                </Link>
                 <button onClick={() => setSelectedOrder(null)} className="p-2 hover:bg-gray-100 rounded-full">
                   <FiX size={18} />
                 </button>
