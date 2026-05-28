@@ -74,6 +74,7 @@ export default async function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="google-site-verification" content="geslJER7z4iu_dg6uba54LhS0GGyk1ad4DWWb_3kroM" />
+        <meta name="p:domain_verify" content="cb9e610e35065e4f1a09880a30e99c5a" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('rupalsha_theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}})()`,
