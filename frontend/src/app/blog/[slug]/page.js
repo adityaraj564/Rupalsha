@@ -22,20 +22,10 @@ export default function BlogDetailPage() {
     blogsAPI.getBySlug(slug)
       .then((data) => {
         setBlog(data.blog);
-        // Update page title
-        if (data.blog?.metaTitle || data.blog?.title) {
-          document.title = `${data.blog.metaTitle || data.blog.title} | Rupalsha Blog`;
-        }
-        // Update meta description
-        if (data.blog?.metaDescription) {
-          let meta = document.querySelector('meta[name="description"]');
-          if (!meta) {
-            meta = document.createElement('meta');
-            meta.name = 'description';
-            document.head.appendChild(meta);
-          }
-          meta.content = data.blog.metaDescription;
-        }
+        // Note: page <title> and <meta description> are set server-side
+        // by `./layout.js` via generateMetadata(). We no longer mutate
+        // them on the client, so the SSR'd values match what Google
+        // crawls and what social cards (OG) preview.
       })
       .catch((err) => setError(err.message || 'Blog not found'))
       .finally(() => setLoading(false));
