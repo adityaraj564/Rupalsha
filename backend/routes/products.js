@@ -216,6 +216,30 @@ router.get('/:slug/similar', async (req, res, next) => {
   }
 });
 
+// GET /api/products/by-code/:code
+// Lookup helper used by deep-link surfaces that only know the public
+// product identifier (e.g. Google Merchant Center `checkout_link_template`
+// sends the feed `<g:id>`, which is `productCode` for items that have
+// one, otherwise the raw Mongo `_id`).
+//
+// Accepts either form so a single `/cart?id={id}` URL works for every
+// product in the catalogue regardless of whether productCode is set.
+router.get('/by-code/:code', async (req, res, next) => {
+  try {
+    const raw = String(req.params.code || '').trim();
+    if (!raw) return res.status(404).json({ error: 'Product not found' });
+
+    const or = [{ productCode: raw.toUpperCase() }];
+    if (mongoose.isValidObjectId(raw)) or.push({ _id: raw });
+
+    const product = await Product.findOne({ $or: or, isActive: true });
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    res.json({ product });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/products/:slug
 router.get('/:slug', async (req, res, next) => {
   try {

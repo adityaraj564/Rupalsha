@@ -1,16 +1,21 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FiMinus, FiPlus, FiTrash2, FiArrowLeft, FiShoppingBag } from 'react-icons/fi';
 import { useCartStore, useAuthStore, useAuthModalStore } from '@/lib/store';
 import { useFreeShippingThreshold } from '@/lib/useSiteSettings';
 import { CartSkeleton } from '@/components/Skeleton';
+import { productsAPI } from '@/lib/api';
+import { gaAddToCart } from '@/lib/analytics';
 import toast from 'react-hot-toast';
 
 export default function CartPage() {
-  const { items, isLoading, fetchCart, hydrate, updateItem, removeItem } = useCartStore();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { items, isLoading, fetchCart, hydrate, addItem, updateItem, removeItem } = useCartStore();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authLoading = useAuthStore((s) => s.isLoading);
   const openAuthModal = useAuthModalStore((s) => s.open);
@@ -22,6 +27,89 @@ export default function CartPage() {
     hydrate();
     if (isAuthenticated) fetchCart(true);
   }, [isAuthenticated, fetchCart, hydrate]);
+
+  // ── Deep-link auto-add ──────────────────────────────────────────────
+  // Surfaces like Google Free Listings, Google Shopping ads and Pinterest
+  // Catalogue Pins all send buyers to:
+  //   /cart?id=<productCode>
+  // (matches the `<g:id>` we emit in /feed.xml — see feed.xml/route.js).
+  //
+  // We resolve that ID to a product and:
+  //   - add it to the cart with the only in-stock size when unambiguous,
+  //   - or redirect to the product page so the user can pick a size when
+  //     multiple are available.
+  //
+  // Auth is required to add to a server-side cart, so an unauthenticated
+  // visit opens the login modal and resumes the add after sign-in. The
+  // `?id` param is stripped from the URL on success so a refresh does
+  // not re-add the item.
+  const handledIdRef = useRef(null);
+  useEffect(() => {
+    const id = searchParams?.get('id');
+    if (!id) return;
+    if (authLoading) return;
+    if (handledIdRef.current === id) return;
+    handledIdRef.current = id;
+
+    const stripId = () => {
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete('id');
+      const qs = next.toString();
+      router.replace(qs ? `/cart?${qs}` : '/cart', { scroll: false });
+    };
+
+    const run = async () => {
+      let product;
+      try {
+        const data = await productsAPI.getByCode(id);
+        product = data?.product;
+      } catch {
+        toast.error('That product could not be found.');
+        stripId();
+        return;
+      }
+      if (!product) {
+        stripId();
+        return;
+      }
+
+      const inStockSizes = (product.sizes || []).filter((s) => s.stock > 0);
+      if (inStockSizes.length === 0) {
+        toast.error(`${product.name} is currently out of stock.`);
+        stripId();
+        return;
+      }
+
+      // Multiple sizes — send the buyer to the product page to choose.
+      if (inStockSizes.length > 1) {
+        toast('Choose a size to continue', { icon: '👕' });
+        router.replace(`/product/${product.slug}`);
+        return;
+      }
+
+      // Single size — add immediately. Resume after login if needed.
+      const size = inStockSizes[0].size;
+      if (!useAuthStore.getState().isAuthenticated) {
+        openAuthModal('login', () => {
+          // Reset the guard so the resumed flow re-runs the add for this id.
+          handledIdRef.current = null;
+        });
+        return;
+      }
+
+      try {
+        await addItem(product._id, size);
+        gaAddToCart(product, { size, quantity: 1 });
+        toast.success(`${product.name} added to your cart`);
+      } catch (err) {
+        toast.error(err?.message || 'Could not add to cart');
+      } finally {
+        stripId();
+      }
+    };
+
+    run();
+  }, [searchParams, authLoading, addItem, openAuthModal, router]);
 
   // Show skeleton only when we have nothing to render yet — never when we
   // already have cached items waiting on a background refresh.

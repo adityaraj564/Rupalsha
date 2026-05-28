@@ -310,6 +310,13 @@ export const productsAPI = {
   },
   getSimilar: (slug, limit = 8, { onFresh } = {}) =>
     swr(`similar:${slug}:${limit}`, () => request(`/products/${slug}/similar?limit=${limit}`), CACHE_TTL.medium, { alwaysRevalidate: true, onFresh }),
+  // Resolve a product by its public identifier (productCode like AB12, or
+  // Mongo _id as a fallback). Used by the `/cart?id=...` deep link so
+  // external surfaces (Google Merchant Center checkout_link_template,
+  // Pinterest Catalogue, etc.) can land users straight in a pre-filled
+  // cart without exposing internal slugs.
+  getByCode: (code) =>
+    request(`/products/by-code/${encodeURIComponent(code)}`),
   getCategories: () =>
     swr('productCategories', () => request('/products/categories'), CACHE_TTL.medium),
   // Bump real view counters for social-proof copy. Public + idempotent
