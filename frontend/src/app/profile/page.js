@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   FiUser, FiPackage, FiHeart, FiMapPin, FiLock, FiLogOut, FiEdit2, FiTrash2,
   FiCreditCard, FiMail, FiPhone, FiCalendar, FiShield, FiChevronRight, FiPlus,
-  FiCheckCircle, FiCheck, FiHome, FiSmartphone, FiBell,
+  FiCheckCircle, FiCheck, FiHome, FiSmartphone, FiBell, FiGift,
 } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store';
 import { authAPI, walletAPI, ordersAPI, wishlistAPI, notificationsAPI } from '@/lib/api';
@@ -280,7 +280,7 @@ export default function ProfilePage() {
       </div>
 
       {/* ===== Stat Cards (clean, flat, monochrome accents) ===== */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-8">
         <StatCard
           href="/orders"
           icon={FiPackage}
@@ -293,6 +293,12 @@ export default function ProfilePage() {
           label="Wallet balance"
           value={stats.wallet === null ? '—' : `₹${Number(stats.wallet).toLocaleString('en-IN')}`}
           accent
+        />
+        <StatCard
+          href="/rewards"
+          icon={FiGift}
+          label="Rewards"
+          value="View"
         />
         <StatCard
           href="/wishlist"

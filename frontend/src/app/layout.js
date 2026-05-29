@@ -9,7 +9,7 @@ import LoginPrompt from '@/components/LoginPrompt';
 import TopProgressBar from '@/components/TopProgressBar';
 import PWAInstallPopup from '@/components/PWAInstallPopup';
 import Analytics from '@/components/Analytics';
-import SpinController from '@/components/SpinController';
+import RewardController from '@/components/RewardController';
 import { serverFetchSafe } from '@/lib/serverApi';
 
 const ADSENSE_CLIENT_ID =
@@ -172,7 +172,7 @@ export default async function RootLayout({ children }) {
         <LoginPrompt />
         <PWAInstallPopup />
         <Analytics />
-        <SpinController />
+        <RewardController />
       </body>
     </html>
   );

@@ -410,17 +410,16 @@ export const walletAPI = {
   adminAdjust: (data) => request('/wallet/admin/adjust', { method: 'POST', body: data }),
 };
 
-// Spin & loyalty
+// Rewards & loyalty (scratch-card)
 //
 // All endpoints (except `config`) require auth. `eligibility` is the single
-// call the SpinController makes after login to decide which modal to show:
-//   { welcome: bool, comeback: bool, postPurchase: [{orderId, orderNumber}] }
-export const spinAPI = {
-  config: () => request('/spin/config'),
-  eligibility: () => request('/spin/eligibility'),
-  welcome: () => request('/spin/welcome', { method: 'POST' }),
-  comeback: () => request('/spin/comeback', { method: 'POST' }),
-  postPurchase: (orderId) => request(`/spin/post-purchase/${orderId}`, { method: 'POST' }),
+// call the RewardController makes on every navigation to decide which modal
+// to show: { welcome: bool, comeback: bool, postPurchase: [{orderId, orderNumber}] }
+export const rewardsAPI = {
+  config: () => request('/rewards/config'),
+  eligibility: () => request('/rewards/eligibility'),
+  history: () => request('/rewards/history'),
+  postPurchase: (orderId) => request(`/rewards/post-purchase/${orderId}`, { method: 'POST' }),
 };
 
 // Reviews

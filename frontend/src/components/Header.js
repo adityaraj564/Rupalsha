@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon, FiLogOut, FiCreditCard } from 'react-icons/fi';
+import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon, FiLogOut, FiCreditCard, FiGift } from 'react-icons/fi';
 import { useAuthStore, useAuthModalStore, useCartStore, useWishlistStore, useThemeStore } from '@/lib/store';
 import NotificationBell from './NotificationBell';
 import { couponsAPI, categoriesAPI } from '@/lib/api';
@@ -539,6 +539,13 @@ export default function Header() {
                         >
                           <FiCreditCard size={16} /> Wallet
                         </Link>
+                        <Link
+                          href="/rewards"
+                          onClick={() => setProfileOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <FiGift size={16} /> Rewards
+                        </Link>
                         <hr className="my-1 border-gray-100 dark:border-gray-700" />
                         <button
                           onClick={() => { logout(); toast.success('Logged out'); setProfileOpen(false); router.push('/'); }}
@@ -682,6 +689,8 @@ export default function Header() {
                 <>
                   <Link href="/profile" onClick={() => setMobileMenuOpen(false)} className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">My Account</Link>
                   <Link href="/orders" onClick={() => setMobileMenuOpen(false)} className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">My Orders</Link>
+                  <Link href="/wallet" onClick={() => setMobileMenuOpen(false)} className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">Wallet</Link>
+                  <Link href="/rewards" onClick={() => setMobileMenuOpen(false)} className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">Rewards</Link>
                   <Link href="/wishlist" onClick={() => setMobileMenuOpen(false)} className="block py-3 px-4 text-brand-charcoal dark:text-gray-200 hover:bg-brand-cream dark:hover:bg-gray-800 rounded-lg">Wishlist</Link>
                 </>
               ) : (

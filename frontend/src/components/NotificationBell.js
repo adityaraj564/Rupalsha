@@ -256,7 +256,7 @@ export default function NotificationBell() {
                             <span className="h-2 w-2 mt-1.5 rounded-full bg-brand-green dark:bg-emerald-400 flex-shrink-0" />
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 whitespace-pre-line break-words">
                           {n.message}
                         </p>
                         <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-1">

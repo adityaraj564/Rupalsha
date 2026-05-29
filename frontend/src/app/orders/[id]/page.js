@@ -11,6 +11,7 @@ import { useRequireAuth } from '@/components/RequireAuth';
 import { OrdersSkeleton } from '@/components/Skeleton';
 import ReturnModal from '@/components/ReturnModal';
 import ReturnTracker from '@/components/ReturnTracker';
+import ConfettiBurst from '@/components/ConfettiBurst';
 import toast from 'react-hot-toast';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
@@ -151,11 +152,27 @@ export default function OrderDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 animate-fade-in">
+      {isSuccess && <ConfettiBurst />}
+
       {isSuccess && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center mb-8">
-          <FiCheckCircle className="text-green-600 mx-auto mb-3" size={48} />
-          <h2 className="font-serif text-2xl font-bold text-green-800 mb-2">Order Placed Successfully!</h2>
-          <p className="text-green-700">Thank you for shopping with Rupalsha</p>
+        <div className="relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-emerald-950/40 dark:via-slate-900 dark:to-amber-950/30 border border-emerald-200/70 dark:border-emerald-800/40 rounded-3xl p-8 text-center mb-8 shadow-lg shadow-emerald-100/50 dark:shadow-emerald-900/20 animate-slide-up">
+          <div className="relative inline-flex items-center justify-center w-20 h-20 mb-4">
+            <span className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping" />
+            <span className="absolute inset-2 rounded-full bg-emerald-500/15" />
+            <span className="relative w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <FiCheckCircle className="text-white" size={32} strokeWidth={2.5} />
+            </span>
+          </div>
+          <h2 className="font-serif text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Order Placed Successfully
+          </h2>
+          <p className="text-slate-600 dark:text-slate-300 mt-2 text-sm md:text-base">
+            Thank you for shopping with Rupalsha — your order is confirmed.
+          </p>
+          <div className="mt-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/70 dark:bg-slate-900/60 border border-emerald-200/60 dark:border-emerald-800/40 text-xs font-semibold text-emerald-700 dark:text-emerald-300 tracking-wider uppercase">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Confirmation sent to your email
+          </div>
         </div>
       )}
 

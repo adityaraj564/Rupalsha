@@ -562,16 +562,16 @@ router.put('/:id/cancel', auth, [
     order.cancelReason = req.body.reason;
     order.cancellationFee = cancellationFee;
 
-    // Void any pending post-purchase spin reward — cancelling forfeits the
+    // Void any pending post-purchase reward — cancelling forfeits the
     // wallet credit the user "won" at checkout time.
     try {
-      const Spin = require('../models/Spin');
-      await Spin.updateOne(
+      const Reward = require('../models/Reward');
+      await Reward.updateOne(
         { type: 'post_purchase', order: order._id, creditStatus: 'pending' },
         { $set: { creditStatus: 'voided' } }
       );
-    } catch (spinErr) {
-      console.error('[spin] void on cancel failed:', spinErr.message);
+    } catch (rewardErr) {
+      console.error('[reward] void on cancel failed:', rewardErr.message);
     }
 
     // Refund handling

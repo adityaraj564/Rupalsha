@@ -12,6 +12,8 @@ Disallow: /cart
 Disallow: /orders
 Disallow: /profile
 Disallow: /wishlist
+Disallow: /wallet
+Disallow: /rewards
 
 Sitemap: ${SITE_URL}/sitemap.xml
 `;
