@@ -20,10 +20,23 @@ import { rewardsAPI } from '@/lib/api';
 import { useRequireAuth } from '@/components/RequireAuth';
 import RewardModal from '@/components/RewardModal';
 
-// In-memory cache (per tab session) so revisiting /rewards paints
-// instantly while a background fetch refreshes the data. Cleared on full
-// page reload — that's fine, the dashboard endpoint is fast anyway.
-let dashboardCache = null;
+// Persistent cache so the page paints instantly on every visit — even
+// after a full reload. Mirrors the wallet page's snappy UX. A background
+// fetch always refreshes the data after mount.
+const REWARDS_CACHE_KEY = 'rupalsha_rewards_cache';
+
+const readDashboardCache = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(REWARDS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+
+const writeDashboardCache = (data) => {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(REWARDS_CACHE_KEY, JSON.stringify(data)); } catch {}
+};
 
 const TYPE_COPY = {
   welcome:       { label: 'Welcome reward',  hint: 'Legacy welcome bonus.' },
@@ -61,10 +74,13 @@ export default function RewardsPage() {
   const router = useRouter();
   const isAuthed = useRequireAuth();
 
-  const [config, setConfig] = useState(dashboardCache?.config || null);
-  const [eligibility, setEligibility] = useState(dashboardCache?.eligibility || { postPurchase: [] });
-  const [history, setHistory] = useState(dashboardCache?.history || []);
-  const [loading, setLoading] = useState(!dashboardCache);
+  // Hydrate from localStorage so balance, pending and history render the
+  // instant the page paints — matches the wallet page's perceived speed.
+  const cached = typeof window !== 'undefined' ? readDashboardCache() : null;
+  const [config, setConfig] = useState(cached?.config || null);
+  const [eligibility, setEligibility] = useState(cached?.eligibility || { postPurchase: [] });
+  const [history, setHistory] = useState(cached?.history || []);
+  const [loading, setLoading] = useState(!cached);
   const [refreshing, setRefreshing] = useState(false);
   // The reward card currently being scratched in the modal. Local to this
   // page so we don't fight with the global RewardController.
@@ -75,7 +91,7 @@ export default function RewardsPage() {
   const load = useCallback(async () => {
     try {
       const data = await rewardsAPI.dashboard();
-      dashboardCache = data;
+      writeDashboardCache(data);
       if (!mountedRef.current) return;
       setConfig(data.config);
       setEligibility(data.eligibility || { postPurchase: [] });
