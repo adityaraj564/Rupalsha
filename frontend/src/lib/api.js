@@ -410,6 +410,19 @@ export const walletAPI = {
   adminAdjust: (data) => request('/wallet/admin/adjust', { method: 'POST', body: data }),
 };
 
+// Spin & loyalty
+//
+// All endpoints (except `config`) require auth. `eligibility` is the single
+// call the SpinController makes after login to decide which modal to show:
+//   { welcome: bool, comeback: bool, postPurchase: [{orderId, orderNumber}] }
+export const spinAPI = {
+  config: () => request('/spin/config'),
+  eligibility: () => request('/spin/eligibility'),
+  welcome: () => request('/spin/welcome', { method: 'POST' }),
+  comeback: () => request('/spin/comeback', { method: 'POST' }),
+  postPurchase: (orderId) => request(`/spin/post-purchase/${orderId}`, { method: 'POST' }),
+};
+
 // Reviews
 export const reviewsAPI = {
   getByProduct: (productId, params) => {

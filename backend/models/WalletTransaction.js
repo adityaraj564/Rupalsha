@@ -8,6 +8,7 @@ const TX_SOURCES = [
   'order_refund',      // reversal when an order is cancelled
   'admin_credit',      // manual admin credit
   'admin_debit',       // manual admin debit / adjustment
+  'spin_reward',       // loyalty spin payout (welcome / post-purchase / comeback)
 ];
 
 const walletTxSchema = new mongoose.Schema({

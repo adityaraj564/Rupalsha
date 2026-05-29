@@ -143,6 +143,7 @@ app.use('/api/content-admin', require('./routes/content-admin'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/spin', require('./routes/spin'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -165,6 +166,13 @@ app.listen(PORT, () => {
   } catch (err) {
     // Never let worker boot kill the API.
     console.error('[queue] failed to start in-process workers:', err.message);
+  }
+  // Background credit of post-purchase spin rewards once their return
+  // window has elapsed. No-op if there are no pending spins.
+  try {
+    require('./utils/spinSweeper').startSpinSweeper();
+  } catch (err) {
+    console.error('[spinSweeper] failed to start:', err.message);
   }
 });
 

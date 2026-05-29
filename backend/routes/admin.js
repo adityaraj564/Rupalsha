@@ -458,6 +458,32 @@ router.put('/orders/:id/status', [
 
     await order.save();
 
+    // Spin reward lifecycle hooks tied to the new status.
+    //   - delivered: schedule the pending post-purchase reward for credit
+    //                at deliveredAt + return window.
+    //   - cancelled / returned: void any pending reward — the customer no
+    //                longer qualifies for the deferred wallet credit.
+    try {
+      const Spin = require('../models/Spin');
+      const { creditableAtFor, RETURN_WINDOW_DAYS } = require('../utils/spinEngine');
+      if (req.body.status === 'delivered') {
+        await Spin.updateOne(
+          { type: 'post_purchase', order: order._id, creditStatus: 'pending' },
+          { $set: { creditableAt: creditableAtFor(order.deliveredAt) } }
+        );
+      } else if (['cancelled', 'returned'].includes(req.body.status)) {
+        await Spin.updateOne(
+          { type: 'post_purchase', order: order._id, creditStatus: 'pending' },
+          { $set: { creditStatus: 'voided' } }
+        );
+      }
+      // RETURN_WINDOW_DAYS referenced for static analysis / future tuning.
+      void RETURN_WINDOW_DAYS;
+    } catch (spinErr) {
+      // Spin hooks are non-critical — never fail an order status update because of them.
+      console.error('[spin] order status hook failed:', spinErr.message);
+    }
+
     // Send status update email to customer
     const populatedOrder = await Order.findById(order._id).populate('user', 'email');
     if (populatedOrder.user?.email) {

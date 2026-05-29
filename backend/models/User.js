@@ -75,6 +75,12 @@ const userSchema = new mongoose.Schema({
   loginOtp: { type: String, select: false },
   loginOtpExpire: { type: Date, select: false },
   loginOtpAttempts: { type: Number, default: 0, select: false },
+
+  // Spin & loyalty state. Stored on the user (rather than derived from the
+  // Spin collection on every request) so the eligibility endpoint can check
+  // welcome / comeback availability with a single document read.
+  welcomeSpinAt: { type: Date },
+  lastSpinAt: { type: Date },
 }, {
   timestamps: true,
 });

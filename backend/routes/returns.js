@@ -276,6 +276,16 @@ router.patch('/:id/status', adminAuth, async (req, res, next) => {
         if (allReturned && order.status !== 'returned') {
           order.status = 'returned';
           await order.save();
+          // Full return — void any pending post-purchase spin reward.
+          try {
+            const Spin = require('../models/Spin');
+            await Spin.updateOne(
+              { type: 'post_purchase', order: order._id, creditStatus: 'pending' },
+              { $set: { creditStatus: 'voided' } }
+            );
+          } catch (spinErr) {
+            console.error('[spin] void on full return failed:', spinErr.message);
+          }
         }
       }
 
