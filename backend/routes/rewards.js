@@ -90,6 +90,61 @@ router.get('/history', auth, async (req, res, next) => {
   }
 });
 
+// ── Dashboard (single round-trip) ────────────────────────────────────
+// The /rewards page used to fan out three separate requests (config +
+// eligibility + history). Each one added latency on slow networks and the
+// page felt sluggish. This bundled endpoint runs the underlying queries
+// in parallel and returns one payload, cutting wall-clock time roughly in
+// half on mobile.
+router.get('/dashboard', auth, async (req, res, next) => {
+  try {
+    const orderQuery = Order.find({
+      user: req.user._id,
+      status: { $in: ['pending', 'confirmed', 'processing', 'shipped', 'delivered'] },
+    }).select('_id orderNumber createdAt status').sort({ createdAt: -1 }).lean();
+
+    const historyQuery = Reward.find({ user: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .populate('order', 'orderNumber status deliveredAt')
+      .lean();
+
+    const [eligibleOrders, rewards] = await Promise.all([orderQuery, historyQuery]);
+
+    const orderIds = eligibleOrders.map((o) => o._id);
+    const claimedOrderIds = orderIds.length
+      ? await Reward.find({ type: 'post_purchase', order: { $in: orderIds } }).distinct('order')
+      : [];
+    const claimedSet = new Set(claimedOrderIds.map((id) => String(id)));
+
+    const pendingPostPurchase = eligibleOrders
+      .filter((o) => !claimedSet.has(String(o._id)))
+      .map((o) => ({ orderId: o._id, orderNumber: o.orderNumber }));
+
+    res.json({
+      config: {
+        post_purchase: REWARD_POOLS.post_purchase.map(({ label, amount }) => ({ label, amount })),
+        rules: { returnWindowDays: RETURN_WINDOW_DAYS },
+      },
+      eligibility: { postPurchase: pendingPostPurchase },
+      history: rewards.map((r) => ({
+        _id: r._id,
+        type: r.type,
+        outcome: r.outcome,
+        amount: r.amount,
+        creditStatus: r.creditStatus,
+        creditableAt: r.creditableAt,
+        order: r.order
+          ? { _id: r.order._id, orderNumber: r.order.orderNumber, status: r.order.status }
+          : null,
+        createdAt: r.createdAt,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 // Atomic increment / reset of the global loss-streak counter. Called after

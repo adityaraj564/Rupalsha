@@ -419,6 +419,10 @@ export const rewardsAPI = {
   config: () => request('/rewards/config'),
   eligibility: () => request('/rewards/eligibility'),
   history: () => request('/rewards/history'),
+  // Bundled config + eligibility + history in a single round-trip. Used by
+  // the /rewards dashboard page so it can paint in one fetch instead of
+  // fanning out three parallel calls.
+  dashboard: () => request('/rewards/dashboard'),
   postPurchase: (orderId) => request(`/rewards/post-purchase/${orderId}`, { method: 'POST' }),
 };
 

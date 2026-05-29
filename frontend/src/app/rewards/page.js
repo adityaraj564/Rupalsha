@@ -10,7 +10,7 @@
 //     post-purchase credits awaiting delivery, voided rewards (cancelled
 //     orders), and better-luck reveals.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -19,7 +19,11 @@ import {
 import { rewardsAPI } from '@/lib/api';
 import { useRequireAuth } from '@/components/RequireAuth';
 import RewardModal from '@/components/RewardModal';
-import toast from 'react-hot-toast';
+
+// In-memory cache (per tab session) so revisiting /rewards paints
+// instantly while a background fetch refreshes the data. Cleared on full
+// page reload — that's fine, the dashboard endpoint is fast anyway.
+let dashboardCache = null;
 
 const TYPE_COPY = {
   welcome:       { label: 'Welcome reward',  hint: 'Legacy welcome bonus.' },
@@ -57,30 +61,34 @@ export default function RewardsPage() {
   const router = useRouter();
   const isAuthed = useRequireAuth();
 
-  const [config, setConfig] = useState(null);
-  const [eligibility, setEligibility] = useState({ postPurchase: [] });
-  const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState(dashboardCache?.config || null);
+  const [eligibility, setEligibility] = useState(dashboardCache?.eligibility || { postPurchase: [] });
+  const [history, setHistory] = useState(dashboardCache?.history || []);
+  const [loading, setLoading] = useState(!dashboardCache);
   const [refreshing, setRefreshing] = useState(false);
   // The reward card currently being scratched in the modal. Local to this
   // page so we don't fight with the global RewardController.
   const [active, setActive] = useState(null);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const load = useCallback(async () => {
     try {
-      const [cfg, elig, hist] = await Promise.all([
-        rewardsAPI.config(),
-        rewardsAPI.eligibility(),
-        rewardsAPI.history(),
-      ]);
-      setConfig(cfg);
-      setEligibility(elig);
-      setHistory(hist.rewards || []);
-    } catch (err) {
-      toast.error(err?.message || 'Failed to load rewards');
+      const data = await rewardsAPI.dashboard();
+      dashboardCache = data;
+      if (!mountedRef.current) return;
+      setConfig(data.config);
+      setEligibility(data.eligibility || { postPurchase: [] });
+      setHistory(data.history || []);
+    } catch {
+      // Swallow — the page renders an inline empty state when there's
+      // nothing to show. A toast for a transient fetch failure on a page
+      // the user opened deliberately would be more noise than signal.
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
