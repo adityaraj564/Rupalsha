@@ -6,6 +6,7 @@
 // the existing logic in ProductsListClient.js \u2014 this only accelerates the
 // first render.
 
+import { Suspense } from 'react';
 import ProductsListClient from './ProductsListClient';
 import { serverFetch, serverHomeAPI } from '@/lib/serverApi';
 
@@ -44,11 +45,15 @@ export default async function ProductsPage({ searchParams }) {
   ]);
 
   return (
-    <ProductsListClient
-      initialProducts={productsData?.products || []}
-      initialTotal={productsData?.total || 0}
-      initialTotalPages={productsData?.totalPages || 1}
-      initialCategoryTree={categoriesData?.categories || []}
-    />
+    // ProductsListClient calls useSearchParams() — wrap in Suspense so the
+    // page can be statically prerendered with the server-fetched data.
+    <Suspense fallback={null}>
+      <ProductsListClient
+        initialProducts={productsData?.products || []}
+        initialTotal={productsData?.total || 0}
+        initialTotalPages={productsData?.totalPages || 1}
+        initialCategoryTree={categoriesData?.categories || []}
+      />
+    </Suspense>
   );
 }

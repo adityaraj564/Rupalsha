@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -17,6 +17,15 @@ import toast from 'react-hot-toast';
 const STATUS_STEPS = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
 
 export default function OrderDetailPage() {
+  // useSearchParams() requires a Suspense boundary at build time.
+  return (
+    <Suspense fallback={null}>
+      <OrderDetailPageInner />
+    </Suspense>
+  );
+}
+
+function OrderDetailPageInner() {
   const { id } = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();

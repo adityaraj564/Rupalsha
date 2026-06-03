@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
 import CategorySidebar from '@/components/CategorySidebar';
@@ -20,6 +20,15 @@ const SORT_OPTIONS = [
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size'];
 
 export default function CategoryPage() {
+  // useSearchParams() requires a Suspense boundary at build time.
+  return (
+    <Suspense fallback={null}>
+      <CategoryPageInner />
+    </Suspense>
+  );
+}
+
+function CategoryPageInner() {
   const { slug } = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();

@@ -3,7 +3,17 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+
+// Read a single URL search param without using next/navigation's
+// useSearchParams — that hook forces every parent route to render
+// dynamically (no static prerender / ISR), which we must avoid in the
+// root layout. Both call sites below run inside useEffect, so reading
+// from window.location at runtime is equivalent.
+function readSearchParam(key) {
+  if (typeof window === 'undefined') return '';
+  return new URLSearchParams(window.location.search).get(key) || '';
+}
 import { FiSearch, FiHeart, FiShoppingBag, FiUser, FiMenu, FiX, FiSun, FiMoon, FiLogOut, FiCreditCard, FiGift } from 'react-icons/fi';
 import { useAuthStore, useAuthModalStore, useCartStore, useWishlistStore, useThemeStore } from '@/lib/store';
 import NotificationBell from './NotificationBell';
@@ -35,7 +45,6 @@ export default function Header() {
   const profileRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [profileOpen, setProfileOpen] = useState(false);
 
   const [showThemeTip, setShowThemeTip] = useState(false);
@@ -240,7 +249,7 @@ export default function Header() {
   useEffect(() => {
     if (!searchOpen) return;
     if (pathname !== '/products') return;
-    const urlQ = searchParams?.get('search') || '';
+    const urlQ = readSearchParam('search');
     if (urlQ && !searchQuery) setSearchQuery(urlQ);
     // We deliberately don't sync in the other direction — typing should
     // overwrite, never the URL clobbering the user's in-progress text.
@@ -277,31 +286,32 @@ export default function Header() {
   // the explicit Enter handler above uses `push` so a deliberate
   // submit becomes a real history entry the user can navigate back to.
   // ------------------------------------------------------------------
-  // Perf: we deliberately do NOT include `pathname`/`searchParams` in
-  // the dep array. Putting them there would re-run this effect (and
-  // restart the timer) every time the URL changes — including in
-  // response to our own `router.replace` calls — wasting one render
-  // and one timer per keystroke. Reading them through refs lets the
-  // effect run only when the user actually types.
-  const navStateRef = useRef({ pathname, searchParams });
+  // Perf: we deliberately do NOT include `pathname` in the dep array.
+  // Putting it there would re-run this effect (and restart the timer)
+  // every time the URL changes — including in response to our own
+  // `router.replace` calls — wasting one render and one timer per
+  // keystroke. Reading it through a ref lets the effect run only when
+  // the user actually types. The current search param is read directly
+  // from window.location.search at fire time so it's always fresh.
+  const navStateRef = useRef({ pathname });
   useEffect(() => {
-    navStateRef.current = { pathname, searchParams };
-  }, [pathname, searchParams]);
+    navStateRef.current = { pathname };
+  }, [pathname]);
 
   useEffect(() => {
     if (!searchOpen) return undefined;
     const trimmed = searchQuery.trim();
     const t = setTimeout(() => {
-      const { pathname: pn, searchParams: sp } = navStateRef.current;
+      const { pathname: pn } = navStateRef.current;
       const onProducts = pn === '/products';
       if (trimmed.length === 0) {
-        if (onProducts && (sp?.get('search') || '')) {
+        if (onProducts && readSearchParam('search')) {
           router.replace('/products');
         }
         return;
       }
       if (trimmed.length < 2) return;
-      const current = sp?.get('search') || '';
+      const current = readSearchParam('search');
       if (current === trimmed && onProducts) return;
       router.replace(`/products?search=${encodeURIComponent(trimmed)}`);
     }, 300);

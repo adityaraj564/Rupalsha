@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -13,6 +13,15 @@ import { gaAddToCart } from '@/lib/analytics';
 import toast from 'react-hot-toast';
 
 export default function CartPage() {
+  // useSearchParams() requires a Suspense boundary at build time.
+  return (
+    <Suspense fallback={null}>
+      <CartPageInner />
+    </Suspense>
+  );
+}
+
+function CartPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { items, isLoading, fetchCart, hydrate, addItem, updateItem, removeItem } = useCartStore();

@@ -56,11 +56,6 @@ export const metadata = {
   },
 };
 
-// Site is highly dynamic (auth, cart, search params in Header) — opt out of
-// static prerendering at the root so Next.js doesn't error on useSearchParams
-// during the Vercel build, and avoids dev-mode hydration mismatches.
-export const dynamic = 'force-dynamic';
-
 export default async function RootLayout({ children }) {
   // Server-fetch the free-shipping threshold so the first paint already
   // shows the admin-configured value (e.g. ₹599) instead of flashing the
