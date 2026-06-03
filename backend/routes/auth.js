@@ -501,4 +501,95 @@ router.post('/google', [
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TEMPORARY DIAGNOSTIC — admin-only. Verifies SMTP connectivity from this
+// host and optionally sends a real test mail. Guarded by SMTP_DIAG_TOKEN so
+// it can't be hit without explicit permission. Remove once prod issue is
+// resolved.
+//
+//   GET /api/auth/_diag/smtp?token=<SMTP_DIAG_TOKEN>
+//     → runs transporter.verify(). Returns the precise SMTP error if any.
+//
+//   GET /api/auth/_diag/smtp?token=<SMTP_DIAG_TOKEN>&to=you@example.com
+//     → also sends a real test mail to the given address.
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/_diag/smtp', async (req, res) => {
+  try {
+    const expected = process.env.SMTP_DIAG_TOKEN;
+    if (!expected || req.query.token !== expected) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    const env = {
+      SMTP_HOST: process.env.SMTP_HOST || null,
+      SMTP_PORT: process.env.SMTP_PORT || null,
+      SMTP_USER_set: !!process.env.SMTP_USER,
+      SMTP_USER_preview: process.env.SMTP_USER
+        ? `${process.env.SMTP_USER.slice(0, 3)}***@${(process.env.SMTP_USER.split('@')[1] || '').slice(0, 12)}`
+        : null,
+      SMTP_PASS_set: !!process.env.SMTP_PASS,
+      SMTP_PASS_length: process.env.SMTP_PASS ? process.env.SMTP_PASS.length : 0,
+      REDIS_URL_set: !!process.env.REDIS_URL,
+      FRONTEND_URL: process.env.FRONTEND_URL || null,
+    };
+
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      return res.json({ ok: false, stage: 'env', error: 'SMTP_USER or SMTP_PASS missing on this server', env });
+    }
+
+    const nodemailer = require('nodemailer');
+    const port = Number(process.env.SMTP_PORT) || 587;
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port,
+      secure: port === 465,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
+    });
+
+    try {
+      await transporter.verify();
+    } catch (err) {
+      return res.json({
+        ok: false,
+        stage: 'verify',
+        error: err.message,
+        code: err.code,
+        command: err.command,
+        responseCode: err.responseCode,
+        response: err.response,
+        env,
+      });
+    }
+
+    let sendResult = null;
+    if (req.query.to) {
+      try {
+        const info = await transporter.sendMail({
+          from: `"Rupalsha SMTP Diag" <${process.env.SMTP_USER}>`,
+          to: String(req.query.to),
+          subject: 'Rupalsha SMTP diagnostic',
+          text: `SMTP test successful at ${new Date().toISOString()}`,
+        });
+        sendResult = { ok: true, messageId: info.messageId, response: info.response, accepted: info.accepted, rejected: info.rejected };
+      } catch (err) {
+        sendResult = {
+          ok: false,
+          error: err.message,
+          code: err.code,
+          command: err.command,
+          responseCode: err.responseCode,
+          response: err.response,
+        };
+      }
+    }
+
+    return res.json({ ok: true, stage: 'verify', env, sendResult });
+  } catch (err) {
+    return res.status(500).json({ ok: false, stage: 'unexpected', error: err.message });
+  }
+});
+
 module.exports = router;
