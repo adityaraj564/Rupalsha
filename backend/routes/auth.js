@@ -15,7 +15,7 @@ const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : nul
 // POST /api/auth/register
 router.post('/register', [
   body('name').trim().notEmpty().withMessage('Name is required'),
-  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+  body('email').isEmail().normalizeEmail({ gmail_remove_dots: false, gmail_remove_subaddress: false }).withMessage('Valid email required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
 ], async (req, res, next) => {
   try {
@@ -54,7 +54,7 @@ router.post('/register', [
 
 // POST /api/auth/login
 router.post('/login', [
-  body('email').isEmail().normalizeEmail(),
+  body('email').isEmail().normalizeEmail({ gmail_remove_dots: false, gmail_remove_subaddress: false }),
   body('password').notEmpty(),
 ], async (req, res, next) => {
   try {
@@ -194,7 +194,7 @@ router.put('/change-password', auth, [
 
 // POST /api/auth/forgot-password
 router.post('/forgot-password', [
-  body('email').isEmail().normalizeEmail(),
+  body('email').isEmail().normalizeEmail({ gmail_remove_dots: false, gmail_remove_subaddress: false }),
 ], async (req, res, next) => {
   try {
     const user = await User.findOne({ email: req.body.email });
@@ -313,7 +313,7 @@ router.delete('/addresses/:id', auth, async (req, res, next) => {
 
 // POST /api/auth/login-otp/request
 router.post('/login-otp/request', [
-  body('email').isEmail().normalizeEmail(),
+  body('email').isEmail().normalizeEmail({ gmail_remove_dots: false, gmail_remove_subaddress: false }),
 ], async (req, res, next) => {
   try {
     const errors = validationResult(req);
@@ -350,7 +350,7 @@ router.post('/login-otp/request', [
 
 // POST /api/auth/login-otp/verify
 router.post('/login-otp/verify', [
-  body('email').isEmail().normalizeEmail(),
+  body('email').isEmail().normalizeEmail({ gmail_remove_dots: false, gmail_remove_subaddress: false }),
   body('otp').isLength({ min: 6, max: 6 }).matches(/^\d{6}$/),
 ], async (req, res, next) => {
   try {
