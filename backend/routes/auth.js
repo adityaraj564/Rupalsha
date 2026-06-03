@@ -529,9 +529,58 @@ router.get('/_diag/smtp', async (req, res) => {
         : null,
       SMTP_PASS_set: !!process.env.SMTP_PASS,
       SMTP_PASS_length: process.env.SMTP_PASS ? process.env.SMTP_PASS.length : 0,
+      RESEND_API_KEY_set: !!process.env.RESEND_API_KEY,
+      EMAIL_FROM: process.env.EMAIL_FROM || null,
       REDIS_URL_set: !!process.env.REDIS_URL,
       FRONTEND_URL: process.env.FRONTEND_URL || null,
     };
+
+    // Resend path (preferred on Render — uses HTTPS, no port blocks).
+    if (process.env.RESEND_API_KEY) {
+      const from = process.env.EMAIL_FROM
+        || (process.env.SMTP_USER ? `"Rupalsha" <${process.env.SMTP_USER}>` : null);
+      if (!from) {
+        return res.json({ ok: false, stage: 'env', error: 'EMAIL_FROM not set (Resend requires a sender)', env });
+      }
+      if (!req.query.to) {
+        // No send target — just confirm the API key shape is plausible.
+        return res.json({
+          ok: true,
+          stage: 'env',
+          transport: 'resend',
+          note: 'Add &to=you@example.com to send a real test mail.',
+          env,
+        });
+      }
+      try {
+        const r = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            from,
+            to: String(req.query.to),
+            subject: 'Rupalsha SMTP diagnostic (via Resend)',
+            html: `<p>Resend test successful at ${new Date().toISOString()}</p>`,
+          }),
+        });
+        const bodyText = await r.text().catch(() => '');
+        let bodyJson = null;
+        try { bodyJson = JSON.parse(bodyText); } catch {}
+        return res.json({
+          ok: r.ok,
+          stage: 'send',
+          transport: 'resend',
+          status: r.status,
+          body: bodyJson || bodyText,
+          env,
+        });
+      } catch (err) {
+        return res.json({ ok: false, stage: 'send', transport: 'resend', error: err.message, env });
+      }
+    }
 
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
       return res.json({ ok: false, stage: 'env', error: 'SMTP_USER or SMTP_PASS missing on this server', env });

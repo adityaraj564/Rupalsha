@@ -21,14 +21,41 @@ const { registerHandler, getHandler, getRegisteredJobNames } = require('./queue'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Handler: email:send
-// Wraps the same SMTP transport used by utils/email.js. Kept self-contained
-// so the worker process can run this without circular imports.
+// Prefers Resend (HTTPS, port 443) when RESEND_API_KEY is set — required on
+// hosts like Render that block outbound SMTP. Falls back to the original
+// nodemailer SMTP path otherwise (e.g. local dev with Gmail credentials).
 // ─────────────────────────────────────────────────────────────────────────────
-async function handleEmailSend(payload) {
-  const { to, subject, html } = payload || {};
-  if (!to || !subject || !html) return;
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
+function _resolveFrom() {
+  // EMAIL_FROM wins (e.g. "Rupalsha <noreply@rupalsha.com>"). Otherwise
+  // build one from SMTP_USER (legacy) so existing deployments keep working.
+  if (process.env.EMAIL_FROM) return process.env.EMAIL_FROM;
+  if (process.env.SMTP_USER) return `"Rupalsha" <${process.env.SMTP_USER}>`;
+  return null;
+}
 
+async function _sendViaResend({ to, subject, html }) {
+  const from = _resolveFrom();
+  if (!from) throw new Error('No sender configured (set EMAIL_FROM or SMTP_USER)');
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+    },
+    body: JSON.stringify({ from, to, subject, html }),
+  });
+
+  if (!res.ok) {
+    let detail = '';
+    try { detail = JSON.stringify(await res.json()); } catch { detail = await res.text().catch(() => ''); }
+    const err = new Error(`Resend HTTP ${res.status}: ${detail || res.statusText}`);
+    err.status = res.status;
+    throw err;
+  }
+}
+
+async function _sendViaSmtp({ to, subject, html }) {
   const port = Number(process.env.SMTP_PORT) || 587;
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -41,11 +68,24 @@ async function handleEmailSend(payload) {
   });
 
   await transporter.sendMail({
-    from: `"Rupalsha" <${process.env.SMTP_USER}>`,
+    from: _resolveFrom() || `"Rupalsha" <${process.env.SMTP_USER}>`,
     to,
     subject,
     html,
   });
+}
+
+async function handleEmailSend(payload) {
+  const { to, subject, html } = payload || {};
+  if (!to || !subject || !html) return;
+
+  if (process.env.RESEND_API_KEY) {
+    await _sendViaResend({ to, subject, html });
+    return;
+  }
+
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
+  await _sendViaSmtp({ to, subject, html });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

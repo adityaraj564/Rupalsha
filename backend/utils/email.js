@@ -295,7 +295,11 @@ const { enqueue } = require('./queue');
 
 const sendSmtp = async ({ to, subject, html }) => {
   try {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return;
+    // Skip silently if no transport is configured. Either Resend (HTTPS,
+    // preferred on hosts that block SMTP like Render) or SMTP credentials.
+    const hasResend = !!process.env.RESEND_API_KEY;
+    const hasSmtp = !!process.env.SMTP_USER && !!process.env.SMTP_PASS;
+    if (!hasResend && !hasSmtp) return;
     if (!to || !subject || !html) return;
     await enqueue('email:send', { to, subject, html });
   } catch (err) {
