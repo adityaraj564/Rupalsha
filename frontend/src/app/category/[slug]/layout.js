@@ -86,7 +86,7 @@ export default async function CategoryLayout({ children, params }) {
         <section className="w-full px-4 sm:px-6 lg:px-20 xl:px-32 pb-12 pt-4 border-t border-gray-100 dark:border-gray-800 mt-12">
           <div className="max-w-3xl mx-auto">
             <h2 className="font-serif text-lg md:text-xl text-brand-charcoal dark:text-gray-200 mb-3">
-              About {cat.name}
+              About Our {cat.name} Collection
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed whitespace-pre-line">
               {cat.description}
