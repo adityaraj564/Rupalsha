@@ -19,6 +19,8 @@ export default function AdminCategoriesPage() {
     name: '',
     parentId: '',
     level: 0,
+    description: '',
+    seoTitle: '',
   });
 
   const fetchCategories = async () => {
@@ -53,13 +55,13 @@ export default function AdminCategoriesPage() {
   };
 
   const resetForm = () => {
-    setForm({ name: '', parentId: '', level: 0 });
+    setForm({ name: '', parentId: '', level: 0, description: '', seoTitle: '' });
     setEditingCategory(null);
   };
 
   const openAddForm = (parentId = null, level = 0) => {
     resetForm();
-    setForm({ name: '', parentId: parentId || '', level });
+    setForm({ name: '', parentId: parentId || '', level, description: '', seoTitle: '' });
     setShowForm(true);
   };
 
@@ -68,6 +70,8 @@ export default function AdminCategoriesPage() {
       name: category.name,
       parentId: category.parent || '',
       level: category.level,
+      description: category.description || '',
+      seoTitle: category.seoTitle || '',
     });
     setEditingCategory(category);
     setShowForm(true);
@@ -77,7 +81,11 @@ export default function AdminCategoriesPage() {
     e.preventDefault();
     try {
       if (editingCategory) {
-        await adminAPI.updateCategory(editingCategory._id, { name: form.name });
+        await adminAPI.updateCategory(editingCategory._id, {
+          name: form.name,
+          description: form.description,
+          seoTitle: form.seoTitle,
+        });
         toast.success('Category updated');
       } else {
         await adminAPI.createCategory({
@@ -265,7 +273,7 @@ export default function AdminCategoriesPage() {
       {/* Add/Edit Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="font-serif text-lg font-semibold mb-4">
               {editingCategory ? 'Edit Category' : 'Add Category'}
             </h2>
@@ -282,6 +290,43 @@ export default function AdminCategoriesPage() {
                   placeholder="Enter category name"
                 />
               </div>
+              {editingCategory && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      Description <span className="text-gray-400 font-normal">(shown on category page + Google preview)</span>
+                    </label>
+                    <textarea
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      className="input-field"
+                      rows={4}
+                      maxLength={2000}
+                      placeholder="Write 2–3 sentences about this category. Mention materials, style, occasions. The first 160 characters are used as Google's preview snippet."
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      {form.description.length}/2000 characters
+                      {form.description.length > 0 && form.description.length < 80 && (
+                        <span className="text-amber-600 ml-2">Aim for at least 80 characters for SEO.</span>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">
+                      SEO Title <span className="text-gray-400 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.seoTitle}
+                      onChange={(e) => setForm({ ...form, seoTitle: e.target.value })}
+                      className="input-field"
+                      maxLength={70}
+                      placeholder={`Default: ${form.name} — Shop ${form.name} | Rupalsha`}
+                    />
+                    <p className="text-xs text-gray-400 mt-1">{form.seoTitle.length}/70 characters</p>
+                  </div>
+                </>
+              )}
               {!editingCategory && form.parentId && (
                 <div className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-700 dark:text-gray-300 p-3 rounded-lg">
                   Adding as a <strong>{['Main', 'Sub', 'Child'][form.level]}</strong> category under{' '}

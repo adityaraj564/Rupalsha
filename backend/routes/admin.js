@@ -788,6 +788,8 @@ router.put('/categories/:id', runUpload(uploadCategories.single('image')), async
     if (req.body.name !== undefined) category.name = req.body.name;
     if (req.body.isActive !== undefined) category.isActive = req.body.isActive;
     if (req.body.sortOrder !== undefined) category.sortOrder = req.body.sortOrder;
+    if (req.body.description !== undefined) category.description = req.body.description;
+    if (req.body.seoTitle !== undefined) category.seoTitle = req.body.seoTitle;
 
     // Handle image upload — file already uploaded directly to Cloudinary
     // by multer-storage-cloudinary; req.file.path is the secure_url and

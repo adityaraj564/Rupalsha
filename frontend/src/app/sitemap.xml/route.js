@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 3600;
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.rupalsha.com').replace(/\/$/, '');
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://rupalsha-backend.onrender.com/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.rupalsha.com/api';
 
 const STATIC_PATHS = [
   '',
@@ -62,9 +62,14 @@ export async function GET() {
       fetchCategories(),
     ]);
 
+    // Use today's date as lastmod for static section pages — this nudges
+    // Google to recrawl them when the sitemap itself updates.
+    const today = new Date().toISOString();
+
     const urls = [
       ...STATIC_PATHS.map((p) => ({
         loc: `${SITE_URL}${p}`,
+        lastmod: today,
         changefreq: 'daily',
         priority: p === '' ? '1.0' : '0.8',
       })),
@@ -72,6 +77,7 @@ export async function GET() {
         .filter((c) => c?.slug)
         .map((c) => ({
           loc: `${SITE_URL}/category/${c.slug}`,
+          lastmod: c.updatedAt ? new Date(c.updatedAt).toISOString() : today,
           changefreq: 'daily',
           priority: '0.7',
         })),

@@ -26,6 +26,25 @@ const categorySchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  // Admin-editable short intro shown above the product grid on
+  // /category/:slug and used as the page's meta description (trimmed to
+  // 160 chars by the frontend layout). Adding real content here is the
+  // single biggest fix for category pages stuck in "Discovered – not
+  // indexed" in Search Console.
+  description: {
+    type: String,
+    default: '',
+    maxlength: 2000,
+    trim: true,
+  },
+  // Optional custom <title> override. Leave blank to fall back to
+  // "<name> — Shop <name> | Rupalsha".
+  seoTitle: {
+    type: String,
+    default: '',
+    maxlength: 70,
+    trim: true,
+  },
   image: {
     url: { type: String, default: '' },
     public_id: { type: String, default: '' },

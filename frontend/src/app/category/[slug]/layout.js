@@ -27,7 +27,7 @@ export async function generateMetadata({ params }) {
       description: 'Browse our jewellery collection.',
     };
   }
-  const title = `${cat.name} — Shop ${cat.name} | Rupalsha`;
+  const title = cat.seoTitle?.trim() || `${cat.name} — Shop ${cat.name} | Rupalsha`;
   const description = cat.description
     ? String(cat.description).replace(/<[^>]+>/g, '').slice(0, 160)
     : `Explore ${cat.name} at Rupalsha — anti-tarnish, waterproof, skin-friendly jewellery designed for everyday wear.`;
@@ -76,6 +76,19 @@ export default async function CategoryLayout({ children, params }) {
         // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
+      {/* SEO intro block — server-rendered so Googlebot sees real content
+          above the (client-rendered) product grid. Hidden visually when
+          the admin hasn't written a description yet so we never show an
+          empty box. */}
+      {cat?.description ? (
+        <section className="w-full px-4 sm:px-6 lg:px-20 xl:px-32 pt-6 md:pt-8">
+          <div className="max-w-3xl">
+            <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+              {cat.description}
+            </p>
+          </div>
+        </section>
+      ) : null}
       {children}
     </>
   );

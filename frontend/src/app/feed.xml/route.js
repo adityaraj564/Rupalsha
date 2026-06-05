@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 3600; // Re-generate at most hourly if used in static mode
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://rupalsha.com').replace(/\/$/, '');
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://rupalsha-backend.onrender.com/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.rupalsha.com/api';
 
 // Escape special XML characters.
 function xml(str = '') {
