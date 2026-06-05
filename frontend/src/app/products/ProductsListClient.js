@@ -19,7 +19,13 @@ const SORT_OPTIONS = [
 
 const SIZES = ['Free Size', '2.2', '2.4', '2.6', '2.8', '2.10', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18'];
 
-function ProductsContent({ initialProducts = null, initialTotal = 0, initialTotalPages = 1, initialCategoryTree = [] } = {}) {
+function ProductsContent({ initialProducts = null, initialTotal = 0, initialTotalPages = 1, initialCategoryTree = [], lockedFilter = null } = {}) {
+  // `lockedFilter` is set when this component is rendered from a dedicated
+  // clean-URL page like /new-arrivals or /trending. It forces the
+  // corresponding API filter on every fetch, independent of the URL, and
+  // drives the page heading. This gives us SEO-friendly canonical pages
+  // (instead of `/products?featured=true`) which Google can pick as
+  // sitelinks.
   const searchParams = useSearchParams();
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -77,8 +83,8 @@ function ProductsContent({ initialProducts = null, initialTotal = 0, initialTota
         if (debouncedMinPrice) params.minPrice = debouncedMinPrice;
         if (debouncedMaxPrice) params.maxPrice = debouncedMaxPrice;
         if (size) params.size = size;
-        if (searchParams.get('featured')) params.featured = 'true';
-        if (searchParams.get('trending')) params.trending = 'true';
+        if (lockedFilter === 'featured' || searchParams.get('featured')) params.featured = 'true';
+        if (lockedFilter === 'trending' || searchParams.get('trending')) params.trending = 'true';
         if (!isAuthenticated) params.hideOutOfStock = 'true';
 
         const data = await productsAPI.getAll(params);
@@ -97,7 +103,7 @@ function ProductsContent({ initialProducts = null, initialTotal = 0, initialTota
       }
     };
     fetchProducts();
-  }, [selectedCategorySlug, sort, debouncedMinPrice, debouncedMaxPrice, size, page, search, searchParams, isAuthenticated]);
+  }, [selectedCategorySlug, sort, debouncedMinPrice, debouncedMaxPrice, size, page, search, searchParams, isAuthenticated, lockedFilter]);
 
   const clearFilters = () => {
     setSelectedCategorySlug('');
@@ -124,7 +130,11 @@ function ProductsContent({ initialProducts = null, initialTotal = 0, initialTota
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-serif text-3xl md:text-4xl font-bold text-brand-gold">
-              {searchParams.get('trending') ? 'Trending' : searchParams.get('featured') ? 'New Arrivals' : 'Shop All'}
+              {lockedFilter === 'trending' || searchParams.get('trending')
+                ? 'Trending'
+                : lockedFilter === 'featured' || searchParams.get('featured')
+                ? 'New Arrivals'
+                : 'Shop All'}
             </h1>
           </div>
           <div className="flex items-center gap-3">

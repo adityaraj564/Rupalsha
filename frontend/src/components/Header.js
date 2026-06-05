@@ -24,8 +24,8 @@ import toast from 'react-hot-toast';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
-  { href: '/products?featured=true', label: 'New Arrival' },
-  { href: '/products?trending=true', label: 'Trending' },
+  { href: '/new-arrivals', label: 'New Arrival' },
+  { href: '/trending', label: 'Trending' },
   { href: '/products', label: 'Shop All' },
   { href: '/blog', label: 'Blog' },
   { href: '/about', label: 'About Us' },

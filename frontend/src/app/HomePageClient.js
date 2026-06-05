@@ -41,7 +41,7 @@ const GRADIENT_COLORS = [
 ];
 
 const DEFAULT_BANNERS = [
-  { _id: 'default-1', image: { url: '/defaults/banner-1.jpg' }, title: 'Exquisite Gold Collection', link: '/products?featured=true' },
+  { _id: 'default-1', image: { url: '/defaults/banner-1.jpg' }, title: 'Exquisite Gold Collection', link: '/new-arrivals' },
   { _id: 'default-2', image: { url: '/defaults/banner-2.jpg' }, title: 'New Bangle Arrivals', link: '/products?category=bangles' },
   { _id: 'default-3', image: { url: '/defaults/banner-3.jpg' }, title: 'Handcrafted Earrings for Every Occasion', link: '/products?category=earrings' },
 ];
@@ -325,7 +325,7 @@ export default function HomePageClient({
                 <h2 className="section-title text-left">New Arrivals</h2>
                 <p className="text-gray-500 mt-2">Handpicked pieces for you</p>
               </div>
-              <Link href="/products?featured=true" className="text-brand-green font-medium text-sm hover:underline hidden md:block">
+              <Link href="/new-arrivals" className="text-brand-green font-medium text-sm hover:underline hidden md:block">
                 View All →
               </Link>
             </div>
@@ -340,7 +340,7 @@ export default function HomePageClient({
 
             <div className="flex justify-center mt-10">
               <Link
-                href="/products?featured=true"
+                href="/new-arrivals"
                 className="inline-flex items-center justify-center gap-2 px-8 py-3 border-2 border-black dark:border-white text-black dark:text-white text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors duration-300"
               >
                 View All
@@ -407,7 +407,7 @@ export default function HomePageClient({
                 <h2 className="section-title text-left">Trending Now</h2>
                 <p className="text-gray-500 mt-2">Most loved by our customers</p>
               </div>
-              <Link href="/products?trending=true" className="text-brand-green font-medium text-sm hover:underline hidden md:block">
+              <Link href="/trending" className="text-brand-green font-medium text-sm hover:underline hidden md:block">
                 View All →
               </Link>
             </div>
@@ -422,7 +422,7 @@ export default function HomePageClient({
 
             <div className="flex justify-center mt-10">
               <Link
-                href="/products?trending=true"
+                href="/trending"
                 className="inline-flex items-center justify-center gap-2 px-8 py-3 border-2 border-black dark:border-white text-black dark:text-white text-sm font-semibold tracking-wider uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors duration-300"
               >
                 View All

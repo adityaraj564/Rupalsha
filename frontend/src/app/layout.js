@@ -131,6 +131,21 @@ export default async function RootLayout({ children }) {
                     'query-input': 'required name=search_term_string',
                   },
                 },
+                // Explicit primary navigation hint for Google.
+                // Helps the brand SERP show these as sitelinks instead of
+                // arbitrary deep links like individual product pages.
+                {
+                  '@type': 'ItemList',
+                  '@id': `${SITE_URL}/#primary-nav`,
+                  name: 'Primary navigation',
+                  itemListElement: [
+                    { '@type': 'SiteNavigationElement', position: 1, name: 'Trending',     url: `${SITE_URL}/trending` },
+                    { '@type': 'SiteNavigationElement', position: 2, name: 'New Arrivals', url: `${SITE_URL}/new-arrivals` },
+                    { '@type': 'SiteNavigationElement', position: 3, name: 'Shop All',     url: `${SITE_URL}/products` },
+                    { '@type': 'SiteNavigationElement', position: 4, name: 'Blog',         url: `${SITE_URL}/blog` },
+                    { '@type': 'SiteNavigationElement', position: 5, name: 'About',        url: `${SITE_URL}/about` },
+                  ],
+                },
               ],
             }),
           }}
