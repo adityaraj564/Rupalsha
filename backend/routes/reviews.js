@@ -1,7 +1,6 @@
 const express = require('express');
 const { body } = require('express-validator');
 const Review = require('../models/Review');
-const Order = require('../models/Order');
 const { auth } = require('../middleware/auth');
 const upload = require('../utils/upload').reviewsOptimized;
 const { uploadErrorHandler, runUpload } = require('../utils/uploadError');
@@ -39,17 +38,6 @@ router.post('/', auth, runUpload(upload.array('images', 4)), [
 ], async (req, res, next) => {
   try {
     const { productId, rating, title, comment } = req.body;
-
-    // Check if user purchased this product
-    const hasOrdered = await Order.findOne({
-      user: req.user._id,
-      'items.product': productId,
-      status: 'delivered',
-    });
-
-    if (!hasOrdered) {
-      return res.status(400).json({ error: 'You can only review products you have purchased' });
-    }
 
     const images = req.files ? req.files.map(f => ({ url: f.path, public_id: f.filename })) : [];
 
