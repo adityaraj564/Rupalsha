@@ -11,8 +11,6 @@ const HELP_LINKS = [
   { href: '/contact', label: 'Contact Us' },
   { href: '/shipping', label: 'Shipping Info' },
   { href: '/returns', label: 'Returns & Exchange' },
-  { href: '/terms', label: 'Terms & Conditions' },
-  { href: '/privacy', label: 'Privacy Policy' },
   { href: '/blog', label: 'Blog' },
   { href: '/about', label: 'About Us' },
 ];
@@ -136,8 +134,6 @@ export default function Footer() {
           <div className="flex items-center space-x-6 mt-4 md:mt-0">
             <Link href="/privacy" className="hover:text-brand-gold transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-brand-gold transition-colors">Terms of Service</Link>
-            <Link href="/shipping" className="hover:text-brand-gold transition-colors">Shipping</Link>
-            <Link href="/returns" className="hover:text-brand-gold transition-colors">Returns</Link>
           </div>
         </div>
       </div>
