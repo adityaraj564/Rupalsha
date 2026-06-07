@@ -11,6 +11,8 @@ const HELP_LINKS = [
   { href: '/contact', label: 'Contact Us' },
   { href: '/shipping', label: 'Shipping Info' },
   { href: '/returns', label: 'Returns & Exchange' },
+  { href: '/terms', label: 'Terms & Conditions' },
+  { href: '/privacy', label: 'Privacy Policy' },
   { href: '/blog', label: 'Blog' },
   { href: '/about', label: 'About Us' },
 ];
