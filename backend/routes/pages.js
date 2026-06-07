@@ -184,7 +184,7 @@ router.put('/admin/:key', subAdminAuth, async (req, res, next) => {
         type: `policy.${key}`,
         title: policyKeys[key].title,
         message: policyKeys[key].body,
-        link: key === 'shipping' ? '/help' : key === 'returns' ? '/help' : `/${key}`,
+        link: `/${key}`,
         meta: { pageKey: key },
       });
     }

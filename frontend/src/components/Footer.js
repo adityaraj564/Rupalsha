@@ -8,9 +8,9 @@ import { pagesAPI, settingsAPI } from '@/lib/api';
 
 const HELP_LINKS = [
   { href: '/help', label: 'FAQ' },
-  { href: '/help#contact', label: 'Contact Us' },
-  { href: '/help#shipping', label: 'Shipping Info' },
-  { href: '/help#returns', label: 'Returns & Exchange' },
+  { href: '/contact', label: 'Contact Us' },
+  { href: '/shipping', label: 'Shipping Info' },
+  { href: '/returns', label: 'Returns & Exchange' },
   { href: '/blog', label: 'Blog' },
   { href: '/about', label: 'About Us' },
 ];
@@ -132,8 +132,10 @@ export default function Footer() {
         <div className="mt-12 pt-8 border-t border-gray-700 flex flex-col md:flex-row items-center justify-between text-sm text-gray-400">
           <p>&copy; {new Date().getFullYear()} Rupalsha. All rights reserved.</p>
           <div className="flex items-center space-x-6 mt-4 md:mt-0">
-            <Link href="/help#privacy" className="hover:text-brand-gold transition-colors">Privacy Policy</Link>
-            <Link href="/help#terms" className="hover:text-brand-gold transition-colors">Terms of Service</Link>
+            <Link href="/privacy" className="hover:text-brand-gold transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-brand-gold transition-colors">Terms of Service</Link>
+            <Link href="/shipping" className="hover:text-brand-gold transition-colors">Shipping</Link>
+            <Link href="/returns" className="hover:text-brand-gold transition-colors">Returns</Link>
           </div>
         </div>
       </div>

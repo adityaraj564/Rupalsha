@@ -17,6 +17,11 @@ const STATIC_PATHS = [
   '/about',
   '/blog',
   '/help',
+  '/contact',
+  '/shipping',
+  '/returns',
+  '/privacy',
+  '/terms',
 ];
 
 function xml(str = '') {
